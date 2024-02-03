@@ -259,6 +259,7 @@ int TR_initRenderer(TR_AppSettings *appSettings)
 	settings.mD3D11Supported = false;
 	settings.mGLESSupported = false;
 	settings.mShaderTarget = SHADER_TARGET_6_6;
+	settings.mDisableShaderServer = true;
 	initRenderer(appName, &settings, &g_Renderer);
 
 	if (!g_Renderer)
