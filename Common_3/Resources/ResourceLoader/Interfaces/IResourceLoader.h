@@ -101,6 +101,10 @@ typedef struct TextureLoadDesc
     };
     /// Filename without extension. Extension will be determined based on mContainer
     const char*          pFileName;
+#if defined(TIDES)
+    const void* pTextureData;
+    size_t mTextureDataSize;
+#endif
     /// The index of the GPU in SLI/Cross-Fire that owns this texture, or the Renderer index in unlinked mode.
     uint32_t             mNodeIndex;
     /// Following is ignored if pDesc != NULL.  pDesc->mFlags will be considered instead.

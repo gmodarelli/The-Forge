@@ -1,0 +1,7 @@
+#vert skybox.vert
+#include "skybox.vert.fsl"
+#end
+
+#frag skybox.frag
+#include "skybox.frag.fsl"
+#end

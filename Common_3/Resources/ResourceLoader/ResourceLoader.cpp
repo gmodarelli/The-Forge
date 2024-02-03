@@ -587,6 +587,11 @@ struct TextureLoadDescInternal
             TextureCreationFlags mFlags;
             TextureContainerType mContainer;
             uint32_t             mNodeIndex;
+#if defined(TIDES)
+            const void*	         pTextureData;
+            size_t               mTextureDataSize;
+            TextureDesc*         pTextureDesc;
+#endif
         };
         struct
         {
@@ -1528,6 +1533,13 @@ static UploadFunctionResult loadTexture(Renderer* pRenderer, CopyEngine* pCopyEn
                 textureDesc.pSamplerYcbcrConversionInfo = &pTextureDesc->pYcbcrSampler->mVk.mSamplerYcbcrConversionInfo;
             }
 #endif
+
+#if defined(TIDES)
+            if (pTextureDesc->pTextureDesc)
+            {
+                textureDesc.bBindless = pTextureDesc->pTextureDesc->bBindless;
+            }
+#endif
             addTexture(pRenderer, &textureDesc, pTextureDesc->ppTexture);
 
             updateDesc.mStream = stream;
@@ -1557,6 +1569,59 @@ static UploadFunctionResult loadTexture(Renderer* pRenderer, CopyEngine* pCopyEn
             return res;
         }
     }
+
+#if defined(TIDES)
+    if (pTextureDesc->pTextureData && pTextureDesc->mTextureDataSize > 0)
+    {
+        FileStream stream = {};
+        bool success = false;
+
+        TextureUpdateDescInternal updateDesc = {};
+
+        success = fsOpenStreamFromMemory(pTextureDesc->pTextureData, pTextureDesc->mTextureDataSize, FM_READ, false, &stream);
+        ASSERT(success && "Failed to open stream from memory");
+
+        if (success)
+        {
+            pTextureDesc->pTextureDesc->mStartState = RESOURCE_STATE_COPY_DEST;
+            pTextureDesc->pTextureDesc->mNodeIndex = pTextureDesc->mNodeIndex;
+
+#if defined(VULKAN)
+            if (pTextureDesc->pYcbcrSampler)
+            {
+                pTextureDesc->pTextureDesc->pSamplerYcbcrConversionInfo = &pTextureDesc->pYcbcrSampler->mVk.mSamplerYcbcrConversionInfo;
+            }
+#endif
+            addTexture(pRenderer, pTextureDesc->pTextureDesc, pTextureDesc->ppTexture);
+
+            updateDesc.mStream = stream;
+            updateDesc.pTexture = *pTextureDesc->ppTexture;
+            updateDesc.mBaseMipLevel = 0;
+            updateDesc.mMipLevels = pTextureDesc->pTextureDesc->mMipLevels;
+            updateDesc.mBaseArrayLayer = 0;
+            updateDesc.mLayerCount = pTextureDesc->pTextureDesc->mArraySize;
+            updateDesc.mCurrentState = RESOURCE_STATE_COPY_DEST;
+
+            if (IssueExplicitInitialStateBarrier())
+            {
+                TextureBarrier barrier = { updateDesc.pTexture, RESOURCE_STATE_UNDEFINED, RESOURCE_STATE_COPY_DEST };
+                Cmd* cmd = acquireCmd(pCopyEngine);
+                cmdResourceBarrier(cmd, 0, NULL, 1, &barrier, 0, NULL);
+            }
+
+            UploadFunctionResult res = updateTexture(pRenderer, pCopyEngine, updateDesc);
+
+            if (IssueTextureCopyBarriers() && UPLOAD_FUNCTION_RESULT_COMPLETED == res)
+            {
+                TextureBarrier barrier = { *pTextureDesc->ppTexture, RESOURCE_STATE_COPY_DEST, RESOURCE_STATE_SHADER_RESOURCE };
+                Cmd* cmd = acquirePostCopyBarrierCmd(pCopyEngine);
+                cmdResourceBarrier(cmd, 0, NULL, 1, &barrier, 0, NULL);
+            }
+
+            return res;
+        }
+    }
+#endif
 
     LOGF(eERROR, "Failed to open texture file %s", pTextureDesc->pFileName ? pTextureDesc->pFileName : "<NULL>");
     ASSERT(false);
@@ -3297,7 +3362,11 @@ void addResource(TextureLoadDesc* pTextureDesc, SyncToken* token)
         *token = max<uint64_t>(0, *token);
     }
 
+#if defined(TIDES)
+    if (!pTextureDesc->pFileName && !pTextureDesc->pTextureData && pTextureDesc->pDesc)
+#else
     if (!pTextureDesc->pFileName && pTextureDesc->pDesc)
+#endif
     {
         ASSERT(pTextureDesc->pDesc->mStartState);
 
@@ -3338,6 +3407,11 @@ void addResource(TextureLoadDesc* pTextureDesc, SyncToken* token)
             loadDesc.ppTexture = pTextureDesc->ppTexture;
             loadDesc.mForceReset = true;
             loadDesc.mStartState = pTextureDesc->pDesc->mStartState;
+#if defined(TIDES)
+            loadDesc.pTextureData = pTextureDesc->pTextureData;
+            loadDesc.mTextureDataSize = pTextureDesc->mTextureDataSize;
+            loadDesc.pTextureDesc = pTextureDesc->pDesc;
+#endif
             queueTextureLoad(pResourceLoader, &loadDesc, token);
 #endif
             return;
@@ -3363,6 +3437,11 @@ void addResource(TextureLoadDesc* pTextureDesc, SyncToken* token)
         loadDesc.mNodeIndex = pTextureDesc->mNodeIndex;
         loadDesc.pFileName = pTextureDesc->pFileName;
         loadDesc.pYcbcrSampler = pTextureDesc->pYcbcrSampler;
+#if defined(TIDES)
+        loadDesc.pTextureData = pTextureDesc->pTextureData;
+        loadDesc.mTextureDataSize = pTextureDesc->mTextureDataSize;
+        loadDesc.pTextureDesc = pTextureDesc->pDesc;
+#endif
         queueTextureLoad(pResourceLoader, &loadDesc, token);
     }
 }

@@ -195,6 +195,10 @@ DECLARE_INTERNAL_RENDERER_FUNCTION(void, cmdCopySubresource, Cmd* pCmd, Buffer* 
 DECLARE_INTERNAL_RENDERER_FUNCTION(void, addTexture, Renderer* pRenderer, const TextureDesc* pDesc, Texture** ppTexture)
 DECLARE_INTERNAL_RENDERER_FUNCTION(void, removeTexture, Renderer* pRenderer, Texture* pTexture)
 
+#if defined(TIDES)
+DECLARE_INTERNAL_RENDERER_FUNCTION(void, addPersistentBufferSrv, Renderer* pRenderer, const BufferDesc* pDesc, Buffer** pp_buffer);
+#endif
+
 /************************************************************************/
 // Internal initialization settings
 /************************************************************************/
