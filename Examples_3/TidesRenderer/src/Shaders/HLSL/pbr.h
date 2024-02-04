@@ -102,9 +102,31 @@ void BRDF(float3 N, float3 V, float3 L, float3 albedo, float roughness, float me
 	float3 kS = F;
 	float3 kD = (float3(1.0f, 1.0f, 1.0f) - kS) * (1.0f - metalness);
 
-	// Id & Is: diffuse & specular illumination
 	specular += NDF * G * F / (4.0f * max(dot(N, V), 0.0f) * max(dot(N, L), 0.0f) + 0.001f);
 	diffuse += LambertDiffuse(albedo, kD);
+}
+
+void EnvironmentBRDF(float3 N, float3 V, float3 albedo, float roughness, float metalness, float aoWithIntensity, float environmentLightIntensity, inout float3 diffuse, inout float3 specular)
+{
+	const float3 R = reflect(-V, N);
+
+	// F0 represents the base reflectivity (calculated using IOR: index of refraction)
+	float3 F0 = float3(0.04f, 0.04f, 0.04f);
+	F0 = lerp(F0, albedo, metalness);
+
+	float3 F = FresnelSchlickRoughness(max(dot(N, V), 0.0f), F0, roughness);
+
+	float3 kS = F;
+	float3 kD = (float3(1.0f, 1.0f, 1.0f) - kS) * (1.0f - metalness);
+
+	float3 irradiance = SampleTexCube(Get(irradianceMap), Get(bilinearRepeatSampler), N).rgb;
+	float3 spec = SampleLvlTexCube(Get(specularMap), Get(bilinearRepeatSampler), R, roughness * 4).rgb;
+
+	float2 maxNVRough = float2(max(dot(N, V), 0.0), roughness);
+	float2 brdf = SampleTex2D(Get(brdfIntegrationMap), Get(bilinearClampSampler), maxNVRough).rg;
+
+	specular += spec * (F * brdf.x + brdf.y) * aoWithIntensity * environmentLightIntensity;
+	diffuse += kD * irradiance * albedo * aoWithIntensity * environmentLightIntensity;
 }
 
 #endif // _PBR_H

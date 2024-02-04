@@ -65,5 +65,8 @@
     <FxCompile Include="..\src\Shaders\HLSL\tonemapper.frag.hlsl">
       <Filter>Shaders\HLSL</Filter>
     </FxCompile>
+    <FxCompile Include="..\src\Shaders\HLSL\utils.h">
+      <Filter>Shaders\HLSL</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

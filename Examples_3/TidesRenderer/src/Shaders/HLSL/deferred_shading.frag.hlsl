@@ -2,14 +2,20 @@
 #define STAGE_FRAG
 
 #include "../../../../../Common_3/Tools/ForgeShadingLanguage/includes/d3d.h"
+
+RES(SamplerState, bilinearRepeatSampler, UPDATE_FREQ_NONE, s0, binding = 1);
+RES(SamplerState, bilinearClampSampler, UPDATE_FREQ_NONE, s1, binding = 2);
+
+RES(Tex2D(float2), brdfIntegrationMap, UPDATE_FREQ_NONE, t0, binding = 3);
+RES(TexCube(float4), irradianceMap, UPDATE_FREQ_NONE, t1, binding = 4);
+RES(TexCube(float4), specularMap, UPDATE_FREQ_NONE, t2, binding = 5);
+
+RES(Tex2D(float4), gBuffer0, UPDATE_FREQ_NONE, t3, binding = 6);
+RES(Tex2D(float4), gBuffer1, UPDATE_FREQ_NONE, t4, binding = 7);
+RES(Tex2D(float4), gBuffer2, UPDATE_FREQ_NONE, t5, binding = 8);
+RES(Tex2D(float), depthBuffer, UPDATE_FREQ_NONE, t6, binding = 9);
+
 #include "pbr.h"
-
-RES(SamplerState, bilinearClampSampler, UPDATE_FREQ_NONE, s0, binding = 1);
-
-RES(Tex2D(float4), gBuffer0, UPDATE_FREQ_NONE, t0, binding = 2);
-RES(Tex2D(float4), gBuffer1, UPDATE_FREQ_NONE, t1, binding = 3);
-RES(Tex2D(float4), gBuffer2, UPDATE_FREQ_NONE, t2, binding = 4);
-RES(Tex2D(float), depthBuffer, UPDATE_FREQ_NONE, t3, binding = 5);
 
 CBUFFER(cbFrame, UPDATE_FREQ_PER_FRAME, b1, binding = 0)
 {
@@ -49,10 +55,7 @@ PsOut PS_MAIN( VsOut Input) {
     Out.Diffuse = float4(0, 0, 0, 1);
     Out.Specular = float4(0, 0, 0, 1);
 
-    // uint i;
-    // // Point Lights
-
-    float3 baseColor  = SampleLvlTex2D(Get(gBuffer0), Get(bilinearClampSampler), Input.UV, 0).rgb;
+    float4 baseColor  = SampleLvlTex2D(Get(gBuffer0), Get(bilinearClampSampler), Input.UV, 0);
     float3 N = normalize(SampleLvlTex2D(Get(gBuffer1), Get(bilinearClampSampler), Input.UV, 0).rgb * 2.0f - 1.0f);
     float3 armSample = SampleLvlTex2D(Get(gBuffer2), Get(bilinearClampSampler), Input.UV, 0).rgb;
     float depth  = SampleLvlTex2D(Get(depthBuffer), Get(bilinearClampSampler), Input.UV, 0).r;
@@ -81,7 +84,7 @@ PsOut PS_MAIN( VsOut Input) {
         const float  intensity = pointLight.colorAndIntensity.a;
         const float3 radiance = color * intensity * attenuation;
 
-        BRDF(N, V, L, baseColor, roughness, metalness, Out.Diffuse.rgb, Out.Specular.rgb);
+        BRDF(N, V, L, baseColor.rgb, roughness, metalness, Out.Diffuse.rgb, Out.Specular.rgb);
         Out.Diffuse.rgb *= radiance * NdotL * attenuation;
         Out.Specular.rgb *= radiance * NdotL * attenuation;
     }
@@ -97,9 +100,17 @@ PsOut PS_MAIN( VsOut Input) {
         const float  intensity = directionalLight.colorAndIntensity.a;
         const float3 radiance = color * intensity;
 
-        BRDF(N, V, L, baseColor, roughness, metalness, Out.Diffuse.rgb, Out.Specular.rgb);
+        BRDF(N, V, L, baseColor.rgb, roughness, metalness, Out.Diffuse.rgb, Out.Specular.rgb);
         Out.Diffuse.rgb *= radiance * NdotL;
         Out.Specular.rgb *= radiance * NdotL;
+    }
+
+    // IBL (Environment Light)
+    if (baseColor.a > 0)
+    {
+        float aoWithIntensity = 1.0f;
+        float environmentLightIntensity = 0.1f;
+        EnvironmentBRDF(N, V, baseColor.rgb, roughness, metalness, aoWithIntensity, environmentLightIntensity, Out.Diffuse.rgb, Out.Specular.rgb);
     }
 
     RETURN(Out);

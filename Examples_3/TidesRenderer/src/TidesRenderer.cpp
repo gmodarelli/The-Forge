@@ -123,18 +123,18 @@ Buffer *g_UniformBufferCamera[g_DataBufferCount] = {NULL};
 Shader *g_ShaderTerrain = NULL;
 RootSignature *g_RootSignatureTerrain = NULL;
 Pipeline *g_PipelineTerrain = NULL;
-DescriptorSet *g_DescriptorSetTerrain[2] = { NULL };
+DescriptorSet *g_DescriptorSetTerrain = NULL;
 
 // Lit Shader Resources
 // ====================
 Shader *g_ShaderLitOpaque = NULL;
 RootSignature *g_RootSignatureLitOpaque = NULL;
 Pipeline *g_PipelineLitOpaque = NULL;
-DescriptorSet *g_DescriptorSetLitOpaque[2] = { NULL };
+DescriptorSet *g_DescriptorSetLitOpaque = NULL;
 Shader *g_ShaderLitMasked = NULL;
 RootSignature *g_RootSignatureLitMasked = NULL;
 Pipeline *g_PipelineLitMasked = NULL;
-DescriptorSet *g_DescriptorSetLitMasked[2] = { NULL };
+DescriptorSet *g_DescriptorSetLitMasked = NULL;
 
 // Deferred Shading Shader Resources
 // =================================
@@ -606,8 +606,7 @@ void TR_draw(TR_FrameData frameData)
 		// Terrain Pass
 		{
 			cmdBindPipeline(cmd, g_PipelineTerrain);
-			cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetTerrain[0]);
-			cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetTerrain[1]);
+			cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetTerrain);
 
 			uint32_t rootConstantIndex = getDescriptorIndexFromName(g_RootSignatureTerrain, "RootConstant");
 
@@ -645,8 +644,7 @@ void TR_draw(TR_FrameData frameData)
 		// Lit Masked Pass
 		{
 			cmdBindPipeline(cmd, g_PipelineLitMasked);
-			cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetLitMasked[0]);
-			cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetLitMasked[1]);
+			cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetLitMasked);
 
 			uint32_t rootConstantIndex = getDescriptorIndexFromName(g_RootSignatureLitMasked, "RootConstant");
 
@@ -684,8 +682,7 @@ void TR_draw(TR_FrameData frameData)
 		// Lit Opaque Pass
 		{
 			cmdBindPipeline(cmd, g_PipelineLitOpaque);
-			cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetLitOpaque[0]);
-			cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetLitOpaque[1]);
+			cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetLitOpaque);
 
 			uint32_t rootConstantIndex = getDescriptorIndexFromName(g_RootSignatureLitOpaque, "RootConstant");
 
@@ -1623,8 +1620,9 @@ void LoadRootSignatures()
 	}
 
 	{
-		const char *staticSamplerNames[] = {"bilinearClampSampler"};
+		const char *staticSamplerNames[] = {"bilinearRepeatSampler", "bilinearClampSampler"};
 		Sampler *staticSamplers[] = {
+			g_SamplerBilinearRepeat,
 			g_SamplerBilinearClampToEdge,
 		};
 		uint32_t numStaticSamplers = sizeof(staticSamplers) / sizeof(staticSamplers[0]);
@@ -1662,20 +1660,14 @@ void LoadDescriptorSets()
 	setDesc = {g_RootSignatureSkybox, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
 	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetSkybox[1]);
 
-	setDesc = {g_RootSignatureTerrain, DESCRIPTOR_UPDATE_FREQ_NONE, g_DataBufferCount};
-	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetTerrain[0]);
 	setDesc = {g_RootSignatureTerrain, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
-	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetTerrain[1]);
+	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetTerrain);
 
-	setDesc = {g_RootSignatureLitOpaque, DESCRIPTOR_UPDATE_FREQ_NONE, g_DataBufferCount};
-	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetLitOpaque[0]);
 	setDesc = {g_RootSignatureLitOpaque, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
-	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetLitOpaque[1]);
+	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetLitOpaque);
 
-	setDesc = {g_RootSignatureLitMasked, DESCRIPTOR_UPDATE_FREQ_NONE, g_DataBufferCount};
-	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetLitMasked[0]);
 	setDesc = {g_RootSignatureLitMasked, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
-	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetLitMasked[1]);
+	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetLitMasked);
 
 	setDesc = {g_RootSignatureDeferredShading, DESCRIPTOR_UPDATE_FREQ_NONE, g_DataBufferCount};
 	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetDeferredShading[0]);
@@ -1710,12 +1702,9 @@ void UnloadDescriptorSets()
 {
 	removeDescriptorSet(g_Renderer, g_DescriptorSetSkybox[0]);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetSkybox[1]);
-	removeDescriptorSet(g_Renderer, g_DescriptorSetTerrain[0]);
-	removeDescriptorSet(g_Renderer, g_DescriptorSetTerrain[1]);
-	removeDescriptorSet(g_Renderer, g_DescriptorSetLitOpaque[0]);
-	removeDescriptorSet(g_Renderer, g_DescriptorSetLitOpaque[1]);
-	removeDescriptorSet(g_Renderer, g_DescriptorSetLitMasked[0]);
-	removeDescriptorSet(g_Renderer, g_DescriptorSetLitMasked[1]);
+	removeDescriptorSet(g_Renderer, g_DescriptorSetTerrain);
+	removeDescriptorSet(g_Renderer, g_DescriptorSetLitOpaque);
+	removeDescriptorSet(g_Renderer, g_DescriptorSetLitMasked);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetDeferredShading[0]);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetDeferredShading[1]);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetTonemapper);
@@ -1774,7 +1763,7 @@ void RemoveStaticSamplers()
 
 void PrepareDescriptorSets()
 {
-	DescriptorData params[4] = {};
+	DescriptorData params[7] = {};
 
 	params[0].pName = "skyboxTex";
 	params[0].ppTextures = &g_TextureSkybox;
@@ -1792,25 +1781,21 @@ void PrepareDescriptorSets()
 		params[1].ppTextures = &g_TextureIrradiance;
 		params[2].pName = "specularMap";
 		params[2].ppTextures = &g_TextureSpecular;
-		updateDescriptorSet(g_Renderer, i, g_DescriptorSetTerrain[0], 3, params);
-		updateDescriptorSet(g_Renderer, i, g_DescriptorSetLitOpaque[0], 3, params);
-		updateDescriptorSet(g_Renderer, i, g_DescriptorSetLitMasked[0], 3, params);
-
-		params[0].pName = "gBuffer0";
-		params[0].ppTextures = &g_GBuffer0->pTexture;
-		params[1].pName = "gBuffer1";
-		params[1].ppTextures = &g_GBuffer1->pTexture;
-		params[2].pName = "gBuffer2";
-		params[2].ppTextures = &g_GBuffer2->pTexture;
-		params[3].pName = "depthBuffer";
-		params[3].ppTextures = &g_DepthBuffer->pTexture;
-		updateDescriptorSet(g_Renderer, i, g_DescriptorSetDeferredShading[0], 4, params);
+		params[3].pName = "gBuffer0";
+		params[3].ppTextures = &g_GBuffer0->pTexture;
+		params[4].pName = "gBuffer1";
+		params[4].ppTextures = &g_GBuffer1->pTexture;
+		params[5].pName = "gBuffer2";
+		params[5].ppTextures = &g_GBuffer2->pTexture;
+		params[6].pName = "depthBuffer";
+		params[6].ppTextures = &g_DepthBuffer->pTexture;
+		updateDescriptorSet(g_Renderer, i, g_DescriptorSetDeferredShading[0], 7, params);
 
 		params[0].pName = "cbFrame";
 		params[0].ppBuffers = &g_UniformBufferCamera[i];
-		updateDescriptorSet(g_Renderer, i, g_DescriptorSetTerrain[1], 1, params);
-		updateDescriptorSet(g_Renderer, i, g_DescriptorSetLitOpaque[1], 1, params);
-		updateDescriptorSet(g_Renderer, i, g_DescriptorSetLitMasked[1], 1, params);
+		updateDescriptorSet(g_Renderer, i, g_DescriptorSetTerrain, 1, params);
+		updateDescriptorSet(g_Renderer, i, g_DescriptorSetLitOpaque, 1, params);
+		updateDescriptorSet(g_Renderer, i, g_DescriptorSetLitMasked, 1, params);
 		updateDescriptorSet(g_Renderer, i, g_DescriptorSetDeferredShading[1], 1, params);
 
 		params[0].pName = "lightingDiffuse";

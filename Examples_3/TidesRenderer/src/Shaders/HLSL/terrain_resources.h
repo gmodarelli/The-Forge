@@ -23,10 +23,6 @@ struct TerrainLayerTextureIndices {
 RES(SamplerState, bilinearRepeatSampler, UPDATE_FREQ_NONE, s0, binding = 1);
 RES(SamplerState, bilinearClampSampler, UPDATE_FREQ_NONE, s1, binding = 2);
 
-RES(Tex2D(float2), brdfIntegrationMap, UPDATE_FREQ_NONE, t0, binding = 3);
-RES(TexCube(float4), irradianceMap, UPDATE_FREQ_NONE, t1, binding = 4);
-RES(TexCube(float4), specularMap, UPDATE_FREQ_NONE, t2, binding = 5);
-
 CBUFFER(cbFrame, UPDATE_FREQ_PER_FRAME, b1, binding = 0)
 {
 	DATA(float4x4, projView, None);
