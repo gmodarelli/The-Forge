@@ -1804,7 +1804,7 @@ void PrepareDescriptorSets()
 		params[2].ppTextures = &g_GBuffer2->pTexture;
 		params[3].pName = "depthBuffer";
 		params[3].ppTextures = &g_DepthBuffer->pTexture;
-		updateDescriptorSet(g_Renderer, 0, g_DescriptorSetDeferredShading[0], 4, params);
+		updateDescriptorSet(g_Renderer, i, g_DescriptorSetDeferredShading[0], 4, params);
 
 		params[0].pName = "cbFrame";
 		params[0].ppBuffers = &g_UniformBufferCamera[i];
@@ -1817,7 +1817,7 @@ void PrepareDescriptorSets()
 		params[0].ppTextures = &g_LightingDiffuse->pTexture;
 		params[1].pName = "lightingSpecular";
 		params[1].ppTextures = &g_LightingSpecular->pTexture;
-		updateDescriptorSet(g_Renderer, 0, g_DescriptorSetTonemapper, 2, params);
+		updateDescriptorSet(g_Renderer, i, g_DescriptorSetTonemapper, 2, params);
 	}
 }
 
