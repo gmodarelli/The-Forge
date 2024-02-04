@@ -74,7 +74,7 @@ STRUCT(GBufferOutput) {
 	DATA(float4, GBuffer2, SV_TARGET2);
 };
 
-#include "pbr.h"
+// #include "pbr.h"
 
 
 #endif // _LIT_RESOURCES_H

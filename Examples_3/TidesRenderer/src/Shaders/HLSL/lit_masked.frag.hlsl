@@ -2,6 +2,7 @@
 #define STAGE_FRAG
 
 #include "lit_resources.h"
+#include "utils.h"
 
 GBufferOutput PS_MAIN( VSOutput Input, bool isFrontFace : SV_IsFrontFace ) {
     INIT_MAIN;

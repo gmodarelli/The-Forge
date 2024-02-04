@@ -2,6 +2,7 @@
 #define STAGE_FRAG
 
 #include "terrain_resources.h"
+#include "utils.h"
 
 GBufferOutput PS_MAIN( VSOutput Input ) {
     INIT_MAIN;
