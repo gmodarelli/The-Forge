@@ -840,21 +840,6 @@ void TR_draw(TR_FrameData frameData)
 	g_FrameIndex = (g_FrameIndex + 1) % g_DataBufferCount;
 }
 
-void TR_registerRenderable(TR_Renderable inRenderable)
-{
-	assert(g_RegisteredRenderableCount < g_RegisteredRenderableCountMax - 1);
-
-	Renderable *renderable = &g_RegisteredRenderables[g_RegisteredRenderableCount++];
-	assert(renderable);
-
-	renderable->ID = inRenderable.ID;
-	renderable->meshHandle = inRenderable.meshHandle;
-}
-
-void TR_updateRenderable(TR_Renderable inRenderable)
-{
-}
-
 TR_BufferHandle TR_createBuffer(TR_Slice initialData, uint32_t dataStride, const char *debugName)
 {
 	assert(g_GpuBufferCount < g_GpuBufferMaxCount - 1);

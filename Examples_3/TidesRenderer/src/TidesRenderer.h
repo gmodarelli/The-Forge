@@ -71,19 +71,6 @@ typedef struct TR_BufferHandle {
 	unsigned int ID;
 } TR_BufferHandle;
 
-// typedef struct TR_BufferDesc {
-// 	/// Decides which memory heap buffer will use (default, upload, readback)
-// 	ResourceMemoryUsage mMemoryUsage;
-// 	/// Creation flags of the buffer
-// 	BufferCreationFlags mFlags;
-// 	/// What state will the buffer get created in
-// 	ResourceState mStartState;
-// 	/// Format of the buffer (applicable to typed storage buffers (Buffer<T>)
-// 	TinyImageFormat mFormat;
-// 	/// Flags specifying the suitable usage of this buffer (Uniform buffer, Vertex Buffer, Index Buffer,...)
-// 	DescriptorType mDescriptors;
-// } TR_BufferDesc;
-
 TR_API TR_BufferHandle TR_createBuffer(TR_Slice initialData, uint32_t dataStride, const char* debugName);
 TR_API void TR_updateBuffer(TR_Slice data, TR_BufferHandle bufferHandle);
 TR_API uint32_t TR_bufferBindlessIndex(TR_BufferHandle bufferHandle);
@@ -102,16 +89,6 @@ typedef struct TR_TextureHandle {
 TR_API TR_TextureHandle TR_loadTexture(const char* path);
 TR_API TR_TextureHandle TR_loadTextureFromMemory(uint32_t width, uint32_t height, TinyImageFormat format, TR_Slice dataSlice, const char* debugName);
 TR_API uint32_t TR_textureBindlessIndex(TR_TextureHandle textureHandle);
-
-// TODO(gmodarelli): Specify material
-// TODO(gmodarelli): Specify which passes we want to register this for
-typedef struct TR_Renderable {
-	uint64_t ID;			// For now this is flecs entity id
-	TR_MeshHandle meshHandle;
-} TR_Renderable;
-
-TR_API void TR_registerRenderable(TR_Renderable renderable);
-TR_API void TR_updateRenderable(TR_Renderable renderable);
 
 typedef struct TR_DrawCallInstanced {
 	TR_MeshHandle meshHandle;
