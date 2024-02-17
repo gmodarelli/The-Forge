@@ -219,8 +219,8 @@ int TR_initRenderer(TR_AppSettings *appSettings)
 
 	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_GPU_CONFIG, "GPUCfg");
 	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_SHADER_BINARIES, "content/compiled_shaders");
-	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_TEXTURES, "content/textures");
-	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_MESHES, "content/meshes");
+	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_TEXTURES, "content");
+	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_MESHES, "content");
 
 	g_TerrainDrawCalls = (TR_DrawCallInstanced *)tf_malloc(sizeof(TR_DrawCallInstanced) * g_TerrainDrawCallsCountMax);
 	assert(g_TerrainDrawCalls);
@@ -1454,22 +1454,22 @@ void LoadSkybox()
 	addResource(&skyboxVbDesc, &token);
 
 	TextureLoadDesc skyboxLoadDesc = {};
-	skyboxLoadDesc.pFileName = "default/sunset_fairwayEnvHDR.dds";
+	skyboxLoadDesc.pFileName = "textures/default/sunset_fairwayEnvHDR.dds";
 	skyboxLoadDesc.ppTexture = &g_TextureSkybox;
 	addResource(&skyboxLoadDesc, &token);
 
 	TextureLoadDesc irradianceLoadDesc = {};
-	irradianceLoadDesc.pFileName = "default/sunset_fairwayDiffuseHDR.dds";
+	irradianceLoadDesc.pFileName = "textures/default/sunset_fairwayDiffuseHDR.dds";
 	irradianceLoadDesc.ppTexture = &g_TextureIrradiance;
 	addResource(&irradianceLoadDesc, &token);
 
 	TextureLoadDesc specularLoadDesc = {};
-	specularLoadDesc.pFileName = "default/sunset_fairwaySpecularHDR.dds";
+	specularLoadDesc.pFileName = "textures/default/sunset_fairwaySpecularHDR.dds";
 	specularLoadDesc.ppTexture = &g_TextureSpecular;
 	addResource(&specularLoadDesc, &token);
 
 	TextureLoadDesc brdfLoadDesc = {};
-	brdfLoadDesc.pFileName = "default/sunset_fairwayBrdf.dds";
+	brdfLoadDesc.pFileName = "textures/default/sunset_fairwayBrdf.dds";
 	brdfLoadDesc.ppTexture = &g_TextureBRDFLut;
 	addResource(&brdfLoadDesc, &token);
 
