@@ -13,11 +13,25 @@ GBufferOutput PS_MAIN( VSOutput Input ) {
     InstanceData instance = instanceTransformBuffer.Load<InstanceData>(instanceIndex * sizeof(InstanceData));
 
     const float3 P = Input.PositionWS.xyz;
-    // Calculate normal from position derivatives
-    float3 N = normalize(cross(ddx_fine(P), ddy_fine(P)));
-    float3 T = normalize(cross(float3(0, 1, 0), N));
-    float3 B = normalize(cross(T, N));
+
+    // Derive normals from the heightmap using the central differences method
+    Texture2D heightmap = ResourceDescriptorHeap[Get(instance.heightmapTextureIndex)];
+
+    // TODO(gmodarelli): Pass heightmap resolution in
+    float2 e = float2(1.0f / 65.0f, 0.0);
+    // TODO(gmodarelli): Pass terrainScale in
+    float terrainScale = 500.0f;
+    float l = SampleLvlTex2D(heightmap, Get(bilinearClampSampler), saturate(Input.UV - e.xy), 0).r / terrainScale;
+    float r = SampleLvlTex2D(heightmap, Get(bilinearClampSampler), saturate(Input.UV + e.xy), 0).r / terrainScale;
+    float b = SampleLvlTex2D(heightmap, Get(bilinearClampSampler), saturate(Input.UV - e.yx), 0).r / terrainScale;
+    float t = SampleLvlTex2D(heightmap, Get(bilinearClampSampler), saturate(Input.UV + e.yx), 0).r / terrainScale;
+    float3 N = normalize(float3(l - r, 20.0 * e.x, b - t));
+
+    // Recalculating the tangent now that the normal has been adjusted.
+    float3 B = normalize(cross(N, Input.Tangent));
+    float3 T = normalize(cross(N, B));
     float3x3 TBN = make_f3x3_rows(T, B, N);
+
     const float3 V = normalize(Get(camPos).xyz - P);
 
     Texture2D splatmap = ResourceDescriptorHeap[Get(instance.splatmapTextureIndex)];
