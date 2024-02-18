@@ -1439,22 +1439,22 @@ void LoadSkybox()
 	addResource(&skyboxVbDesc, &token);
 
 	TextureLoadDesc skyboxLoadDesc = {};
-	skyboxLoadDesc.pFileName = "textures/default/sunset_fairwayEnvHDR.dds";
+	skyboxLoadDesc.pFileName = "textures/env/sunset_fairwayEnvHDR.dds";
 	skyboxLoadDesc.ppTexture = &g_TextureSkybox;
 	addResource(&skyboxLoadDesc, &token);
 
 	TextureLoadDesc irradianceLoadDesc = {};
-	irradianceLoadDesc.pFileName = "textures/default/sunset_fairwayDiffuseHDR.dds";
+	irradianceLoadDesc.pFileName = "textures/env/sunset_fairwayDiffuseHDR.dds";
 	irradianceLoadDesc.ppTexture = &g_TextureIrradiance;
 	addResource(&irradianceLoadDesc, &token);
 
 	TextureLoadDesc specularLoadDesc = {};
-	specularLoadDesc.pFileName = "textures/default/sunset_fairwaySpecularHDR.dds";
+	specularLoadDesc.pFileName = "textures/env/sunset_fairwaySpecularHDR.dds";
 	specularLoadDesc.ppTexture = &g_TextureSpecular;
 	addResource(&specularLoadDesc, &token);
 
 	TextureLoadDesc brdfLoadDesc = {};
-	brdfLoadDesc.pFileName = "textures/default/sunset_fairwayBrdf.dds";
+	brdfLoadDesc.pFileName = "textures/env/sunset_fairwayBrdf.dds";
 	brdfLoadDesc.ppTexture = &g_TextureBRDFLut;
 	addResource(&brdfLoadDesc, &token);
 
