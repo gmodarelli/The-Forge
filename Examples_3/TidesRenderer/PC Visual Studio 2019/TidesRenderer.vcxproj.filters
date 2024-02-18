@@ -6,26 +6,4 @@
   <ItemGroup>
     <ClInclude Include="..\src\TidesRenderer.h" />
   </ItemGroup>
-  <ItemGroup>
-    <FSLShader Include="..\src\Shaders\FSL\skybox.frag.fsl">
-      <Filter>Shaders\FSL</Filter>
-    </FSLShader>
-    <FSLShader Include="..\src\Shaders\FSL\skybox.vert.fsl">
-      <Filter>Shaders\FSL</Filter>
-    </FSLShader>
-    <FSLShader Include="..\src\Shaders\FSL\skybox_resources.h.fsl">
-      <Filter>Shaders\FSL</Filter>
-    </FSLShader>
-    <FSLShader Include="..\src\Shaders\FSL\ShaderList.fsl">
-      <Filter>Shaders\FSL</Filter>
-    </FSLShader>
-  </ItemGroup>
-  <ItemGroup>
-    <Filter Include="Shaders">
-      <UniqueIdentifier>{279466ac-565a-4dd2-aadf-e8db4018e842}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Shaders\FSL">
-      <UniqueIdentifier>{faa2acba-f2fd-4099-b06c-93e90fdb43e0}</UniqueIdentifier>
-    </Filter>
-  </ItemGroup>
 </Project>
