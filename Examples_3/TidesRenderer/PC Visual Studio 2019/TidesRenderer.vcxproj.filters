@@ -5,15 +5,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\TidesRenderer.h" />
-    <ClInclude Include="..\src\Shaders\HLSL\terrain_resources.h">
-      <Filter>Shaders\HLSL</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\Shaders\HLSL\lit_resources.h">
-      <Filter>Shaders\HLSL</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\Shaders\HLSL\pbr.h">
-      <Filter>Shaders\HLSL</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FSLShader Include="..\src\Shaders\FSL\skybox.frag.fsl">
@@ -36,37 +27,5 @@
     <Filter Include="Shaders\FSL">
       <UniqueIdentifier>{faa2acba-f2fd-4099-b06c-93e90fdb43e0}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\HLSL">
-      <UniqueIdentifier>{c1cb9aa1-d3fb-4bef-adf8-86c18325a751}</UniqueIdentifier>
-    </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="..\src\Shaders\HLSL\terrain.frag.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="..\src\Shaders\HLSL\terrain.vert.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="..\src\Shaders\HLSL\lit_opaque.frag.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="..\src\Shaders\HLSL\lit.vert.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="..\src\Shaders\HLSL\lit_masked.frag.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="..\src\Shaders\HLSL\deferred_shading.frag.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="..\src\Shaders\HLSL\fullscreen.vert.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="..\src\Shaders\HLSL\tonemapper.frag.hlsl">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
-    <FxCompile Include="..\src\Shaders\HLSL\utils.h">
-      <Filter>Shaders\HLSL</Filter>
-    </FxCompile>
   </ItemGroup>
 </Project>
