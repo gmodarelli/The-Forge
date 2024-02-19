@@ -31,8 +31,6 @@ RenderTarget *g_DepthBuffer = NULL;
 RenderTarget *g_GBuffer0 = NULL;
 RenderTarget *g_GBuffer1 = NULL;
 RenderTarget *g_GBuffer2 = NULL;
-RenderTarget *g_LightingDiffuse = NULL;
-RenderTarget *g_LightingSpecular = NULL;
 RenderTarget *g_SceneColor = NULL;
 
 TR_AppSettings *g_AppSettings = NULL;
@@ -473,8 +471,6 @@ void TR_onUnload(ReloadDesc *reloadDesc)
 		removeRenderTarget(g_Renderer, g_GBuffer0);
 		removeRenderTarget(g_Renderer, g_GBuffer1);
 		removeRenderTarget(g_Renderer, g_GBuffer2);
-		removeRenderTarget(g_Renderer, g_LightingDiffuse);
-		removeRenderTarget(g_Renderer, g_LightingSpecular);
 		removeRenderTarget(g_Renderer, g_SceneColor);
 	}
 
@@ -694,20 +690,17 @@ void TR_draw(TR_FrameData frameData)
 	// Deferred Shading
 	{
 		RenderTargetBarrier barriers[] = {
-			{ g_LightingDiffuse, RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_RENDER_TARGET },
-			{ g_LightingSpecular, RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_RENDER_TARGET },
+			{ g_SceneColor, RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_RENDER_TARGET },
 		};
 		uint32_t barriersCount = sizeof(barriers) / sizeof(barriers[0]);
-		assert(barriersCount == 2);
+		assert(barriersCount == 1);
 
 		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, barriersCount, barriers);
-		RenderTarget* renderTargets[] = { g_LightingDiffuse, g_LightingSpecular };
+		RenderTarget* renderTargets[] = { g_SceneColor };
 
 		LoadActionsDesc loadActions = {};
 		loadActions.mLoadActionsColor[0] = LOAD_ACTION_CLEAR;
 		loadActions.mClearColorValues[0] = renderTargets[0]->mClearValue;
-		loadActions.mLoadActionsColor[1] = LOAD_ACTION_CLEAR;
-		loadActions.mClearColorValues[1] = renderTargets[1]->mClearValue;
 		cmdBindRenderTargets(cmd, barriersCount, renderTargets, NULL, &loadActions, NULL, NULL, -1, 1);
 
 		cmdBindPipeline(cmd, g_PipelineDeferredShading);
@@ -717,15 +710,13 @@ void TR_draw(TR_FrameData frameData)
 		cmdDraw(cmd, 3, 0);
 		cmdBindRenderTargets(cmd, 0, NULL, NULL, NULL, NULL, NULL, -1, -1);
 
-		barriers[0] = { g_LightingDiffuse, RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE };
-		barriers[1] = { g_LightingSpecular, RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE };
+		barriers[0] = { g_SceneColor, RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE };
 		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, barriersCount, barriers);
 	}
 
 	// Tonemapper
 	{
 		RenderTargetBarrier barriers[] = {
-			// { g_SceneColor, RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_RENDER_TARGET },
 			{ g_SwapChain->ppRenderTargets[swapchainImageIndex], RESOURCE_STATE_PRESENT, RESOURCE_STATE_RENDER_TARGET },
 		};
 		uint32_t barriersCount = sizeof(barriers) / sizeof(barriers[0]);
@@ -746,32 +737,9 @@ void TR_draw(TR_FrameData frameData)
 		cmdDraw(cmd, 3, 0);
 		cmdBindRenderTargets(cmd, 0, NULL, NULL, NULL, NULL, NULL, -1, -1);
 
-		// barriers[0] = { g_SceneColor, RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE };
 		barriers[0] = { g_SwapChain->ppRenderTargets[swapchainImageIndex], RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_PRESENT };
 		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, barriersCount, barriers);
 	}
-
-	// Blit to swapchain
-	// {
-	//	RenderTarget *pRenderTarget = g_SwapChain->ppRenderTargets[swapchainImageIndex];
-	// 	RenderTargetBarrier barriers[] = {
-	// 		{ pRenderTarget, RESOURCE_STATE_PRESENT, RESOURCE_STATE_RENDER_TARGET },
-	// 	};
-	// 	cmdResourceBarrier(cmd, 0, NULL, 0, NULL, 1, barriers);
-
-	// 	LoadActionsDesc loadActions = {};
-	// 	loadActions.mLoadActionsColor[0] = LOAD_ACTION_CLEAR;
-	// 	cmdBindRenderTargets(cmd, 1, &pRenderTarget, NULL, &loadActions, NULL, NULL, -1, 1);
-
-	// 	cmdBindPipeline(cmd, g_PipelineDeferredShading);
-	// 	cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetDeferredShading[0]);
-	// 	cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetDeferredShading[1]);
-	// 	cmdSetViewport(cmd, 0.0f, 0.0f, (float)pRenderTarget->mWidth, (float)pRenderTarget->mHeight, 0.0f, 1.0f);
-	// 	cmdDraw(cmd, 3, 0);
-
-	// 	barriers[0] = {pRenderTarget, RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_PRESENT};
-	// 	cmdResourceBarrier(cmd, 0, NULL, 0, NULL, 1, barriers);
-	// }
 
 	// TODO(gmodarelli): Init profiler
 	// cmdEndGpuFrameProfile(cmd, m_GpuProfileToken);
@@ -1127,44 +1095,11 @@ bool AddRenderTargets()
 	{
 		ClearValue clearValue = { 0.0f, 0.0f, 0.0f, 0.0f };
 		RenderTargetDesc rtDesc = {};
-		rtDesc.pName = "Lighting Diffuse Buffer";
-		rtDesc.mArraySize = 1;
-		rtDesc.mClearValue = clearValue;
-		rtDesc.mDepth = 1;
-		rtDesc.mFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
-		rtDesc.mStartState = RESOURCE_STATE_SHADER_RESOURCE;
-		rtDesc.mWidth = g_AppSettings->width;
-		rtDesc.mHeight = g_AppSettings->height;
-		rtDesc.mSampleCount = SAMPLE_COUNT_1;
-		rtDesc.mSampleQuality = 0;
-		rtDesc.mFlags = TEXTURE_CREATION_FLAG_ON_TILE;
-		addRenderTarget(g_Renderer, &rtDesc, &g_LightingDiffuse);
-	}
-	{
-		ClearValue clearValue = { 0.0f, 0.0f, 0.0f, 0.0f };
-		RenderTargetDesc rtDesc = {};
-		rtDesc.pName = "Lighting Specular Buffer";
-		rtDesc.mArraySize = 1;
-		rtDesc.mClearValue = clearValue;
-		rtDesc.mDepth = 1;
-		rtDesc.mFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
-		rtDesc.mStartState = RESOURCE_STATE_SHADER_RESOURCE;
-		rtDesc.mWidth = g_AppSettings->width;
-		rtDesc.mHeight = g_AppSettings->height;
-		rtDesc.mSampleCount = SAMPLE_COUNT_1;
-		rtDesc.mSampleQuality = 0;
-		rtDesc.mFlags = TEXTURE_CREATION_FLAG_ON_TILE;
-		addRenderTarget(g_Renderer, &rtDesc, &g_LightingSpecular);
-	}
-
-	{
-		ClearValue clearValue = { 0.0f, 0.0f, 0.0f, 0.0f };
-		RenderTargetDesc rtDesc = {};
 		rtDesc.pName = "Scene Color Buffer";
 		rtDesc.mArraySize = 1;
 		rtDesc.mClearValue = clearValue;
 		rtDesc.mDepth = 1;
-		rtDesc.mFormat = TinyImageFormat_R8G8B8A8_UNORM;
+		rtDesc.mFormat = TinyImageFormat_R16G16B16A16_SFLOAT;
 		rtDesc.mStartState = RESOURCE_STATE_SHADER_RESOURCE;
 		rtDesc.mWidth = g_AppSettings->width;
 		rtDesc.mHeight = g_AppSettings->height;
@@ -1179,8 +1114,6 @@ bool AddRenderTargets()
 			g_GBuffer0 != NULL &&
 			g_GBuffer1 != NULL &&
 			g_GBuffer2 != NULL &&
-			g_LightingDiffuse != NULL &&
-			g_LightingSpecular != NULL &&
 			g_SceneColor != NULL;
 }
 
@@ -1762,11 +1695,9 @@ void PrepareDescriptorSets()
 		updateDescriptorSet(g_Renderer, i, g_DescriptorSetLitMasked, 1, params);
 		updateDescriptorSet(g_Renderer, i, g_DescriptorSetDeferredShading[1], 1, params);
 
-		params[0].pName = "lightingDiffuse";
-		params[0].ppTextures = &g_LightingDiffuse->pTexture;
-		params[1].pName = "lightingSpecular";
-		params[1].ppTextures = &g_LightingSpecular->pTexture;
-		updateDescriptorSet(g_Renderer, i, g_DescriptorSetTonemapper, 2, params);
+		params[0].pName = "sceneColor";
+		params[0].ppTextures = &g_SceneColor->pTexture;
+		updateDescriptorSet(g_Renderer, i, g_DescriptorSetTonemapper, 1, params);
 	}
 }
 
@@ -1847,9 +1778,9 @@ void LoadPipelines()
 	}
 
 	{
-		TinyImageFormat renderTargets[] = { g_LightingDiffuse->mFormat, g_LightingSpecular->mFormat };
+		TinyImageFormat renderTargets[] = { g_SceneColor->mFormat };
 		uint32_t renderTargetsCount = sizeof(renderTargets) / sizeof(renderTargets[0]);
-		assert(renderTargetsCount == 2);
+		assert(renderTargetsCount == 1);
 
 		PipelineDesc graphicsPipelineDesc = {};
 		graphicsPipelineDesc.mType = PIPELINE_TYPE_GRAPHICS;
@@ -1870,7 +1801,6 @@ void LoadPipelines()
 	}
 
 	{
-		// TinyImageFormat renderTargets[] = { g_SceneColor->mFormat };
 		TinyImageFormat renderTargets[] = { g_SwapChain->ppRenderTargets[0]->mFormat };
 		uint32_t renderTargetsCount = sizeof(renderTargets) / sizeof(renderTargets[0]);
 		assert(renderTargetsCount == 1);
