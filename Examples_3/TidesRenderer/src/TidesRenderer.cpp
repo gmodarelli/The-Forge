@@ -152,14 +152,6 @@ DescriptorSet *g_DescriptorSetTonemapper = NULL;
 
 // Skybox Resources
 // ================
-VertexLayout g_VertexLayoutSkybox = {};
-UniformFrameData g_UniformFrameDataSkybox;
-Shader *g_ShaderSkybox = NULL;
-RootSignature *g_RootSignatureSkybox = NULL;
-DescriptorSet *g_DescriptorSetSkybox[2] = {NULL};
-Pipeline *g_PipelineSkybox = NULL;
-Buffer *g_VertexBufferSkybox = NULL;
-Buffer *g_UniformBufferCameraSkybox[g_DataBufferCount] = {NULL};
 Texture *g_TextureSkybox = NULL;
 Texture *g_TextureBRDFLut = NULL;
 Texture *g_TextureIrradiance = NULL;
@@ -183,8 +175,9 @@ void RemoveStaticSamplers();
 
 void LoadStaicEntityTransforms();
 void UnloadStaticEntityTransforms();
-void LoadSkybox();
-void UnloadSkybox();
+
+void ComputePBRMaps();
+void UnloadPBRMaps();
 
 void AddUniformBuffers();
 void RemoveUniformBuffers();
@@ -218,6 +211,7 @@ int TR_initRenderer(TR_AppSettings *appSettings)
 	initLog(appName, DEFAULT_LOG_LEVEL);
 
 	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_GPU_CONFIG, "GPUCfg");
+	// TODO: Make everything relative to content
 	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_SHADER_BINARIES, "content/compiled_shaders");
 	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_TEXTURES, "content");
 	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_MESHES, "content");
@@ -318,7 +312,8 @@ int TR_initRenderer(TR_AppSettings *appSettings)
 	// g_VertexLayoutDefault.mAttribs[4].mLocation = 4;
 	// g_VertexLayoutDefault.mAttribs[4].mOffset = 0;
 
-	LoadSkybox();
+	ComputePBRMaps();
+
 	LoadStaicEntityTransforms();
 
 	AddUniformBuffers();
@@ -393,7 +388,7 @@ void TR_exitRenderer()
 	}
 
 	UnloadStaticEntityTransforms();
-	UnloadSkybox();
+	UnloadPBRMaps();
 	RemoveStaticSamplers();
 	RemoveUniformBuffers();
 
@@ -514,11 +509,6 @@ void TR_draw(TR_FrameData frameData)
 		g_UniformFrameData.m_PointLightsBufferIndex = frameData.pointLightsBufferIndex;
 		g_UniformFrameData.m_DirectionalLightsCount = frameData.directionalLightsCount;
 		g_UniformFrameData.m_PointLightsCount = frameData.pointLightsCount;
-
-		viewMat.setTranslation(vec3(0));
-		g_UniformFrameDataSkybox.m_ProjectionView = projMat * viewMat;
-		g_UniformFrameDataSkybox.m_ProjectionViewInverted = ::inverse(g_UniformFrameDataSkybox.m_ProjectionView);
-		g_UniformFrameDataSkybox.m_Position = vec4(frameData.position[0], frameData.position[1], frameData.position[2], 1.0f);
 	}
 
 	if (g_SwapChain->mEnableVsync != g_AppSettings->vSyncEnabled)
@@ -546,30 +536,6 @@ void TR_draw(TR_FrameData frameData)
 
 	// TODO(gmodarelli): Init profiler
 	// cmdBeginGpuFrameProfile(cmd, g_GpuProfileToken);
-
-	// // Skybox Pass
-	// {
-	// 	LoadActionsDesc loadActions = {};
-	// 	loadActions.mLoadActionsColor[0] = LOAD_ACTION_DONTCARE;
-	// 	loadActions.mLoadActionDepth = LOAD_ACTION_CLEAR;
-	// 	loadActions.mClearDepth = g_DepthBuffer->mClearValue;
-	// 	cmdBindRenderTargets(cmd, 1, &pRenderTarget, g_DepthBuffer, &loadActions, NULL, NULL, -1, -1);
-	// 	cmdSetViewport(cmd, 0.0f, 0.0f, (float)pRenderTarget->mWidth, (float)pRenderTarget->mHeight, 0.0f, 1.0f);
-	// 	cmdSetScissor(cmd, 0, 0, pRenderTarget->mWidth, pRenderTarget->mHeight);
-
-	// 	BufferUpdateDesc camBufferSkyboxUpdateDesc = {g_UniformBufferCameraSkybox[g_FrameIndex]};
-	// 	beginUpdateResource(&camBufferSkyboxUpdateDesc);
-	// 	memcpy(camBufferSkyboxUpdateDesc.pMappedData, &g_UniformFrameDataSkybox, sizeof(g_UniformFrameDataSkybox));
-	// 	endUpdateResource(&camBufferSkyboxUpdateDesc);
-
-	// 	const uint32_t skyboxStride = sizeof(float) * 4;
-	// 	cmdBindPipeline(cmd, g_PipelineSkybox);
-	// 	cmdBindDescriptorSet(cmd, 0, g_DescriptorSetSkybox[0]);
-	// 	cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetSkybox[1]);
-	// 	cmdBindVertexBuffer(cmd, 1, &g_VertexBufferSkybox, &skyboxStride, NULL);
-	// 	cmdDraw(cmd, 36, 0);
-	// 	cmdSetViewport(cmd, 0.0f, 0.0f, (float)pRenderTarget->mWidth, (float)pRenderTarget->mHeight, 0.0f, 1.0f);
-	// }
 
 	BufferUpdateDesc camBufferUpdateDesc = {g_UniformBufferCamera[g_FrameIndex]};
 	beginUpdateResource(&camBufferUpdateDesc);
@@ -1263,211 +1229,269 @@ void UnloadStaticEntityTransforms()
 	removeResource(g_TerrainLod3TransformBuffer);
 }
 
-void LoadSkybox()
+void ComputePBRMaps()
 {
-	g_VertexLayoutSkybox.mBindingCount = 1;
-	g_VertexLayoutSkybox.mAttribCount = 1;
-	g_VertexLayoutSkybox.mAttribs[0].mSemantic = SEMANTIC_POSITION;
-	g_VertexLayoutSkybox.mAttribs[0].mFormat = TinyImageFormat_R32G32B32A32_SFLOAT;
-	g_VertexLayoutSkybox.mAttribs[0].mBinding = 0;
-	g_VertexLayoutSkybox.mAttribs[0].mLocation = 0;
-	g_VertexLayoutSkybox.mAttribs[0].mOffset = 0;
+	Shader*        pBRDFIntegrationShader = NULL;
+	RootSignature* pBRDFIntegrationRootSignature = NULL;
+	Pipeline*      pBRDFIntegrationPipeline = NULL;
+	Shader*        pIrradianceShader = NULL;
+	RootSignature* pIrradianceRootSignature = NULL;
+	Pipeline*      pIrradiancePipeline = NULL;
+	Shader*        pSpecularShader = NULL;
+	RootSignature* pSpecularRootSignature = NULL;
+	Pipeline*      pSpecularPipeline = NULL;
+	Sampler*       pSkyboxSampler = NULL;
+	DescriptorSet* pDescriptorSetBRDF = { NULL };
+	DescriptorSet* pDescriptorSetIrradiance = { NULL };
+	DescriptorSet* pDescriptorSetSpecular[2] = { NULL };
 
-	// Generate skybox vertex buffer
-	float skyBoxPoints[] = {
-		0.5f,
-		-0.5f,
-		-0.5f,
-		1.0f, // -z
-		-0.5f,
-		-0.5f,
-		-0.5f,
-		1.0f,
-		-0.5f,
-		0.5f,
-		-0.5f,
-		1.0f,
-		-0.5f,
-		0.5f,
-		-0.5f,
-		1.0f,
-		0.5f,
-		0.5f,
-		-0.5f,
-		1.0f,
-		0.5f,
-		-0.5f,
-		-0.5f,
-		1.0f,
-
-		-0.5f,
-		-0.5f,
-		0.5f,
-		1.0f, //-x
-		-0.5f,
-		-0.5f,
-		-0.5f,
-		1.0f,
-		-0.5f,
-		0.5f,
-		-0.5f,
-		1.0f,
-		-0.5f,
-		0.5f,
-		-0.5f,
-		1.0f,
-		-0.5f,
-		0.5f,
-		0.5f,
-		1.0f,
-		-0.5f,
-		-0.5f,
-		0.5f,
-		1.0f,
-
-		0.5f,
-		-0.5f,
-		-0.5f,
-		1.0f, //+x
-		0.5f,
-		-0.5f,
-		0.5f,
-		1.0f,
-		0.5f,
-		0.5f,
-		0.5f,
-		1.0f,
-		0.5f,
-		0.5f,
-		0.5f,
-		1.0f,
-		0.5f,
-		0.5f,
-		-0.5f,
-		1.0f,
-		0.5f,
-		-0.5f,
-		-0.5f,
-		1.0f,
-
-		-0.5f,
-		-0.5f,
-		0.5f,
-		1.0f, // +z
-		-0.5f,
-		0.5f,
-		0.5f,
-		1.0f,
-		0.5f,
-		0.5f,
-		0.5f,
-		1.0f,
-		0.5f,
-		0.5f,
-		0.5f,
-		1.0f,
-		0.5f,
-		-0.5f,
-		0.5f,
-		1.0f,
-		-0.5f,
-		-0.5f,
-		0.5f,
-		1.0f,
-
-		-0.5f,
-		0.5f,
-		-0.5f,
-		1.0f, //+y
-		0.5f,
-		0.5f,
-		-0.5f,
-		1.0f,
-		0.5f,
-		0.5f,
-		0.5f,
-		1.0f,
-		0.5f,
-		0.5f,
-		0.5f,
-		1.0f,
-		-0.5f,
-		0.5f,
-		0.5f,
-		1.0f,
-		-0.5f,
-		0.5f,
-		-0.5f,
-		1.0f,
-
-		0.5f,
-		-0.5f,
-		0.5f,
-		1.0f, //-y
-		0.5f,
-		-0.5f,
-		-0.5f,
-		1.0f,
-		-0.5f,
-		-0.5f,
-		-0.5f,
-		1.0f,
-		-0.5f,
-		-0.5f,
-		-0.5f,
-		1.0f,
-		-0.5f,
-		-0.5f,
-		0.5f,
-		1.0f,
-		0.5f,
-		-0.5f,
-		0.5f,
-		1.0f,
+	static const int skyboxIndex = 0;
+	const char*      skyboxNames[] = {
+		"textures/env/kloofendal_43d_clear_puresky_2k_cube_radiance.dds",
 	};
+	// PBR Texture values (these values are mirrored on the shaders).
+	static const uint32_t gBRDFIntegrationSize = 512;
+	static const uint32_t gSkyboxSize = 1024;
+	static const uint32_t gSkyboxMips = (uint)log2(gSkyboxSize) + 1;
+	static const uint32_t gIrradianceSize = 32;
+	static const uint32_t gSpecularSize = 128;
+	static const uint32_t gSpecularMips = (uint)log2(gSpecularSize) + 1;
 
-	uint64_t skyBoxDataSize = 4 * 6 * 6 * sizeof(float);
-	BufferLoadDesc skyboxVbDesc = {};
-	skyboxVbDesc.mDesc.mDescriptors = DESCRIPTOR_TYPE_VERTEX_BUFFER;
-	skyboxVbDesc.mDesc.mMemoryUsage = RESOURCE_MEMORY_USAGE_GPU_ONLY;
-	skyboxVbDesc.mDesc.mSize = skyBoxDataSize;
-	skyboxVbDesc.mDesc.mStartState = RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-	skyboxVbDesc.pData = skyBoxPoints;
-	skyboxVbDesc.ppBuffer = &g_VertexBufferSkybox;
+	SamplerDesc samplerDesc = { FILTER_LINEAR,
+								FILTER_LINEAR,
+								MIPMAP_MODE_LINEAR,
+								ADDRESS_MODE_REPEAT,
+								ADDRESS_MODE_REPEAT,
+								ADDRESS_MODE_REPEAT,
+								0,
+								false,
+								0.0f,
+								0.0f,
+								16 };
+	addSampler(g_Renderer, &samplerDesc, &pSkyboxSampler);
 
-	SyncToken token = {};
-	addResource(&skyboxVbDesc, &token);
+	// Load the skybox panorama texture.
+	SyncToken       token = {};
+	TextureLoadDesc skyboxDesc = {};
+	skyboxDesc.pFileName = skyboxNames[skyboxIndex];
+	skyboxDesc.ppTexture = &g_TextureSkybox;
+	addResource(&skyboxDesc, &token);
 
-	TextureLoadDesc skyboxLoadDesc = {};
-	skyboxLoadDesc.pFileName = "textures/env/sunset_fairwayEnvHDR.dds";
-	skyboxLoadDesc.ppTexture = &g_TextureSkybox;
-	addResource(&skyboxLoadDesc, &token);
+	TextureDesc irrImgDesc = {};
+	irrImgDesc.mArraySize = 6;
+	irrImgDesc.mDepth = 1;
+	irrImgDesc.mFormat = TinyImageFormat_R32G32B32A32_SFLOAT;
+	irrImgDesc.mHeight = gIrradianceSize;
+	irrImgDesc.mWidth = gIrradianceSize;
+	irrImgDesc.mMipLevels = 1;
+	irrImgDesc.mSampleCount = SAMPLE_COUNT_1;
+	irrImgDesc.mStartState = RESOURCE_STATE_UNORDERED_ACCESS;
+	irrImgDesc.mDescriptors = DESCRIPTOR_TYPE_TEXTURE_CUBE | DESCRIPTOR_TYPE_RW_TEXTURE;
+	irrImgDesc.pName = "irrImgBuff";
 
-	TextureLoadDesc irradianceLoadDesc = {};
-	irradianceLoadDesc.pFileName = "textures/env/sunset_fairwayDiffuseHDR.dds";
-	irradianceLoadDesc.ppTexture = &g_TextureIrradiance;
-	addResource(&irradianceLoadDesc, &token);
+	TextureLoadDesc irrLoadDesc = {};
+	irrLoadDesc.pDesc = &irrImgDesc;
+	irrLoadDesc.ppTexture = &g_TextureIrradiance;
+	addResource(&irrLoadDesc, &token);
 
-	TextureLoadDesc specularLoadDesc = {};
-	specularLoadDesc.pFileName = "textures/env/sunset_fairwaySpecularHDR.dds";
-	specularLoadDesc.ppTexture = &g_TextureSpecular;
-	addResource(&specularLoadDesc, &token);
+	TextureDesc specImgDesc = {};
+	specImgDesc.mArraySize = 6;
+	specImgDesc.mDepth = 1;
+	specImgDesc.mFormat = TinyImageFormat_R32G32B32A32_SFLOAT;
+	specImgDesc.mHeight = gSpecularSize;
+	specImgDesc.mWidth = gSpecularSize;
+	specImgDesc.mMipLevels = gSpecularMips;
+	specImgDesc.mSampleCount = SAMPLE_COUNT_1;
+	specImgDesc.mStartState = RESOURCE_STATE_UNORDERED_ACCESS;
+	specImgDesc.mDescriptors = DESCRIPTOR_TYPE_TEXTURE_CUBE | DESCRIPTOR_TYPE_RW_TEXTURE;
+	specImgDesc.pName = "specImgBuff";
 
-	TextureLoadDesc brdfLoadDesc = {};
-	brdfLoadDesc.pFileName = "textures/env/sunset_fairwayBrdf.dds";
-	brdfLoadDesc.ppTexture = &g_TextureBRDFLut;
-	addResource(&brdfLoadDesc, &token);
+	TextureLoadDesc specImgLoadDesc = {};
+	specImgLoadDesc.pDesc = &specImgDesc;
+	specImgLoadDesc.ppTexture = &g_TextureSpecular;
+	addResource(&specImgLoadDesc, &token);
+
+	// Create empty texture for BRDF integration map.
+	TextureLoadDesc brdfIntegrationLoadDesc = {};
+	TextureDesc     brdfIntegrationDesc = {};
+	brdfIntegrationDesc.mWidth = gBRDFIntegrationSize;
+	brdfIntegrationDesc.mHeight = gBRDFIntegrationSize;
+	brdfIntegrationDesc.mDepth = 1;
+	brdfIntegrationDesc.mArraySize = 1;
+	brdfIntegrationDesc.mMipLevels = 1;
+	brdfIntegrationDesc.mFormat = TinyImageFormat_R32G32_SFLOAT;
+	brdfIntegrationDesc.mStartState = RESOURCE_STATE_UNORDERED_ACCESS;
+	brdfIntegrationDesc.mDescriptors = DESCRIPTOR_TYPE_TEXTURE | DESCRIPTOR_TYPE_RW_TEXTURE;
+	brdfIntegrationDesc.mSampleCount = SAMPLE_COUNT_1;
+	brdfIntegrationLoadDesc.pDesc = &brdfIntegrationDesc;
+	brdfIntegrationLoadDesc.ppTexture = &g_TextureBRDFLut;
+	addResource(&brdfIntegrationLoadDesc, &token);
+
+	GPUPresetLevel presetLevel = g_Renderer->pGpu->mSettings.mGpuVendorPreset.mPresetLevel;
+
+	ShaderLoadDesc brdfIntegrationShaderDesc = {};
+	brdfIntegrationShaderDesc.mStages[0].pFileName = "brdf_integration.comp";
+
+	ShaderLoadDesc irradianceShaderDesc = {};
+	irradianceShaderDesc.mStages[0].pFileName = "compute_irradiance_map.comp";
+
+	ShaderLoadDesc specularShaderDesc = {};
+	specularShaderDesc.mStages[0].pFileName = "compute_specular_map.comp";
+
+	addShader(g_Renderer, &irradianceShaderDesc, &pIrradianceShader);
+	addShader(g_Renderer, &specularShaderDesc, &pSpecularShader);
+	addShader(g_Renderer, &brdfIntegrationShaderDesc, &pBRDFIntegrationShader);
+
+	const char*       pStaticSamplerNames[] = { "skyboxSampler" };
+	RootSignatureDesc brdfRootDesc = { &pBRDFIntegrationShader, 1 };
+	brdfRootDesc.mStaticSamplerCount = 1;
+	brdfRootDesc.ppStaticSamplerNames = pStaticSamplerNames;
+	brdfRootDesc.ppStaticSamplers = &pSkyboxSampler;
+	RootSignatureDesc irradianceRootDesc = { &pIrradianceShader, 1 };
+	irradianceRootDesc.mStaticSamplerCount = 1;
+	irradianceRootDesc.ppStaticSamplerNames = pStaticSamplerNames;
+	irradianceRootDesc.ppStaticSamplers = &pSkyboxSampler;
+	RootSignatureDesc specularRootDesc = { &pSpecularShader, 1 };
+	specularRootDesc.mStaticSamplerCount = 1;
+	specularRootDesc.ppStaticSamplerNames = pStaticSamplerNames;
+	specularRootDesc.ppStaticSamplers = &pSkyboxSampler;
+	addRootSignature(g_Renderer, &irradianceRootDesc, &pIrradianceRootSignature);
+	addRootSignature(g_Renderer, &specularRootDesc, &pSpecularRootSignature);
+	addRootSignature(g_Renderer, &brdfRootDesc, &pBRDFIntegrationRootSignature);
+
+	DescriptorSetDesc setDesc = { pBRDFIntegrationRootSignature, DESCRIPTOR_UPDATE_FREQ_NONE, 1 };
+	addDescriptorSet(g_Renderer, &setDesc, &pDescriptorSetBRDF);
+	setDesc = { pIrradianceRootSignature, DESCRIPTOR_UPDATE_FREQ_NONE, 1 };
+	addDescriptorSet(g_Renderer, &setDesc, &pDescriptorSetIrradiance);
+	setDesc = { pSpecularRootSignature, DESCRIPTOR_UPDATE_FREQ_NONE, 1 };
+	addDescriptorSet(g_Renderer, &setDesc, &pDescriptorSetSpecular[0]);
+	setDesc = { pSpecularRootSignature, DESCRIPTOR_UPDATE_FREQ_PER_DRAW, gSkyboxMips };
+	addDescriptorSet(g_Renderer, &setDesc, &pDescriptorSetSpecular[1]);
+
+	PipelineDesc desc = {};
+	desc.mType = PIPELINE_TYPE_COMPUTE;
+	ComputePipelineDesc& pipelineSettings = desc.mComputeDesc;
+	pipelineSettings.pShaderProgram = pIrradianceShader;
+	pipelineSettings.pRootSignature = pIrradianceRootSignature;
+	addPipeline(g_Renderer, &desc, &pIrradiancePipeline);
+	pipelineSettings.pShaderProgram = pSpecularShader;
+	pipelineSettings.pRootSignature = pSpecularRootSignature;
+	addPipeline(g_Renderer, &desc, &pSpecularPipeline);
+	pipelineSettings.pShaderProgram = pBRDFIntegrationShader;
+	pipelineSettings.pRootSignature = pBRDFIntegrationRootSignature;
+	addPipeline(g_Renderer, &desc, &pBRDFIntegrationPipeline);
 
 	waitForToken(&token);
+
+	GpuCmdRingElement elem = getNextGpuCmdRingElement(&g_GraphicsCmdRing, true, 1);
+	Cmd*              pCmd = elem.pCmds[0];
+
+	// Compute the BRDF Integration map.
+	resetCmdPool(g_Renderer, elem.pCmdPool);
+	beginCmd(pCmd);
+
+	cmdBindPipeline(pCmd, pBRDFIntegrationPipeline);
+	DescriptorData params[2] = {};
+	params[0].pName = "dstTexture";
+	params[0].ppTextures = &g_TextureBRDFLut;
+	updateDescriptorSet(g_Renderer, 0, pDescriptorSetBRDF, 1, params);
+	cmdBindDescriptorSet(pCmd, 0, pDescriptorSetBRDF);
+	const uint32_t* pThreadGroupSize = pBRDFIntegrationShader->pReflection->mStageReflections[0].mNumThreadsPerGroup;
+	cmdDispatch(pCmd, gBRDFIntegrationSize / pThreadGroupSize[0], gBRDFIntegrationSize / pThreadGroupSize[1], pThreadGroupSize[2]);
+
+	TextureBarrier srvBarrier[1] = { { g_TextureBRDFLut, RESOURCE_STATE_UNORDERED_ACCESS, RESOURCE_STATE_SHADER_RESOURCE } };
+
+	cmdResourceBarrier(pCmd, 0, NULL, 1, srvBarrier, 0, NULL);
+
+	/************************************************************************/
+	// Compute sky irradiance
+	/************************************************************************/
+	params[0] = {};
+	params[1] = {};
+	cmdBindPipeline(pCmd, pIrradiancePipeline);
+	params[0].pName = "srcTexture";
+	params[0].ppTextures = &g_TextureSkybox;
+	params[1].pName = "dstTexture";
+	params[1].ppTextures = &g_TextureIrradiance;
+	updateDescriptorSet(g_Renderer, 0, pDescriptorSetIrradiance, 2, params);
+	cmdBindDescriptorSet(pCmd, 0, pDescriptorSetIrradiance);
+	pThreadGroupSize = pIrradianceShader->pReflection->mStageReflections[0].mNumThreadsPerGroup;
+	cmdDispatch(pCmd, gIrradianceSize / pThreadGroupSize[0], gIrradianceSize / pThreadGroupSize[1], 6);
+	/************************************************************************/
+	// Compute specular sky
+	/************************************************************************/
+	cmdBindPipeline(pCmd, pSpecularPipeline);
+	params[0].pName = "srcTexture";
+	params[0].ppTextures = &g_TextureSkybox;
+	updateDescriptorSet(g_Renderer, 0, pDescriptorSetSpecular[0], 1, params);
+	cmdBindDescriptorSet(pCmd, 0, pDescriptorSetSpecular[0]);
+
+	struct PrecomputeSkySpecularData
+	{
+		uint  mipSize;
+		float roughness;
+	};
+
+	uint32_t rootConstantIndex = getDescriptorIndexFromName(pSpecularRootSignature, "RootConstant");
+
+	for (uint32_t i = 0; i < gSpecularMips; i++)
+	{
+		PrecomputeSkySpecularData data = {};
+		data.roughness = (float)i / (float)(gSpecularMips - 1);
+		data.mipSize = gSpecularSize >> i;
+		cmdBindPushConstants(pCmd, pSpecularRootSignature, rootConstantIndex, &data);
+		params[0].pName = "dstTexture";
+		params[0].ppTextures = &g_TextureSpecular;
+		params[0].mUAVMipSlice = i;
+		updateDescriptorSet(g_Renderer, i, pDescriptorSetSpecular[1], 1, params);
+		cmdBindDescriptorSet(pCmd, i, pDescriptorSetSpecular[1]);
+		pThreadGroupSize = pIrradianceShader->pReflection->mStageReflections[0].mNumThreadsPerGroup;
+		cmdDispatch(pCmd, max(1u, (gSpecularSize >> i) / pThreadGroupSize[0]), max(1u, (gSpecularSize >> i) / pThreadGroupSize[1]), 6);
+	}
+	/************************************************************************/
+	/************************************************************************/
+	TextureBarrier srvBarriers2[2] = { { g_TextureIrradiance, RESOURCE_STATE_UNORDERED_ACCESS, RESOURCE_STATE_SHADER_RESOURCE },
+									   { g_TextureSpecular, RESOURCE_STATE_UNORDERED_ACCESS, RESOURCE_STATE_SHADER_RESOURCE } };
+	cmdResourceBarrier(pCmd, 0, NULL, 2, srvBarriers2, 0, NULL);
+
+	endCmd(pCmd);
+
+	FlushResourceUpdateDesc flushDesc = {};
+	flushResourceUpdates(&flushDesc);
+	waitForFences(g_Renderer, 1, &flushDesc.pOutFence);
+
+	QueueSubmitDesc submitDesc = {};
+	submitDesc.mCmdCount = 1;
+	submitDesc.ppCmds = &pCmd;
+	submitDesc.pSignalFence = elem.pFence;
+	submitDesc.mSubmitDone = true;
+	queueSubmit(g_GraphicsQueue, &submitDesc);
+	waitQueueIdle(g_GraphicsQueue);
+
+	removeDescriptorSet(g_Renderer, pDescriptorSetBRDF);
+
+	removeDescriptorSet(g_Renderer, pDescriptorSetIrradiance);
+	removeDescriptorSet(g_Renderer, pDescriptorSetSpecular[0]);
+	removeDescriptorSet(g_Renderer, pDescriptorSetSpecular[1]);
+	removePipeline(g_Renderer, pSpecularPipeline);
+	removeRootSignature(g_Renderer, pSpecularRootSignature);
+	removeShader(g_Renderer, pSpecularShader);
+	removePipeline(g_Renderer, pIrradiancePipeline);
+	removeRootSignature(g_Renderer, pIrradianceRootSignature);
+	removeShader(g_Renderer, pIrradianceShader);
+
+	removePipeline(g_Renderer, pBRDFIntegrationPipeline);
+	removeRootSignature(g_Renderer, pBRDFIntegrationRootSignature);
+	removeShader(g_Renderer, pBRDFIntegrationShader);
+	removeSampler(g_Renderer, pSkyboxSampler);
 }
 
-void UnloadSkybox()
+void UnloadPBRMaps()
 {
 	removeResource(g_TextureSkybox);
 	removeResource(g_TextureIrradiance);
 	removeResource(g_TextureSpecular);
 	removeResource(g_TextureBRDFLut);
-	removeResource(g_VertexBufferSkybox);
 }
 
 void AddUniformBuffers()
@@ -1482,9 +1506,6 @@ void AddUniformBuffers()
 
 	for (uint32_t i = 0; i < g_DataBufferCount; ++i)
 	{
-		cameraUBDesc.ppBuffer = &g_UniformBufferCameraSkybox[i];
-		addResource(&cameraUBDesc, NULL);
-
 		cameraUBDesc.ppBuffer = &g_UniformBufferCamera[i];
 		addResource(&cameraUBDesc, NULL);
 	}
@@ -1495,17 +1516,11 @@ void RemoveUniformBuffers()
 	for (uint32_t i = 0; i < g_DataBufferCount; ++i)
 	{
 		removeResource(g_UniformBufferCamera[i]);
-		removeResource(g_UniformBufferCameraSkybox[i]);
 	}
 }
 
 void LoadShaders()
 {
-	ShaderLoadDesc skyboxShaderDesc = {};
-	skyboxShaderDesc.mStages[0].pFileName = "skybox.vert";
-	skyboxShaderDesc.mStages[1].pFileName = "skybox.frag";
-	addShader(g_Renderer, &skyboxShaderDesc, &g_ShaderSkybox);
-
 	ShaderLoadDesc terrainShaderDesc = {};
 	terrainShaderDesc.mStages[0].pFileName = "terrain.vert";
 	terrainShaderDesc.mStages[1].pFileName = "terrain.frag";
@@ -1534,25 +1549,6 @@ void LoadShaders()
 
 void LoadRootSignatures()
 {
-	{
-		const char *staticSamplerNames[] = {"materialSampler", "brdfIntegrationSampler", "environmentSampler", "skyboxSampler", "pointSampler"};
-		Sampler *staticSamplers[] = {
-			g_SamplerBilinearRepeat,
-			g_SamplerBilinearClampToEdge,
-			g_SamplerBilinearRepeat,
-			g_SamplerBilinearRepeat,
-			g_SamplerPointClampToBorder};
-		uint32_t numStaticSamplers = sizeof(staticSamplers) / sizeof(staticSamplers[0]);
-
-		RootSignatureDesc skyboxRootDesc = {};
-		skyboxRootDesc.mStaticSamplerCount = numStaticSamplers;
-		skyboxRootDesc.ppStaticSamplerNames = staticSamplerNames;
-		skyboxRootDesc.ppStaticSamplers = staticSamplers;
-		skyboxRootDesc.ppShaders = &g_ShaderSkybox;
-		skyboxRootDesc.mShaderCount = 1;
-		addRootSignature(g_Renderer, &skyboxRootDesc, &g_RootSignatureSkybox);
-	}
-
 	{
 		const char *staticSamplerNames[] = {"bilinearRepeatSampler", "bilinearClampSampler"};
 		Sampler *staticSamplers[] = {
@@ -1640,12 +1636,7 @@ void LoadRootSignatures()
 
 void LoadDescriptorSets()
 {
-	DescriptorSetDesc setDesc = {g_RootSignatureSkybox, DESCRIPTOR_UPDATE_FREQ_NONE, 1};
-	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetSkybox[0]);
-	setDesc = {g_RootSignatureSkybox, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
-	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetSkybox[1]);
-
-	setDesc = {g_RootSignatureTerrain, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
+	DescriptorSetDesc setDesc = {g_RootSignatureTerrain, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
 	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetTerrain);
 
 	setDesc = {g_RootSignatureLitOpaque, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
@@ -1665,7 +1656,6 @@ void LoadDescriptorSets()
 
 void UnloadShaders()
 {
-	removeShader(g_Renderer, g_ShaderSkybox);
 	removeShader(g_Renderer, g_ShaderTerrain);
 	removeShader(g_Renderer, g_ShaderLitOpaque);
 	removeShader(g_Renderer, g_ShaderLitMasked);
@@ -1675,7 +1665,6 @@ void UnloadShaders()
 
 void UnloadRootSignatures()
 {
-	removeRootSignature(g_Renderer, g_RootSignatureSkybox);
 	removeRootSignature(g_Renderer, g_RootSignatureTerrain);
 	removeRootSignature(g_Renderer, g_RootSignatureLitOpaque);
 	removeRootSignature(g_Renderer, g_RootSignatureLitMasked);
@@ -1685,8 +1674,6 @@ void UnloadRootSignatures()
 
 void UnloadDescriptorSets()
 {
-	removeDescriptorSet(g_Renderer, g_DescriptorSetSkybox[0]);
-	removeDescriptorSet(g_Renderer, g_DescriptorSetSkybox[1]);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetTerrain);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetLitOpaque);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetLitMasked);
@@ -1750,16 +1737,8 @@ void PrepareDescriptorSets()
 {
 	DescriptorData params[7] = {};
 
-	params[0].pName = "skyboxTex";
-	params[0].ppTextures = &g_TextureSkybox;
-	updateDescriptorSet(g_Renderer, 0, g_DescriptorSetSkybox[0], 1, params);
-
 	for (uint32_t i = 0; i < g_DataBufferCount; ++i)
 	{
-		params[0].pName = "cbFrame";
-		params[0].ppBuffers = &g_UniformBufferCameraSkybox[i];
-		updateDescriptorSet(g_Renderer, i, g_DescriptorSetSkybox[1], 1, params);
-
 		params[0].pName = "brdfIntegrationMap";
 		params[0].ppTextures = &g_TextureBRDFLut;
 		params[1].pName = "irradianceMap";
@@ -1803,25 +1782,6 @@ void LoadPipelines()
 	depthStateDescDepthTest.mDepthWrite = true;
 	depthStateDescDepthTest.mDepthTest = true;
 	depthStateDescDepthTest.mDepthFunc = CMP_GEQUAL;
-
-	{
-		PipelineDesc graphicsPipelineDesc = {};
-		graphicsPipelineDesc.mType = PIPELINE_TYPE_GRAPHICS;
-		GraphicsPipelineDesc &pipelineSettings = graphicsPipelineDesc.mGraphicsDesc;
-
-		pipelineSettings.mPrimitiveTopo = PRIMITIVE_TOPO_TRI_LIST;
-		pipelineSettings.mRenderTargetCount = 1;
-		pipelineSettings.pDepthState = NULL;
-		pipelineSettings.pColorFormats = &g_SwapChain->ppRenderTargets[0]->mFormat;
-		pipelineSettings.mSampleCount = g_SwapChain->ppRenderTargets[0]->mSampleCount;
-		pipelineSettings.mSampleQuality = g_SwapChain->ppRenderTargets[0]->mSampleQuality;
-		pipelineSettings.mDepthStencilFormat = TinyImageFormat_UNDEFINED;
-		pipelineSettings.pRootSignature = g_RootSignatureSkybox;
-		pipelineSettings.pShaderProgram = g_ShaderSkybox;
-		pipelineSettings.pVertexLayout = &g_VertexLayoutSkybox;
-		pipelineSettings.pRasterizerState = &rasterizerStateCullNoneDesc;
-		addPipeline(g_Renderer, &graphicsPipelineDesc, &g_PipelineSkybox);
-	}
 
 	const uint32_t gBuffersCount = 3;
 	TinyImageFormat gBufferTargetFormats[gBuffersCount] = { g_GBuffer0->mFormat, g_GBuffer1->mFormat, g_GBuffer2->mFormat };
@@ -1936,7 +1896,6 @@ void LoadPipelines()
 
 void UnloadPipelines()
 {
-	removePipeline(g_Renderer, g_PipelineSkybox);
 	removePipeline(g_Renderer, g_PipelineTerrain);
 	removePipeline(g_Renderer, g_PipelineLitOpaque);
 	removePipeline(g_Renderer, g_PipelineLitMasked);
