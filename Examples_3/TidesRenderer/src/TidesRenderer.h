@@ -25,6 +25,18 @@ typedef struct TR_AppSettings {
 	TR_OutputMode outputMode = OUTPUT_MODE_SDR;
 } TR_AppSettings;
 
+typedef struct TR_BufferHandle {
+	unsigned int ID;
+} TR_BufferHandle;
+
+typedef struct TR_MeshHandle {
+	unsigned int ID;
+} TR_MeshHandle;
+
+typedef struct TR_TextureHandle {
+	unsigned int ID;
+} TR_TextureHandle;
+
 typedef struct TR_FrameData {
 	float viewMatrix[16];
 	float projectionMatrix[16];
@@ -33,6 +45,7 @@ typedef struct TR_FrameData {
 	uint32_t pointLightsBufferIndex;
 	uint32_t directionalLightsCount;
 	uint32_t pointLightsCount;
+	TR_MeshHandle skyboxMeshHandle;
 } TR_FrameData;
 
 typedef struct TR_PointLight
@@ -67,24 +80,12 @@ TR_API void TR_onUnload(ReloadDesc* reloadDesc);
 
 TR_API void TR_draw(TR_FrameData frameData);
 
-typedef struct TR_BufferHandle {
-	unsigned int ID;
-} TR_BufferHandle;
-
 TR_API TR_BufferHandle TR_createBuffer(TR_Slice initialData, uint32_t dataStride, const char* debugName);
 TR_API void TR_updateBuffer(TR_Slice data, TR_BufferHandle bufferHandle);
 TR_API uint32_t TR_bufferBindlessIndex(TR_BufferHandle bufferHandle);
 
-typedef struct TR_MeshHandle {
-	unsigned int ID;
-} TR_MeshHandle;
-
 TR_API TR_MeshHandle TR_loadMesh(const char* path);
 TR_API uint32_t TR_getSubMeshCount(TR_MeshHandle meshHandle);
-
-typedef struct TR_TextureHandle {
-	unsigned int ID;
-} TR_TextureHandle;
 
 TR_API TR_TextureHandle TR_loadTexture(const char* path);
 TR_API TR_TextureHandle TR_loadTextureFromMemory(uint32_t width, uint32_t height, TinyImageFormat format, TR_Slice dataSlice, const char* debugName);

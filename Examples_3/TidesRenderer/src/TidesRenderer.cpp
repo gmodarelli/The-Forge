@@ -150,6 +150,13 @@ DescriptorSet *g_DescriptorSetTonemapper = NULL;
 
 // Skybox Resources
 // ================
+UniformFrameData g_UniformFrameDataSkybox;
+Shader *g_ShaderSkybox = NULL;
+RootSignature *g_RootSignatureSkybox = NULL;
+DescriptorSet *g_DescriptorSetSkybox[2] = {NULL};
+Pipeline *g_PipelineSkybox = NULL;
+Buffer *g_VertexBufferSkybox = NULL;
+Buffer *g_UniformBufferCameraSkybox[g_DataBufferCount] = {NULL};
 Texture *g_TextureSkybox = NULL;
 Texture *g_TextureBRDFLut = NULL;
 Texture *g_TextureIrradiance = NULL;
@@ -505,6 +512,11 @@ void TR_draw(TR_FrameData frameData)
 		g_UniformFrameData.m_PointLightsBufferIndex = frameData.pointLightsBufferIndex;
 		g_UniformFrameData.m_DirectionalLightsCount = frameData.directionalLightsCount;
 		g_UniformFrameData.m_PointLightsCount = frameData.pointLightsCount;
+
+		viewMat.setTranslation(vec3(0));
+		g_UniformFrameDataSkybox.m_ProjectionView = projMat * viewMat;
+		g_UniformFrameDataSkybox.m_ProjectionViewInverted = ::inverse(g_UniformFrameDataSkybox.m_ProjectionView);
+		g_UniformFrameDataSkybox.m_Position = vec4(frameData.position[0], frameData.position[1], frameData.position[2], 1.0f);
 	}
 
 	if (g_SwapChain->mEnableVsync != g_AppSettings->vSyncEnabled)
@@ -696,12 +708,13 @@ void TR_draw(TR_FrameData frameData)
 		assert(barriersCount == 1);
 
 		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, barriersCount, barriers);
+
 		RenderTarget* renderTargets[] = { g_SceneColor };
 
 		LoadActionsDesc loadActions = {};
 		loadActions.mLoadActionsColor[0] = LOAD_ACTION_CLEAR;
 		loadActions.mClearColorValues[0] = renderTargets[0]->mClearValue;
-		cmdBindRenderTargets(cmd, barriersCount, renderTargets, NULL, &loadActions, NULL, NULL, -1, 1);
+		cmdBindRenderTargets(cmd, 1, renderTargets, NULL, &loadActions, NULL, NULL, -1, 1);
 
 		cmdBindPipeline(cmd, g_PipelineDeferredShading);
 		cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetDeferredShading[0]);
@@ -709,13 +722,57 @@ void TR_draw(TR_FrameData frameData)
 		cmdSetViewport(cmd, 0.0f, 0.0f, (float)renderTargets[0]->mWidth, (float)renderTargets[0]->mHeight, 0.0f, 1.0f);
 		cmdDraw(cmd, 3, 0);
 		cmdBindRenderTargets(cmd, 0, NULL, NULL, NULL, NULL, NULL, -1, -1);
-
-		barriers[0] = { g_SceneColor, RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE };
-		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, barriersCount, barriers);
 	}
+
+	// Skybox Pass
+	{
+		RenderTarget* renderTargets[] = { g_SceneColor };
+		LoadActionsDesc loadActions = {};
+		loadActions.mLoadActionsColor[0] = LOAD_ACTION_LOAD;
+		cmdBindRenderTargets(cmd, 1, renderTargets, NULL, &loadActions, NULL, NULL, -1, -1);
+
+		BufferUpdateDesc camBufferSkyboxUpdateDesc = {g_UniformBufferCameraSkybox[g_FrameIndex]};
+		beginUpdateResource(&camBufferSkyboxUpdateDesc);
+		memcpy(camBufferSkyboxUpdateDesc.pMappedData, &g_UniformFrameDataSkybox, sizeof(g_UniformFrameDataSkybox));
+		endUpdateResource(&camBufferSkyboxUpdateDesc);
+
+		const uint32_t skyboxStride = sizeof(float) * 4;
+		cmdBindPipeline(cmd, g_PipelineSkybox);
+		cmdBindDescriptorSet(cmd, 0, g_DescriptorSetSkybox[0]);
+		cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetSkybox[1]);
+		cmdSetViewport(cmd, 0.0f, 0.0f, (float)renderTargets[0]->mWidth, (float)renderTargets[0]->mHeight, 0.0f, 1.0f);
+		cmdSetScissor(cmd, 0, 0, renderTargets[0]->mWidth, renderTargets[0]->mHeight);
+
+		const Mesh* skyboxMesh = &g_Meshes[frameData.skyboxMeshHandle.ID];
+
+		if (skyboxMesh->loaded)
+		{
+			Buffer* vertexBuffers[] = {
+				skyboxMesh->geometryBuffer->mVertex[skyboxMesh->geometryBufferLayoutDesc.mSemanticBindings[SEMANTIC_POSITION]].pBuffer,
+				skyboxMesh->geometryBuffer->mVertex[skyboxMesh->geometryBufferLayoutDesc.mSemanticBindings[SEMANTIC_NORMAL]].pBuffer,
+				skyboxMesh->geometryBuffer->mVertex[skyboxMesh->geometryBufferLayoutDesc.mSemanticBindings[SEMANTIC_TANGENT]].pBuffer,
+				skyboxMesh->geometryBuffer->mVertex[skyboxMesh->geometryBufferLayoutDesc.mSemanticBindings[SEMANTIC_TEXCOORD0]].pBuffer,
+			};
+
+			cmdBindVertexBuffer(cmd, TF_ARRAY_COUNT(vertexBuffers), vertexBuffers, skyboxMesh->geometry->mVertexStrides, NULL);
+			cmdBindIndexBuffer(cmd, skyboxMesh->geometryBuffer->mIndex.pBuffer, skyboxMesh->geometry->mIndexType, NULL);
+
+			cmdDrawIndexed(cmd, skyboxMesh->geometry->pDrawArgs[0].mIndexCount, skyboxMesh->geometry->pDrawArgs[0].mStartIndex, skyboxMesh->geometry->pDrawArgs[0].mVertexOffset);
+		}
+
+		cmdBindRenderTargets(cmd, 0, NULL, NULL, NULL, NULL, NULL, -1, -1);
+	}
+
 
 	// Tonemapper
 	{
+		{
+			RenderTargetBarrier barriers[] = { { g_SceneColor, RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE } };
+			uint32_t barriersCount = sizeof(barriers) / sizeof(barriers[0]);
+			assert(barriersCount == 1);
+			cmdResourceBarrier(cmd, 0, NULL, 0, NULL, barriersCount, barriers);
+		}
+
 		RenderTargetBarrier barriers[] = {
 			{ g_SwapChain->ppRenderTargets[swapchainImageIndex], RESOURCE_STATE_PRESENT, RESOURCE_STATE_RENDER_TARGET },
 		};
@@ -1439,6 +1496,9 @@ void AddUniformBuffers()
 
 	for (uint32_t i = 0; i < g_DataBufferCount; ++i)
 	{
+		cameraUBDesc.ppBuffer = &g_UniformBufferCameraSkybox[i];
+		addResource(&cameraUBDesc, NULL);
+
 		cameraUBDesc.ppBuffer = &g_UniformBufferCamera[i];
 		addResource(&cameraUBDesc, NULL);
 	}
@@ -1449,11 +1509,17 @@ void RemoveUniformBuffers()
 	for (uint32_t i = 0; i < g_DataBufferCount; ++i)
 	{
 		removeResource(g_UniformBufferCamera[i]);
+		removeResource(g_UniformBufferCameraSkybox[i]);
 	}
 }
 
 void LoadShaders()
 {
+	ShaderLoadDesc skyboxShaderDesc = {};
+	skyboxShaderDesc.mStages[0].pFileName = "skybox.vert";
+	skyboxShaderDesc.mStages[1].pFileName = "skybox.frag";
+	addShader(g_Renderer, &skyboxShaderDesc, &g_ShaderSkybox);
+
 	ShaderLoadDesc terrainShaderDesc = {};
 	terrainShaderDesc.mStages[0].pFileName = "terrain.vert";
 	terrainShaderDesc.mStages[1].pFileName = "terrain.frag";
@@ -1482,6 +1548,20 @@ void LoadShaders()
 
 void LoadRootSignatures()
 {
+	{
+		const char *staticSamplerNames[] = { "bilinearRepeatSampler" };
+		Sampler *staticSamplers[] = { g_SamplerBilinearRepeat };
+		uint32_t numStaticSamplers = sizeof(staticSamplers) / sizeof(staticSamplers[0]);
+
+		RootSignatureDesc skyboxRootDesc = {};
+		skyboxRootDesc.mStaticSamplerCount = numStaticSamplers;
+		skyboxRootDesc.ppStaticSamplerNames = staticSamplerNames;
+		skyboxRootDesc.ppStaticSamplers = staticSamplers;
+		skyboxRootDesc.ppShaders = &g_ShaderSkybox;
+		skyboxRootDesc.mShaderCount = 1;
+		addRootSignature(g_Renderer, &skyboxRootDesc, &g_RootSignatureSkybox);
+	}
+
 	{
 		const char *staticSamplerNames[] = {"bilinearRepeatSampler", "bilinearClampSampler"};
 		Sampler *staticSamplers[] = {
@@ -1569,7 +1649,12 @@ void LoadRootSignatures()
 
 void LoadDescriptorSets()
 {
-	DescriptorSetDesc setDesc = {g_RootSignatureTerrain, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
+	DescriptorSetDesc setDesc = {g_RootSignatureSkybox, DESCRIPTOR_UPDATE_FREQ_NONE, 1};
+	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetSkybox[0]);
+	setDesc = {g_RootSignatureSkybox, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
+	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetSkybox[1]);
+
+	setDesc = {g_RootSignatureTerrain, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
 	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetTerrain);
 
 	setDesc = {g_RootSignatureLitOpaque, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
@@ -1589,6 +1674,7 @@ void LoadDescriptorSets()
 
 void UnloadShaders()
 {
+	removeShader(g_Renderer, g_ShaderSkybox);
 	removeShader(g_Renderer, g_ShaderTerrain);
 	removeShader(g_Renderer, g_ShaderLitOpaque);
 	removeShader(g_Renderer, g_ShaderLitMasked);
@@ -1598,6 +1684,7 @@ void UnloadShaders()
 
 void UnloadRootSignatures()
 {
+	removeRootSignature(g_Renderer, g_RootSignatureSkybox);
 	removeRootSignature(g_Renderer, g_RootSignatureTerrain);
 	removeRootSignature(g_Renderer, g_RootSignatureLitOpaque);
 	removeRootSignature(g_Renderer, g_RootSignatureLitMasked);
@@ -1607,6 +1694,8 @@ void UnloadRootSignatures()
 
 void UnloadDescriptorSets()
 {
+	removeDescriptorSet(g_Renderer, g_DescriptorSetSkybox[0]);
+	removeDescriptorSet(g_Renderer, g_DescriptorSetSkybox[1]);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetTerrain);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetLitOpaque);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetLitMasked);
@@ -1670,8 +1759,16 @@ void PrepareDescriptorSets()
 {
 	DescriptorData params[7] = {};
 
+	params[0].pName = "skyboxMap";
+	params[0].ppTextures = &g_TextureSkybox;
+	updateDescriptorSet(g_Renderer, 0, g_DescriptorSetSkybox[0], 1, params);
+
 	for (uint32_t i = 0; i < g_DataBufferCount; ++i)
 	{
+		params[0].pName = "cbFrame";
+		params[0].ppBuffers = &g_UniformBufferCameraSkybox[i];
+		updateDescriptorSet(g_Renderer, i, g_DescriptorSetSkybox[1], 1, params);
+
 		params[0].pName = "brdfIntegrationMap";
 		params[0].ppTextures = &g_TextureBRDFLut;
 		params[1].pName = "irradianceMap";
@@ -1713,6 +1810,40 @@ void LoadPipelines()
 	depthStateDescDepthTest.mDepthWrite = true;
 	depthStateDescDepthTest.mDepthTest = true;
 	depthStateDescDepthTest.mDepthFunc = CMP_GEQUAL;
+
+	{
+		TinyImageFormat renderTargets[] = { g_SceneColor->mFormat };
+		uint32_t renderTargetsCount = sizeof(renderTargets) / sizeof(renderTargets[0]);
+		assert(renderTargetsCount == 1);
+
+		BlendStateDesc blendStateDesc = {};
+		blendStateDesc.mBlendModes[0] = BM_ADD;
+		blendStateDesc.mBlendAlphaModes[0] = BM_ADD;
+		blendStateDesc.mSrcFactors[0] = BC_ONE_MINUS_DST_ALPHA;
+		blendStateDesc.mDstFactors[0] = BC_DST_ALPHA;
+		blendStateDesc.mSrcAlphaFactors[0] = BC_ZERO;
+		blendStateDesc.mDstAlphaFactors[0] = BC_ONE;
+		blendStateDesc.mColorWriteMasks[0] = COLOR_MASK_ALL;
+		blendStateDesc.mRenderTargetMask = BLEND_STATE_TARGET_0;
+		blendStateDesc.mIndependentBlend = false;
+
+		PipelineDesc graphicsPipelineDesc = {};
+		graphicsPipelineDesc.mType = PIPELINE_TYPE_GRAPHICS;
+		GraphicsPipelineDesc &pipelineSettings = graphicsPipelineDesc.mGraphicsDesc;
+		pipelineSettings.mPrimitiveTopo = PRIMITIVE_TOPO_TRI_LIST;
+		pipelineSettings.mRenderTargetCount = renderTargetsCount;
+		pipelineSettings.pColorFormats = renderTargets;
+		pipelineSettings.pDepthState = nullptr;
+		pipelineSettings.mSampleCount = SAMPLE_COUNT_1;
+		pipelineSettings.mSampleQuality = 0;
+		pipelineSettings.mDepthStencilFormat = TinyImageFormat_UNDEFINED;
+		pipelineSettings.pRootSignature = g_RootSignatureSkybox;
+		pipelineSettings.pShaderProgram = g_ShaderSkybox;
+		pipelineSettings.pVertexLayout = &g_VertexLayoutDefault;
+		pipelineSettings.pRasterizerState = &rasterizerStateCullNoneDesc;
+		pipelineSettings.pBlendState = &blendStateDesc;
+		addPipeline(g_Renderer, &graphicsPipelineDesc, &g_PipelineSkybox);
+	}
 
 	const uint32_t gBuffersCount = 3;
 	TinyImageFormat gBufferTargetFormats[gBuffersCount] = { g_GBuffer0->mFormat, g_GBuffer1->mFormat, g_GBuffer2->mFormat };
@@ -1826,6 +1957,7 @@ void LoadPipelines()
 
 void UnloadPipelines()
 {
+	removePipeline(g_Renderer, g_PipelineSkybox);
 	removePipeline(g_Renderer, g_PipelineTerrain);
 	removePipeline(g_Renderer, g_PipelineLitOpaque);
 	removePipeline(g_Renderer, g_PipelineLitMasked);
