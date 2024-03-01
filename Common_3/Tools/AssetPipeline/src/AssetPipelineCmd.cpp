@@ -67,6 +67,7 @@ void PrintHelp()
     printf("\n\t-h | -help\t\t: Print usage information\n");
     printf("\n\t--input [path]\t\t\t: Choose input folder\n");
     printf("\n\t--output [path]\t\t\t: Choose output folder\n");
+    printf("\n\t--content [path]\t\t\t: Choose root content folder. Default is folder containing AssetPipelineCmd\n");
     printf("\n\t--quiet\t\t\t: Print only error messages\n");
     printf("\n\t--force\t\t\t: Force all assets to be processed\n");
 }
@@ -96,6 +97,7 @@ int AssetPipelineCmd(int argc, char** argv)
 
     const char* input = "";
     const char* output = "";
+    const char* content = nullptr;
 
     // Parse commands, fill params
     AssetPipelineParams params = {};
@@ -160,6 +162,10 @@ int AssetPipelineCmd(int argc, char** argv)
         {
             output = argv[++i];
         }
+        else if (STRCMP(arg, "--content"))
+        {
+            content = argv[++i];
+        }
         else if (STRCMP(arg, "--quiet"))
         {
             params.mSettings.quiet = true;
@@ -179,6 +185,11 @@ int AssetPipelineCmd(int argc, char** argv)
 
     FileSystemInitDesc fsDesc = {};
     fsDesc.pAppName = gApplicationName;
+
+    if (content)
+    {
+        fsDesc.pResourceMounts[RM_CONTENT] = content;
+    }
 
     if (!initFileSystem(&fsDesc))
     {
