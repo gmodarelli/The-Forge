@@ -374,7 +374,7 @@ uint insert_bits(uint src, uint ins, uint off, uint bits)
 
 #define row_major(X) X
 
-#if defined(ORBIS) || defined(PROSPERO)
+#if defined(ORBIS)
 #define NonUniformResourceIndex(X) (X)
 #endif
 

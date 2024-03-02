@@ -179,6 +179,7 @@
     <ClInclude Include="..\..\lib\source\gainput\hid\hidparsers\HIDParserPS5Controller.h" />
     <ClInclude Include="..\..\lib\source\gainput\hid\hidparsers\HIDParserSwitchController.h" />
     <ClInclude Include="..\..\lib\source\gainput\pad\GainputInputDevicePadHID.h" />
+    <ClInclude Include="..\..\lib\source\gainput\windows\GainputInputDevicePadWinDirectInput.h" />
     <ClInclude Include="..\..\lib\source\gainput\windows\GainputInputDevicePadWinMsgHandler.h" />
     <ClInclude Include="..\..\lib\source\hidapi\hidapi.h" />
   </ItemGroup>
