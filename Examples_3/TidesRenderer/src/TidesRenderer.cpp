@@ -258,7 +258,7 @@ int TR_initRenderer(TR_AppSettings *appSettings)
 	settings.mD3D11Supported = false;
 	settings.mGLESSupported = false;
 	settings.mShaderTarget = SHADER_TARGET_6_6;
-	settings.mDisableShaderServer = true;
+	settings.mDisableReloadServer = true;
 	initRenderer(appName, &settings, &g_Renderer);
 
 	if (!g_Renderer)
@@ -552,30 +552,23 @@ void TR_draw(TR_FrameData frameData)
 
 	// GBuffer Pass
 	{
-		RenderTarget* renderTargets[] = { g_GBuffer0, g_GBuffer1, g_GBuffer2 };
-		uint32_t gBufferTargetsCount = sizeof(renderTargets) / sizeof(renderTargets[0]);
-		assert(gBufferTargetsCount == 3);
-
 		RenderTargetBarrier barriers[] = {
-			{ renderTargets[0], RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_RENDER_TARGET },
-			{ renderTargets[1], RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_RENDER_TARGET },
-			{ renderTargets[2], RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_RENDER_TARGET },
+			{ g_GBuffer0, RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_RENDER_TARGET },
+			{ g_GBuffer1, RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_RENDER_TARGET },
+			{ g_GBuffer2, RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_RENDER_TARGET },
 			{ g_DepthBuffer, RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_DEPTH_WRITE },
 		};
-		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, gBufferTargetsCount + 1, barriers);
+		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, 4, barriers);
 
-		LoadActionsDesc loadActions = {};
-		loadActions.mLoadActionsColor[0] = LOAD_ACTION_CLEAR;
-		loadActions.mClearColorValues[0] = renderTargets[0]->mClearValue;
-		loadActions.mLoadActionsColor[1] = LOAD_ACTION_CLEAR;
-		loadActions.mClearColorValues[1] = renderTargets[1]->mClearValue;
-		loadActions.mLoadActionsColor[2] = LOAD_ACTION_CLEAR;
-		loadActions.mClearColorValues[2] = renderTargets[2]->mClearValue;
-		loadActions.mLoadActionDepth = LOAD_ACTION_CLEAR;
-		loadActions.mClearDepth = g_DepthBuffer->mClearValue;
-		cmdBindRenderTargets(cmd, gBufferTargetsCount, renderTargets, g_DepthBuffer, &loadActions, NULL, NULL, -1, -1);
-		cmdSetViewport(cmd, 0.0f, 0.0f, (float)renderTargets[0]->mWidth, (float)renderTargets[0]->mHeight, 0.0f, 1.0f);
-		cmdSetScissor(cmd, 0, 0, renderTargets[0]->mWidth, renderTargets[0]->mHeight);
+		BindRenderTargetsDesc bindRenderTargets = {};
+		bindRenderTargets.mRenderTargetCount = 3;
+		bindRenderTargets.mRenderTargets[0] = { g_GBuffer0, LOAD_ACTION_CLEAR };
+		bindRenderTargets.mRenderTargets[1] = { g_GBuffer1, LOAD_ACTION_CLEAR };
+		bindRenderTargets.mRenderTargets[2] = { g_GBuffer2, LOAD_ACTION_CLEAR };
+		bindRenderTargets.mDepthStencil = { g_DepthBuffer, LOAD_ACTION_CLEAR };
+		cmdBindRenderTargets(cmd, &bindRenderTargets);
+		cmdSetViewport(cmd, 0.0f, 0.0f, (float)g_GBuffer0->mWidth, (float)g_GBuffer0->mHeight, 0.0f, 1.0f);
+		cmdSetScissor(cmd, 0, 0, g_GBuffer0->mWidth, g_GBuffer0->mHeight);
 
 		// Terrain Pass
 		{
@@ -690,13 +683,13 @@ void TR_draw(TR_FrameData frameData)
 				}
 			}
 		}
-		cmdBindRenderTargets(cmd, 0, NULL, NULL, NULL, NULL, NULL, -1, -1);
+		cmdBindRenderTargets(cmd, NULL);
 
-		barriers[0] = { renderTargets[0], RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE };
-		barriers[1] = { renderTargets[1], RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE };
-		barriers[2] = { renderTargets[2], RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE };
+		barriers[0] = { g_GBuffer0, RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE };
+		barriers[1] = { g_GBuffer1, RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE };
+		barriers[2] = { g_GBuffer2, RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_SHADER_RESOURCE };
 		barriers[3] = { g_DepthBuffer, RESOURCE_STATE_DEPTH_WRITE, RESOURCE_STATE_SHADER_RESOURCE };
-		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, gBufferTargetsCount + 1, barriers);
+		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, 4, barriers);
 	}
 
 	// Deferred Shading
@@ -709,27 +702,25 @@ void TR_draw(TR_FrameData frameData)
 
 		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, barriersCount, barriers);
 
-		RenderTarget* renderTargets[] = { g_SceneColor };
-
-		LoadActionsDesc loadActions = {};
-		loadActions.mLoadActionsColor[0] = LOAD_ACTION_CLEAR;
-		loadActions.mClearColorValues[0] = renderTargets[0]->mClearValue;
-		cmdBindRenderTargets(cmd, 1, renderTargets, NULL, &loadActions, NULL, NULL, -1, 1);
+		BindRenderTargetsDesc renderTargetsDesc = {};
+		renderTargetsDesc.mRenderTargetCount = 1;
+		renderTargetsDesc.mRenderTargets[0] = { g_SceneColor, LOAD_ACTION_CLEAR };
+		cmdBindRenderTargets(cmd, &renderTargetsDesc);
 
 		cmdBindPipeline(cmd, g_PipelineDeferredShading);
 		cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetDeferredShading[0]);
 		cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetDeferredShading[1]);
-		cmdSetViewport(cmd, 0.0f, 0.0f, (float)renderTargets[0]->mWidth, (float)renderTargets[0]->mHeight, 0.0f, 1.0f);
+		cmdSetViewport(cmd, 0.0f, 0.0f, (float)g_SceneColor->mWidth, (float)g_SceneColor->mHeight, 0.0f, 1.0f);
 		cmdDraw(cmd, 3, 0);
-		cmdBindRenderTargets(cmd, 0, NULL, NULL, NULL, NULL, NULL, -1, -1);
+		cmdBindRenderTargets(cmd, NULL);
 	}
 
 	// Skybox Pass
 	{
-		RenderTarget* renderTargets[] = { g_SceneColor };
-		LoadActionsDesc loadActions = {};
-		loadActions.mLoadActionsColor[0] = LOAD_ACTION_LOAD;
-		cmdBindRenderTargets(cmd, 1, renderTargets, NULL, &loadActions, NULL, NULL, -1, -1);
+		BindRenderTargetsDesc renderTargetsDesc = {};
+		renderTargetsDesc.mRenderTargetCount = 1;
+		renderTargetsDesc.mRenderTargets[0] = { g_SceneColor, LOAD_ACTION_LOAD };
+		cmdBindRenderTargets(cmd, &renderTargetsDesc);
 
 		BufferUpdateDesc camBufferSkyboxUpdateDesc = {g_UniformBufferCameraSkybox[g_FrameIndex]};
 		beginUpdateResource(&camBufferSkyboxUpdateDesc);
@@ -740,8 +731,8 @@ void TR_draw(TR_FrameData frameData)
 		cmdBindPipeline(cmd, g_PipelineSkybox);
 		cmdBindDescriptorSet(cmd, 0, g_DescriptorSetSkybox[0]);
 		cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetSkybox[1]);
-		cmdSetViewport(cmd, 0.0f, 0.0f, (float)renderTargets[0]->mWidth, (float)renderTargets[0]->mHeight, 0.0f, 1.0f);
-		cmdSetScissor(cmd, 0, 0, renderTargets[0]->mWidth, renderTargets[0]->mHeight);
+		cmdSetViewport(cmd, 0.0f, 0.0f, (float)g_SceneColor->mWidth, (float)g_SceneColor->mHeight, 0.0f, 1.0f);
+		cmdSetScissor(cmd, 0, 0, g_SceneColor->mWidth, g_SceneColor->mHeight);
 
 		const Mesh* skyboxMesh = &g_Meshes[frameData.skyboxMeshHandle.ID];
 
@@ -760,7 +751,7 @@ void TR_draw(TR_FrameData frameData)
 			cmdDrawIndexed(cmd, skyboxMesh->geometry->pDrawArgs[0].mIndexCount, skyboxMesh->geometry->pDrawArgs[0].mStartIndex, skyboxMesh->geometry->pDrawArgs[0].mVertexOffset);
 		}
 
-		cmdBindRenderTargets(cmd, 0, NULL, NULL, NULL, NULL, NULL, -1, -1);
+		cmdBindRenderTargets(cmd, NULL);
 	}
 
 
@@ -780,19 +771,18 @@ void TR_draw(TR_FrameData frameData)
 		assert(barriersCount == 1);
 
 		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, barriersCount, barriers);
-		// RenderTarget* renderTargets[] = { g_SceneColor };
 		RenderTarget* renderTargets[] = { g_SwapChain->ppRenderTargets[swapchainImageIndex] };
 
-		LoadActionsDesc loadActions = {};
-		loadActions.mLoadActionsColor[0] = LOAD_ACTION_CLEAR;
-		loadActions.mClearColorValues[0] = renderTargets[0]->mClearValue;
-		cmdBindRenderTargets(cmd, barriersCount, renderTargets, NULL, &loadActions, NULL, NULL, -1, 1);
+		BindRenderTargetsDesc renderTargetsDesc = {};
+		renderTargetsDesc.mRenderTargetCount = 1;
+		renderTargetsDesc.mRenderTargets[0] = { g_SwapChain->ppRenderTargets[swapchainImageIndex], LOAD_ACTION_CLEAR };
+		cmdBindRenderTargets(cmd, &renderTargetsDesc);
 
 		cmdBindPipeline(cmd, g_PipelineTonemapper);
 		cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetTonemapper);
 		cmdSetViewport(cmd, 0.0f, 0.0f, (float)renderTargets[0]->mWidth, (float)renderTargets[0]->mHeight, 0.0f, 1.0f);
 		cmdDraw(cmd, 3, 0);
-		cmdBindRenderTargets(cmd, 0, NULL, NULL, NULL, NULL, NULL, -1, -1);
+		cmdBindRenderTargets(cmd, NULL);
 
 		barriers[0] = { g_SwapChain->ppRenderTargets[swapchainImageIndex], RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_PRESENT };
 		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, barriersCount, barriers);
