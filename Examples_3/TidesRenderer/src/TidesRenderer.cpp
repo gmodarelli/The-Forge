@@ -162,6 +162,21 @@ Texture *g_TextureBRDFLut = NULL;
 Texture *g_TextureIrradiance = NULL;
 Texture *g_TextureSpecular = NULL;
 
+// UI Resources
+// ============
+struct UIFrameData
+{
+	mat4 m_ScreenToClip;
+	uint32_t m_UIInstanceBufferIndex;
+};
+Shader *g_ShaderUI = NULL;
+RootSignature *g_RootSignatureUI = NULL;
+Pipeline *g_PipelineUI = NULL;
+DescriptorSet *g_DescriptorSetUI = NULL;
+Buffer *g_UIIndexBuffer = NULL;
+UIFrameData g_UIFrameData;
+Buffer *g_UIFrameDataBuffer[g_DataBufferCount] = {NULL};
+
 // Testing Dynamic Resources
 // =========================
 struct InstanceTransform
@@ -198,6 +213,9 @@ void PrepareDescriptorSets();
 
 void LoadPipelines();
 void UnloadPipelines();
+
+void AddUIBuffers();
+void RemoveUIBuffers();
 
 int TR_initRenderer(TR_AppSettings *appSettings)
 {
@@ -323,6 +341,8 @@ int TR_initRenderer(TR_AppSettings *appSettings)
 
 	AddUniformBuffers();
 
+	AddUIBuffers();
+
 	waitForAllResourceLoads();
 
 	g_FrameIndex = 0;
@@ -396,6 +416,7 @@ void TR_exitRenderer()
 	UnloadPBRMaps();
 	RemoveStaticSamplers();
 	RemoveUniformBuffers();
+	RemoveUIBuffers();
 
 	exitResourceLoaderInterface(g_Renderer);
 	removeSemaphore(g_Renderer, g_ImageAcquiredSemaphore);
@@ -780,11 +801,40 @@ void TR_draw(TR_FrameData frameData)
 
 		cmdBindPipeline(cmd, g_PipelineTonemapper);
 		cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetTonemapper);
+		cmdBindIndexBuffer(cmd, g_UIIndexBuffer, IndexType::INDEX_TYPE_UINT16, 0);
 		cmdSetViewport(cmd, 0.0f, 0.0f, (float)renderTargets[0]->mWidth, (float)renderTargets[0]->mHeight, 0.0f, 1.0f);
 		cmdDraw(cmd, 3, 0);
+	}
+
+	// UI Images
+	{
+		RenderTarget* renderTargets[] = { g_SwapChain->ppRenderTargets[swapchainImageIndex] };
+
+		vec4 col0 = vec4(2.0f / (float)renderTargets[0]->mWidth, 0.0f, 0.0f, 0.0f);
+		vec4 col1 = vec4(0.0f, -2.0f / (float)renderTargets[0]->mHeight, 0.0f, 0.0f);
+		vec4 col2 = vec4(0.0f, 0.0f, 0.5f, 0.0f);
+		vec4 col3 = vec4(-1.0f, 1.0f, 0.5f, 1.0f);
+		g_UIFrameData.m_ScreenToClip = mat4(col0, col1, col2, col3);
+		g_UIFrameData.m_UIInstanceBufferIndex = frameData.uiInstanceBufferIndex;
+
+		BufferUpdateDesc uiBufferUpdateDesc = {g_UIFrameDataBuffer[g_FrameIndex]};
+		beginUpdateResource(&uiBufferUpdateDesc);
+		memcpy(uiBufferUpdateDesc.pMappedData, &g_UIFrameData, sizeof(g_UIFrameData));
+		endUpdateResource(&uiBufferUpdateDesc);
+
+		cmdBindPipeline(cmd, g_PipelineUI);
+		cmdBindDescriptorSet(cmd, g_FrameIndex, g_DescriptorSetUI);
+		cmdSetViewport(cmd, 0.0f, 0.0f, (float)renderTargets[0]->mWidth, (float)renderTargets[0]->mHeight, 0.0f, 1.0f);
+		cmdDrawIndexedInstanced(cmd, 6, 0, frameData.uiInstanceCount, 0, 0);
+	}
+
+	// Prepare for present
+	{
 		cmdBindRenderTargets(cmd, NULL);
 
-		barriers[0] = { g_SwapChain->ppRenderTargets[swapchainImageIndex], RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_PRESENT };
+		RenderTargetBarrier barriers[] = { { g_SwapChain->ppRenderTargets[swapchainImageIndex], RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_PRESENT } };
+		uint32_t barriersCount = sizeof(barriers) / sizeof(barriers[0]);
+		assert(barriersCount == 1);
 		cmdResourceBarrier(cmd, 0, NULL, 0, NULL, barriersCount, barriers);
 	}
 
@@ -1534,6 +1584,11 @@ void LoadShaders()
 	tonemapperShaderDesc.mStages[0].pFileName = "fullscreen.vert";
 	tonemapperShaderDesc.mStages[1].pFileName = "tonemapper.frag";
 	addShader(g_Renderer, &tonemapperShaderDesc, &g_ShaderTonemapper);
+
+	ShaderLoadDesc uiShaderDesc = {};
+	uiShaderDesc.mStages[0].pFileName = "ui.vert";
+	uiShaderDesc.mStages[1].pFileName = "ui.frag";
+	addShader(g_Renderer, &uiShaderDesc, &g_ShaderUI);
 }
 
 void LoadRootSignatures()
@@ -1635,6 +1690,22 @@ void LoadRootSignatures()
 		tonemapperRootDesc.mShaderCount = 1;
 		addRootSignature(g_Renderer, &tonemapperRootDesc, &g_RootSignatureTonemapper);
 	}
+
+	{
+		const char *staticSamplerNames[] = {"bilinearRepeatSampler"};
+		Sampler *staticSamplers[] = {
+			g_SamplerBilinearRepeat,
+		};
+		uint32_t numStaticSamplers = sizeof(staticSamplers) / sizeof(staticSamplers[0]);
+
+		RootSignatureDesc uiRootDesc = {};
+		uiRootDesc.mStaticSamplerCount = numStaticSamplers;
+		uiRootDesc.ppStaticSamplerNames = staticSamplerNames;
+		uiRootDesc.ppStaticSamplers = staticSamplers;
+		uiRootDesc.ppShaders = &g_ShaderUI;
+		uiRootDesc.mShaderCount = 1;
+		addRootSignature(g_Renderer, &uiRootDesc, &g_RootSignatureUI);
+	}
 }
 
 void LoadDescriptorSets()
@@ -1660,6 +1731,9 @@ void LoadDescriptorSets()
 
 	setDesc = {g_RootSignatureTonemapper, DESCRIPTOR_UPDATE_FREQ_NONE, g_DataBufferCount};
 	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetTonemapper);
+
+	setDesc = {g_RootSignatureUI, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, g_DataBufferCount};
+	addDescriptorSet(g_Renderer, &setDesc, &g_DescriptorSetUI);
 }
 
 void UnloadShaders()
@@ -1670,6 +1744,7 @@ void UnloadShaders()
 	removeShader(g_Renderer, g_ShaderLitMasked);
 	removeShader(g_Renderer, g_ShaderDeferredShading);
 	removeShader(g_Renderer, g_ShaderTonemapper);
+	removeShader(g_Renderer, g_ShaderUI);
 }
 
 void UnloadRootSignatures()
@@ -1680,6 +1755,7 @@ void UnloadRootSignatures()
 	removeRootSignature(g_Renderer, g_RootSignatureLitMasked);
 	removeRootSignature(g_Renderer, g_RootSignatureDeferredShading);
 	removeRootSignature(g_Renderer, g_RootSignatureTonemapper);
+	removeRootSignature(g_Renderer, g_RootSignatureUI);
 }
 
 void UnloadDescriptorSets()
@@ -1692,6 +1768,7 @@ void UnloadDescriptorSets()
 	removeDescriptorSet(g_Renderer, g_DescriptorSetDeferredShading[0]);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetDeferredShading[1]);
 	removeDescriptorSet(g_Renderer, g_DescriptorSetTonemapper);
+	removeDescriptorSet(g_Renderer, g_DescriptorSetUI);
 }
 
 void AddStaticSamplers()
@@ -1758,6 +1835,10 @@ void PrepareDescriptorSets()
 		params[0].pName = "cbFrame";
 		params[0].ppBuffers = &g_UniformBufferCameraSkybox[i];
 		updateDescriptorSet(g_Renderer, i, g_DescriptorSetSkybox[1], 1, params);
+
+		params[0].pName = "cbFrame";
+		params[0].ppBuffers = &g_UIFrameDataBuffer[i];
+		updateDescriptorSet(g_Renderer, i, g_DescriptorSetUI, 1, params);
 
 		params[0].pName = "brdfIntegrationMap";
 		params[0].ppTextures = &g_TextureBRDFLut;
@@ -1943,6 +2024,41 @@ void LoadPipelines()
 		pipelineSettings.mVRFoveatedRendering = true;
 		addPipeline(g_Renderer, &graphicsPipelineDesc, &g_PipelineTonemapper);
 	}
+
+	{
+		TinyImageFormat renderTargets[] = { g_SwapChain->ppRenderTargets[0]->mFormat };
+		uint32_t renderTargetsCount = sizeof(renderTargets) / sizeof(renderTargets[0]);
+		assert(renderTargetsCount == 1);
+
+		PipelineDesc graphicsPipelineDesc = {};
+		graphicsPipelineDesc.mType = PIPELINE_TYPE_GRAPHICS;
+		GraphicsPipelineDesc &pipelineSettings = graphicsPipelineDesc.mGraphicsDesc;
+
+		BlendStateDesc blendStateDesc = {};
+		blendStateDesc.mBlendModes[0] = BM_ADD;
+		blendStateDesc.mBlendAlphaModes[0] = BM_ADD;
+		blendStateDesc.mSrcFactors[0] = BC_SRC_ALPHA;
+		blendStateDesc.mDstFactors[0] = BC_ONE_MINUS_SRC_ALPHA;
+		blendStateDesc.mSrcAlphaFactors[0] = BC_ONE_MINUS_SRC_ALPHA;
+		blendStateDesc.mDstAlphaFactors[0] = BC_ZERO;
+		blendStateDesc.mColorWriteMasks[0] = COLOR_MASK_ALL;
+		blendStateDesc.mRenderTargetMask = BLEND_STATE_TARGET_0;
+		blendStateDesc.mIndependentBlend = false;
+
+		pipelineSettings.mPrimitiveTopo = PRIMITIVE_TOPO_TRI_LIST;
+		pipelineSettings.mRenderTargetCount = renderTargetsCount;
+		pipelineSettings.pColorFormats = renderTargets;
+		pipelineSettings.pDepthState = NULL;
+		pipelineSettings.mSampleCount = SAMPLE_COUNT_1;
+		pipelineSettings.mSampleQuality = 0;
+		pipelineSettings.pRootSignature = g_RootSignatureUI;
+		pipelineSettings.pShaderProgram = g_ShaderUI;
+		pipelineSettings.pVertexLayout = NULL;
+		pipelineSettings.pRasterizerState = &rasterizerStateCullNoneDesc;
+		pipelineSettings.pBlendState = &blendStateDesc;
+		pipelineSettings.mVRFoveatedRendering = true;
+		addPipeline(g_Renderer, &graphicsPipelineDesc, &g_PipelineUI);
+	}
 }
 
 void UnloadPipelines()
@@ -1953,4 +2069,51 @@ void UnloadPipelines()
 	removePipeline(g_Renderer, g_PipelineLitMasked);
 	removePipeline(g_Renderer, g_PipelineDeferredShading);
 	removePipeline(g_Renderer, g_PipelineTonemapper);
+	removePipeline(g_Renderer, g_PipelineUI);
+}
+
+void AddUIBuffers()
+{
+    {
+		uint16_t quadIndices[] = { 0, 1, 2, 0, 3, 1 };
+
+		BufferLoadDesc desc = {};
+		desc.mDesc.mDescriptors = DESCRIPTOR_TYPE_INDEX_BUFFER;
+		desc.mDesc.mMemoryUsage = RESOURCE_MEMORY_USAGE_GPU_ONLY;
+		desc.mDesc.mFlags = BUFFER_CREATION_FLAG_NONE;
+		desc.mDesc.mSize = sizeof(quadIndices);
+		desc.pData = quadIndices;
+		desc.mDesc.mElementCount = (uint32_t)(sizeof(quadIndices) / sizeof(quadIndices[0]));
+		desc.ppBuffer = &g_UIIndexBuffer;
+
+		SyncToken token = {};
+		addResource(&desc, &token);
+		waitForToken(&token);
+    }
+
+	{
+		// Uniform buffer for UI
+		BufferLoadDesc desc = {};
+		desc.mDesc.mDescriptors = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		desc.mDesc.mMemoryUsage = RESOURCE_MEMORY_USAGE_CPU_TO_GPU;
+		desc.mDesc.mSize = sizeof(UIFrameData);
+		desc.mDesc.mFlags = BUFFER_CREATION_FLAG_PERSISTENT_MAP_BIT;
+		desc.pData = NULL;
+
+		for (uint32_t i = 0; i < g_DataBufferCount; ++i)
+		{
+			desc.ppBuffer = &g_UIFrameDataBuffer[i];
+			addResource(&desc, NULL);
+		}
+	}
+}
+
+void RemoveUIBuffers()
+{
+	removeResource(g_UIIndexBuffer);
+
+	for (uint32_t i = 0; i < g_DataBufferCount; ++i)
+	{
+		removeResource(g_UIFrameDataBuffer[i]);
+	}
 }

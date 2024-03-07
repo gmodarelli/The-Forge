@@ -46,6 +46,8 @@ typedef struct TR_FrameData {
 	uint32_t directionalLightsCount;
 	uint32_t pointLightsCount;
 	TR_MeshHandle skyboxMeshHandle;
+	uint32_t uiInstanceBufferIndex;
+	uint32_t uiInstanceCount;
 } TR_FrameData;
 
 typedef struct TR_PointLight
