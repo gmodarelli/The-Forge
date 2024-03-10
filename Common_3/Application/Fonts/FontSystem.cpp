@@ -217,11 +217,17 @@ void fonsImplementationRemoveTexture(void*) {}
 bool platformInitFontSystem()
 {
 #ifdef ENABLE_FORGE_FONTS
+#if !defined(TIDES)
     float          dpiScale[2] = {};
     const uint32_t monitorIdx = getActiveMonitorIdx();
     getMonitorDpiScale(monitorIdx, dpiScale);
     gFontstash.mDpiScale.x = dpiScale[0];
     gFontstash.mDpiScale.y = dpiScale[1];
+#else
+    // TODO(gmodarelli): Pass dpi scale from the caller
+    gFontstash.mDpiScale.x = 1.0f;
+    gFontstash.mDpiScale.y = 1.0f;
+#endif
 
     gFontstash.mDpiScaleMin = min(gFontstash.mDpiScale.x, gFontstash.mDpiScale.y);
 

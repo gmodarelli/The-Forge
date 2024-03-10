@@ -9,8 +9,8 @@
 #include "../../../Common_3/Utilities/Interfaces/ILog.h"
 #include "../../../Common_3/Utilities/RingBuffer.h"
 
+#include "../../../Common_3/Application/Interfaces/IFont.h"
 // NOTE(gmodarelli): We cannot use them as they are since they rely on global Application layer state
-// #include "../../../Common_3/Application/Interfaces/IFont.h"
 // #include "../../../Common_3/Application/Interfaces/IProfiler.h"
 // #include "../../../Common_3/Application/Interfaces/IUI.h"
 
@@ -187,6 +187,8 @@ struct InstanceTransform
 uint32_t g_TerrainLod3PatchCount = 8 * 8;
 Buffer *g_TerrainLod3TransformBuffer = NULL;
 
+uint32_t g_FontID_Roboto;
+
 bool AddSwapChain();
 bool AddRenderTargets();
 
@@ -229,15 +231,19 @@ int TR_initRenderer(TR_AppSettings *appSettings)
 	if (!initFileSystem(&fsDesc))
 		return EXIT_FAILURE;
 
+	extern bool platformInitFontSystem();
+	if (!platformInitFontSystem())
+		return EXIT_FAILURE;
+
 	fsSetPathForResourceDir(pSystemFileIO, RM_DEBUG, RD_LOG, "");
 
 	initLog(appName, DEFAULT_LOG_LEVEL);
 
 	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_GPU_CONFIG, "GPUCfg");
-	// TODO: Make everything relative to content
 	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_SHADER_BINARIES, "content/compiled_shaders");
 	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_TEXTURES, "content");
 	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_MESHES, "content");
+	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_FONTS, "content");
 
 	g_TerrainDrawCalls = (TR_DrawCallInstanced *)tf_malloc(sizeof(TR_DrawCallInstanced) * g_TerrainDrawCallsCountMax);
 	assert(g_TerrainDrawCalls);
@@ -301,6 +307,16 @@ int TR_initRenderer(TR_AppSettings *appSettings)
 
 	ResourceLoaderDesc resourceLoaderDesc = {256ull * TF_MB, 2, false, false};
 	initResourceLoaderInterface(g_Renderer, &resourceLoaderDesc);
+
+	// Load fonts
+	FontDesc font = {};
+	font.pFontPath = "fonts/Roboto-Medium.ttf";
+	fntDefineFonts(&font, 1, &g_FontID_Roboto);
+
+	FontSystemDesc fontRenderDesc = {};
+	fontRenderDesc.pRenderer = g_Renderer;
+	if (!initFontSystem(&fontRenderDesc))
+		return EXIT_FAILURE;
 
 	AddStaticSamplers();
 
@@ -418,12 +434,17 @@ void TR_exitRenderer()
 	RemoveUniformBuffers();
 	RemoveUIBuffers();
 
+	exitFontSystem();
+
 	exitResourceLoaderInterface(g_Renderer);
 	removeSemaphore(g_Renderer, g_ImageAcquiredSemaphore);
 	removeGpuCmdRing(g_Renderer, &g_GraphicsCmdRing);
 	removeQueue(g_Renderer, g_GraphicsQueue);
 	exitRenderer(g_Renderer);
 	g_Renderer = NULL;
+
+	extern void platformExitFontSystem();
+	platformExitFontSystem();
 
 	exitLog();
 
@@ -478,6 +499,15 @@ bool TR_onLoad(ReloadDesc *reloadDesc)
 		LoadPipelines();
 	}
 
+	FontSystemLoadDesc fontLoad = {};
+	fontLoad.mColorFormat = g_SwapChain->ppRenderTargets[0]->mFormat;
+	fontLoad.mDepthFormat = TinyImageFormat_D32_SFLOAT;
+	fontLoad.mDepthCompareMode = CompareMode::CMP_GEQUAL;
+	fontLoad.mHeight = g_AppSettings->height;
+	fontLoad.mWidth = g_AppSettings->width;
+	fontLoad.mLoadType = reloadDesc->mType;
+	loadFontSystem(&fontLoad);
+
 	return true;
 }
 
@@ -486,6 +516,8 @@ void TR_onUnload(ReloadDesc *reloadDesc)
 	printf("TR_onUnload\n");
 
 	waitQueueIdle(g_GraphicsQueue);
+
+	unloadFontSystem(reloadDesc->mType);
 
 	if (reloadDesc->mType & (RELOAD_TYPE_RESIZE | RELOAD_TYPE_SHADER | RELOAD_TYPE_RENDERTARGET))
 	{
@@ -2074,7 +2106,7 @@ void UnloadPipelines()
 
 void AddUIBuffers()
 {
-    {
+	{
 		uint16_t quadIndices[] = { 0, 1, 2, 0, 3, 1 };
 
 		BufferLoadDesc desc = {};
@@ -2089,7 +2121,7 @@ void AddUIBuffers()
 		SyncToken token = {};
 		addResource(&desc, &token);
 		waitForToken(&token);
-    }
+	}
 
 	{
 		// Uniform buffer for UI
