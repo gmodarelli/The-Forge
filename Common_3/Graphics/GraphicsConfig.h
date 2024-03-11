@@ -47,8 +47,10 @@
 #ifndef _WINDOWS7
 #include "Direct3D12/Direct3D12Config.h"
 #endif
+#if !defined(TIDES)
 #include "Direct3D11/Direct3D11Config.h"
 #include "Vulkan/VulkanConfig.h"
+#endif
 #elif defined(XBOX)
 #include "Direct3D12/Direct3D12Config.h"
 #elif defined(__APPLE__)
