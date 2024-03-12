@@ -236,6 +236,9 @@ extern "C"
 
     /// Default file system using C File IO or Bundled File IO (Android) based on the ResourceDirectory
     FORGE_API extern IFileSystem* pSystemFileIO;
+#if defined(TIDES)
+    FORGE_API extern IFileSystem* fsGetSystemFileIO();
+#endif
     /************************************************************************/
     // MARK: - Initialization
     /************************************************************************/

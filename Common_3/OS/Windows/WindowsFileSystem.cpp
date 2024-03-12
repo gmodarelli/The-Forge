@@ -495,3 +495,10 @@ static IFileSystem gWindowsFileIO = {
 };
 
 IFileSystem* pSystemFileIO = &gWindowsFileIO;
+
+#if defined(TIDES)
+FORGE_API IFileSystem* fsGetSystemFileIO()
+{
+    return pSystemFileIO;
+}
+#endif
