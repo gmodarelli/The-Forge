@@ -749,7 +749,7 @@ pub const QueryPool = extern struct {
     mStride: u32,
 
     pub const __Struct0 = extern struct {
-        pQueryHeap: [*c]ID3D12QueryHeap,
+        pQueryHeap: *ID3D12QueryHeap,
         pReadbackBuffer: [*c]Buffer,
         mType: D3D12_QUERY_TYPE,
     };
@@ -831,7 +831,7 @@ pub const ResourceHeap = extern struct {
     mSize: u64,
 
     pub const __Struct0 = extern struct {
-        pHeap: [*c]ID3D12Heap,
+        pHeap: *ID3D12Heap,
     };
 };
 
@@ -911,7 +911,7 @@ pub const Buffer = extern struct {
         /// Offset from mDescriptors for uav descriptor handle
         mUavDescriptorOffset: u8,
         /// Native handle of the underlying resource
-        pResource: [*c]ID3D12Resource,
+        pResource: *ID3D12Resource,
         /// Contains resource allocation info such as parent heap, offset in heap
         pAllocation: [*c]D3D12MAAllocation,
         mPersistentGPUDescriptors: DxDescriptorID,
@@ -994,7 +994,7 @@ pub const Texture = extern struct {
         /// Descriptor handle of the SRV in a CPU visible descriptor heap (applicable to TEXTURE_USAGE_SAMPLED_IMAGE)
         mDescriptors: DxDescriptorID,
         /// Native handle of the underlying resource
-        pResource: [*c]ID3D12Resource,
+        pResource: *ID3D12Resource,
         /// Contains resource allocation info such as parent heap, offset in heap
         pAllocation: [*c]D3D12MAAllocation,
         bitfield_1: packed struct(u32) {
@@ -1182,7 +1182,7 @@ pub const RootSignature = extern struct {
     mDx: __Struct0,
 
     pub const __Struct0 = extern struct {
-        pRootSignature: [*c]ID3D12RootSignature,
+        pRootSignature: *ID3D12RootSignature,
         mViewDescriptorTableRootIndices: [4]u8,
         mSamplerDescriptorTableRootIndices: [4]u8,
         mCumulativeViewDescriptorCounts: [4]u32,
@@ -1304,7 +1304,7 @@ pub const CmdPoolDesc = extern struct {
 };
 
 pub const CmdPool = extern struct {
-    pCmdAlloc: [*c]ID3D12CommandAllocator,
+    pCmdAlloc: *ID3D12CommandAllocator,
     pQueue: [*c]Queue,
 };
 
@@ -1330,9 +1330,9 @@ pub const Cmd = extern struct {
     pQueue: [*c]Queue,
 
     pub const __Struct0 = extern struct {
-        pCmdList: [*c]ID3D12GraphicsCommandList1,
+        pCmdList: *ID3D12GraphicsCommandList1,
         /// Cached in beginCmd to avoid fetching them during rendering
-        pBoundHeaps: [2][*c]DescriptorHeap,
+        pBoundHeaps: [2]*DescriptorHeap,
         mBoundHeapStartHandles: [2]D3D12_GPU_DESCRIPTOR_HANDLE,
         /// Command buffer state
         pBoundRootSignature: [*c]const RootSignature,
@@ -1363,7 +1363,7 @@ pub const Fence = extern struct {
     mDx: __Struct0,
 
     pub const __Struct0 = extern struct {
-        pFence: [*c]ID3D12Fence,
+        pFence: *ID3D12Fence,
         pWaitIdleFenceEvent: HANDLE,
         mFenceValue: u64,
     };
@@ -1375,7 +1375,7 @@ pub const Semaphore = extern struct {
     /// queuePresent does not use the wait semaphore since the swapchain Present function
     /// already does the synchronization in this case
     pub const __Struct0 = extern struct {
-        pFence: [*c]ID3D12Fence,
+        pFence: *ID3D12Fence,
         pWaitIdleFenceEvent: HANDLE,
         mFenceValue: u64,
     };
@@ -1399,7 +1399,7 @@ pub const Queue = extern struct {
     },
 
     pub const __Struct0 = extern struct {
-        pQueue: [*c]ID3D12CommandQueue,
+        pQueue: *ID3D12CommandQueue,
         pFence: [*c]Fence,
         /// To silence mismatching command list on Windows 11 multi GPU
         pRenderer: [*c]Renderer,
@@ -1461,7 +1461,7 @@ pub const Shader = extern struct {
     pReflection: [*c]PipelineReflection,
 
     pub const __Struct0 = extern struct {
-        pShaderBlobs: [*c][*c]IDxcBlobEncoding,
+        pShaderBlobs: [*c]*IDxcBlobEncoding,
         pEntryNames: [*c]LPCWSTR,
     };
 };
@@ -1591,7 +1591,7 @@ pub const Pipeline = extern struct {
     mDx: __Struct0,
 
     pub const __Struct0 = extern struct {
-        pPipelineState: [*c]ID3D12PipelineState,
+        pPipelineState: *ID3D12PipelineState,
         pRootSignature: [*c]const RootSignature,
         mType: PipelineType,
         mPrimitiveTopology: D3D_PRIMITIVE_TOPOLOGY,
@@ -1619,7 +1619,7 @@ pub const PipelineCache = extern struct {
     mDx: __Struct0,
 
     pub const __Struct0 = extern struct {
-        pLibrary: [*c]ID3D12PipelineLibrary,
+        pLibrary: *ID3D12PipelineLibrary,
         pData: ?*anyopaque,
     };
 };
@@ -1676,7 +1676,7 @@ pub const SwapChain = extern struct {
     pub const __Struct0 = extern struct {
         /// Use IDXGISwapChain3 for now since IDXGISwapChain4
         /// isn't supported by older devices.
-        pSwapChain: [*c]IDXGISwapChain3,
+        pSwapChain: *IDXGISwapChain3,
         bitfield_1: packed struct(u32) {
             /// Sync interval to specify how interval for vsync
             mSyncInterval: u3, // 3 bits
@@ -1859,7 +1859,7 @@ pub const GPUSettings = extern struct {
 /// update availableGpuProperties in GPUConfig.cpp if you made changes to this list
 pub const Renderer = extern struct {
     mDx: __Struct0,
-    pNullDescriptors: [*c]NullDescriptors,
+    pNullDescriptors: *NullDescriptors,
     pContext: [*c]RendererContext,
     pGpu: [*c]const GpuInfo,
     pName: [*c]const u8,
@@ -1876,12 +1876,12 @@ pub const Renderer = extern struct {
 
     pub const __Struct0 = extern struct {
         /// API specific descriptor heap and memory allocator
-        pCPUDescriptorHeaps: [*c][*c]DescriptorHeap,
-        pCbvSrvUavHeaps: [*c][*c]DescriptorHeap,
-        pSamplerHeaps: [*c][*c]DescriptorHeap,
-        pResourceAllocator: [*c]D3D12MAAllocator,
-        pDevice: [*c]ID3D12Device,
-        pDebugValidation: [*c]ID3D12InfoQueue,
+        pCPUDescriptorHeaps: [*c]*DescriptorHeap,
+        pCbvSrvUavHeaps: [*c]*DescriptorHeap,
+        pSamplerHeaps: [*c]*DescriptorHeap,
+        pResourceAllocator: *D3D12MAAllocator,
+        pDevice: *ID3D12Device,
+        pDebugValidation: *ID3D12InfoQueue,
         mSuppressMismatchingCommandListDuringPresent: bool,
     };
 
@@ -1907,7 +1907,7 @@ pub const GpuInfo = extern struct {
     mCapBits: GPUCapBits,
 
     pub const __Struct0 = extern struct {
-        pGpu: [*c]IDXGIAdapter4,
+        pGpu: *IDXGIAdapter4,
     };
 };
 
@@ -1917,8 +1917,8 @@ pub const RendererContext = extern struct {
     mGpuCount: u32,
 
     pub const __Struct0 = extern struct {
-        pDXGIFactory: [*c]IDXGIFactory6,
-        pDebug: [*c]ID3D12Debug,
+        pDXGIFactory: *IDXGIFactory6,
+        pDebug: *ID3D12Debug,
     };
 };
 
@@ -1944,7 +1944,7 @@ pub const CommandSignatureDesc = extern struct {
 };
 
 pub const CommandSignature = extern struct {
-    pHandle: [*c]ID3D12CommandSignature,
+    pHandle: *ID3D12CommandSignature,
     mDrawType: IndirectArgumentType,
     mStride: u32,
 };

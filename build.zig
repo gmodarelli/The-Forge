@@ -49,26 +49,27 @@ pub fn package(
     const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/Debug";
     zforge_cpp.addLibraryPath(.{ .path = tides_renderer_output_path });
     zforge_cpp.linkSystemLibrary("TidesRenderer");
-    // zforge_cpp.addLibraryPath(.{ .path = tides_renderer_output_path });
+    zforge_cpp.addLibraryPath(.{ .path = tides_renderer_output_path });
     // zforge_cpp.linkSystemLibrary("advapi32");
     // zforge_cpp.linkSystemLibrary("comdlg32");
-    // zforge_cpp.linkSystemLibrary("gainputstatic");
+    zforge_cpp.linkSystemLibrary("dxguid");
+    zforge_cpp.linkSystemLibrary("gainputstatic");
     // zforge_cpp.linkSystemLibrary("gdi32");
     // zforge_cpp.linkSystemLibrary("kernel32");
     // zforge_cpp.linkSystemLibrary("odbc32");
     // zforge_cpp.linkSystemLibrary("odbccp32");
-    // zforge_cpp.linkSystemLibrary("ole32");
-    // zforge_cpp.linkSystemLibrary("oleaut32");
-    // zforge_cpp.linkSystemLibrary("OS");
-    // zforge_cpp.linkSystemLibrary("Renderer");
+    zforge_cpp.linkSystemLibrary("ole32");
+    zforge_cpp.linkSystemLibrary("oleaut32");
+    zforge_cpp.linkSystemLibrary("OS");
+    zforge_cpp.linkSystemLibrary("Renderer");
     // zforge_cpp.linkSystemLibrary("shell32");
     // zforge_cpp.linkSystemLibrary("user32");
     // zforge_cpp.linkSystemLibrary("uuid");
     // zforge_cpp.linkSystemLibrary("Winmm");
     // zforge_cpp.linkSystemLibrary("winspool");
-    // zforge_cpp.linkSystemLibrary("ws2_32");
-    // zforge_cpp.linkSystemLibrary("Xinput9_1_0");
-    // zforge_cpp.step.dependOn(tides_renderer_build_step);
+    zforge_cpp.linkSystemLibrary("ws2_32");
+    zforge_cpp.linkSystemLibrary("Xinput9_1_0");
+    zforge_cpp.step.dependOn(tides_renderer_build_step);
 
     // Install DLLs
     var install_file = b.addInstallFile(.{ .path = tides_renderer_output_path ++ "/TidesRenderer.dll" }, "bin/TidesRenderer.dll");
