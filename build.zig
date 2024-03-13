@@ -34,11 +34,13 @@ pub fn package(
     zforge_cpp.addIncludePath(.{ .path = thisDir() ++ "/Common_3/Utilities/Interfaces" });
     zforge_cpp.addCSourceFiles(.{
         .files = &.{
-            // thisDir() ++ "/Common_3/Application/Interfaces/IFont_glue.cpp",
+            thisDir() ++ "/Common_3/Application/Interfaces/IFont_glue.cpp",
             thisDir() ++ "/Common_3/Graphics/Interfaces/IGraphics_glue.cpp",
             thisDir() ++ "/Common_3/Resources/ResourceLoader/Interfaces/IResourceLoader_glue.cpp",
             thisDir() ++ "/Common_3/Utilities/Interfaces/IFileSystem_glue.cpp",
+            thisDir() ++ "/Common_3/Utilities/Interfaces/ILog_glue.cpp",
             thisDir() ++ "/Common_3/Utilities/Interfaces/IMemory_glue.cpp",
+            thisDir() ++ "/Common_3/Utilities/Log/Log_glue.cpp",
         },
         .flags = &.{"-DTIDES"},
     });

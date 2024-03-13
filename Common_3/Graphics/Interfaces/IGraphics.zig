@@ -2061,15 +2061,15 @@ pub const removeSemaphoreFn = ?*const fn ([*c]Renderer, [*c]Semaphore) callconv(
 extern var _1_removeSemaphore_: *removeSemaphoreFn;
 pub const removeSemaphore = _1_removeSemaphore_;
 
-pub const addQueueFn = ?*const fn ([*c]Renderer, [*c]QueueDesc, [*c][*c]Queue) callconv(.C) void;
+extern fn _1_addQueue(_: [*c]Renderer, _: [*c]QueueDesc, _: [*c][*c]Queue) void;
+pub fn add_queue(r: [*c]Renderer, qd: [*c]QueueDesc, q: [*c][*c]Queue) void {
+    _1_addQueue(r, qd, q);
+}
 
-extern var _1_addQueue_: *addQueueFn;
-pub const addQueue = _1_addQueue_;
-
-pub const removeQueueFn = ?*const fn ([*c]Renderer, [*c]Queue) callconv(.C) void;
-
-extern var _1_removeQueue_: *removeQueueFn;
-pub const removeQueue = _1_removeQueue_;
+extern fn _1_removeQueue(_: [*c]Renderer, _: [*c]Queue) void;
+pub fn remove_queue(r: [*c]Renderer, q: [*c]Queue) void {
+    _1_removeQueue(r, q);
+}
 
 pub const addSwapChainFn = ?*const fn ([*c]Renderer, [*c]const SwapChainDesc, [*c][*c]SwapChain) callconv(.C) void;
 
