@@ -7,6 +7,11 @@ pub const Package = struct {
     pub fn link(pkg: Package, exe: *std.Build.Step.Compile) void {
         exe.root_module.addImport("zforge", pkg.zforge);
         exe.linkLibrary(pkg.zforge_cpp);
+
+        const tides_renderer_base_path = thisDir() ++ "/Examples_3/TidesRenderer";
+        const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/Debug";
+        exe.linkLibC();
+        exe.addLibraryPath(.{ .path = tides_renderer_output_path });
     }
 };
 
@@ -97,7 +102,7 @@ pub fn package(
     install_file = b.addInstallFile(.{ .path = tides_renderer_base_path ++ "/src/GPUCfg/gpu.cfg" }, "bin/GPUCfg/gpu.cfg");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(.{ .path = tides_renderer_base_path ++ "/src/GPUCfg/gpu.data" }, "bin/GPUCfg/gpu.data");
+    install_file = b.addInstallFile(.{ .path = thisDir() ++ "/Common_3/OS/Windows/pc_gpu.data" }, "bin/GPUCfg/gpu.data");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
     install_file = b.addInstallFile(.{ .path = tides_renderer_output_path ++ "/VkLayer_khronos_validation.json" }, "bin/VkLayer_khronos_validation.json");

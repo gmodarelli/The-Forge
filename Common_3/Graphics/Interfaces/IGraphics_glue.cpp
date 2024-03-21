@@ -3,9 +3,6 @@
 
 #include "IGraphics.h"
 
-extern "C" void _1_addQueue(Renderer* r, QueueDesc* qd, Queue** q) { ::addQueue(r, qd, q); }
-extern "C" void _1_removeQueue(Renderer* r, Queue* q) { ::removeQueue(r, q); }
-
 extern "C" void _1_setRendererInitializationError_(const char* reason) { ::setRendererInitializationError(reason); }
 extern "C" bool _1_hasRendererInitializationError_(const char** outReason) { return ::hasRendererInitializationError(outReason); }
 extern "C" void _1_initRendererContext_(const char* appName, const RendererContextDesc* pSettings, RendererContext** ppContext)
@@ -17,15 +14,17 @@ extern "C" void _1_initRenderer_(const char* appName, const RendererDesc* pSetti
 {
     ::initRenderer(appName, pSettings, ppRenderer);
 }
-extern "C" void        _1_exitRenderer_(Renderer* pRenderer) { ::exitRenderer(pRenderer); }
+extern "C" void _1_exitRenderer_(Renderer* pRenderer) { ::exitRenderer(pRenderer); }
+
+extern "C" void _1_addQueue(Renderer* r, QueueDesc* qd, Queue** q) { ::addQueue(r, qd, q); }
+extern "C" void _1_removeQueue(Renderer* r, Queue* q) { ::removeQueue(r, q); }
+extern "C" void _1_addSemaphore(Renderer* r, Semaphore** s) { ::addSemaphore(r, s); }
+extern "C" void _1_removeSemaphore(Renderer* r, Semaphore* s) { ::removeSemaphore(r, s); }
+extern "C" void _1_addSampler(Renderer* r, const SamplerDesc* d, Sampler** s) { ::addSampler(r, d, s); }
+extern "C" void _1_removeSampler(Renderer* r, Sampler* s) { ::removeSampler(r, s); }
+
 extern "C" const void* _1_addFence_ = (void*)&::addFence;
 extern "C" const void* _1_removeFence_ = (void*)&::removeFence;
-extern "C" const void* _1_addSemaphore_ = (void*)&::addSemaphore;
-extern "C" const void* _1_removeSemaphore_ = (void*)&::removeSemaphore;
-// extern "C" const void* _1_addQueue_ = (void*)& ::addQueue;
-// extern "C" const void* _1_addQueue_ = (void*)&::lol;
-// extern "C" const void* _1_removeQueue_ = (void*)&::removeQueue;
-// extern "C" const void* _1_removeQueue_ = (void*)&::lol2;
 extern "C" const void* _1_addSwapChain_ = (void*)&::addSwapChain;
 extern "C" const void* _1_removeSwapChain_ = (void*)&::removeSwapChain;
 extern "C" const void* _1_addResourceHeap_ = (void*)&::addResourceHeap;
@@ -38,8 +37,6 @@ extern "C" const void* _1_addCmd_n_ = (void*)&::addCmd_n;
 extern "C" const void* _1_removeCmd_n_ = (void*)&::removeCmd_n;
 extern "C" const void* _1_addRenderTarget_ = (void*)&::addRenderTarget;
 extern "C" const void* _1_removeRenderTarget_ = (void*)&::removeRenderTarget;
-extern "C" const void* _1_addSampler_ = (void*)&::addSampler;
-extern "C" const void* _1_removeSampler_ = (void*)&::removeSampler;
 extern "C" const void* _1_addShaderBinary_ = (void*)&::addShaderBinary;
 extern "C" const void* _1_removeShader_ = (void*)&::removeShader;
 extern "C" const void* _1_addRootSignature_ = (void*)&::addRootSignature;

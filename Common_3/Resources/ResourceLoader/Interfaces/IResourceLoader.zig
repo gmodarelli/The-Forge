@@ -459,18 +459,16 @@ pub const ResourceLoaderDesc = extern struct {
 extern var _1_gDefaultResourceLoaderDesc_: *ResourceLoaderDesc;
 pub const gDefaultResourceLoaderDesc = _1_gDefaultResourceLoaderDesc_;
 
-extern fn _1_initResourceLoaderInterface_(pRenderer: [*c]Renderer, pDesc: [*c]ResourceLoaderDesc) void;
+extern fn _1_initResourceLoaderInterface_(pRenderer: *Renderer, pDesc: *ResourceLoaderDesc) void;
 /// MARK: - Resource Loader Functions
 pub fn initResourceLoaderInterface(
-    pRenderer: [*c]Renderer,
-    __opt: struct {
-        pDesc: [*c]ResourceLoaderDesc = null,
-    },
+    pRenderer: *Renderer,
+    pDesc: *ResourceLoaderDesc,
 ) void {
-    return _1_initResourceLoaderInterface_(pRenderer, __opt.pDesc);
+    return _1_initResourceLoaderInterface_(pRenderer, pDesc);
 }
 
-extern fn _1_exitResourceLoaderInterface_(pRenderer: [*c]Renderer) void;
+extern fn _1_exitResourceLoaderInterface_(pRenderer: *Renderer) void;
 pub const exitResourceLoaderInterface = _1_exitResourceLoaderInterface_;
 
 extern fn _2_initResourceLoaderInterface_(ppRenderers: [*c][*c]Renderer, rendererCount: u32, pDesc: [*c]ResourceLoaderDesc) void;

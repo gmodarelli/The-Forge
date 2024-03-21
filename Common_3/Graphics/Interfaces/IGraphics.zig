@@ -2,6 +2,78 @@
 const std = @import("std");
 //const cpp = @import("cpp");
 
+/// D3D12 structs definitions copied from zig-gamdev/zwin32/d3d12.zig
+pub const D3D12_SAMPLER_DESC = extern struct {
+    Filter: D3D12_FILTER,
+    AddressU: D3D12_TEXTURE_ADDRESS_MODE,
+    AddressV: D3D12_TEXTURE_ADDRESS_MODE,
+    AddressW: D3D12_TEXTURE_ADDRESS_MODE,
+    MipLODBias: f32,
+    MaxAnisotropy: u32,
+    ComparisonFunc: D3D12_COMPARISON_FUNC,
+    BorderColor: [4]f32,
+    MinLOD: f32,
+    MaxLOD: f32,
+};
+
+pub const D3D12_FILTER = enum(u32) {
+    MIN_MAG_MIP_POINT = 0,
+    MIN_MAG_POINT_MIP_LINEAR = 0x1,
+    MIN_POINT_MAG_LINEAR_MIP_POINT = 0x4,
+    MIN_POINT_MAG_MIP_LINEAR = 0x5,
+    MIN_LINEAR_MAG_MIP_POINT = 0x10,
+    MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x11,
+    MIN_MAG_LINEAR_MIP_POINT = 0x14,
+    MIN_MAG_MIP_LINEAR = 0x15,
+    ANISOTROPIC = 0x55,
+    COMPARISON_MIN_MAG_MIP_POINT = 0x80,
+    COMPARISON_MIN_MAG_POINT_MIP_LINEAR = 0x81,
+    COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT = 0x84,
+    COMPARISON_MIN_POINT_MAG_MIP_LINEAR = 0x85,
+    COMPARISON_MIN_LINEAR_MAG_MIP_POINT = 0x90,
+    COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x91,
+    COMPARISON_MIN_MAG_LINEAR_MIP_POINT = 0x94,
+    COMPARISON_MIN_MAG_MIP_LINEAR = 0x95,
+    COMPARISON_ANISOTROPIC = 0xd5,
+    MINIMUM_MIN_MAG_MIP_POINT = 0x100,
+    MINIMUM_MIN_MAG_POINT_MIP_LINEAR = 0x101,
+    MINIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT = 0x104,
+    MINIMUM_MIN_POINT_MAG_MIP_LINEAR = 0x105,
+    MINIMUM_MIN_LINEAR_MAG_MIP_POINT = 0x110,
+    MINIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x111,
+    MINIMUM_MIN_MAG_LINEAR_MIP_POINT = 0x114,
+    MINIMUM_MIN_MAG_MIP_LINEAR = 0x115,
+    MINIMUM_ANISOTROPIC = 0x155,
+    MAXIMUM_MIN_MAG_MIP_POINT = 0x180,
+    MAXIMUM_MIN_MAG_POINT_MIP_LINEAR = 0x181,
+    MAXIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT = 0x184,
+    MAXIMUM_MIN_POINT_MAG_MIP_LINEAR = 0x185,
+    MAXIMUM_MIN_LINEAR_MAG_MIP_POINT = 0x190,
+    MAXIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x191,
+    MAXIMUM_MIN_MAG_LINEAR_MIP_POINT = 0x194,
+    MAXIMUM_MIN_MAG_MIP_LINEAR = 0x195,
+    MAXIMUM_ANISOTROPIC = 0x1d5,
+};
+
+pub const D3D12_TEXTURE_ADDRESS_MODE = enum(u32) {
+    WRAP = 1,
+    MIRROR = 2,
+    CLAMP = 3,
+    BORDER = 4,
+    MIRROR_ONCE = 5,
+};
+
+pub const D3D12_COMPARISON_FUNC = enum(u32) {
+    NEVER = 1,
+    LESS = 2,
+    EQUAL = 3,
+    LESS_EQUAL = 4,
+    GREATER = 5,
+    NOT_EQUAL = 6,
+    GREATER_EQUAL = 7,
+    ALWAYS = 8,
+};
+
 /// Forward declare opaque memory allocator structs
 pub const DxDescriptorID = i32;
 
@@ -10,7 +82,6 @@ const D3D_PRIMITIVE_TOPOLOGY = anyopaque;
 const D3D12_GPU_DESCRIPTOR_HANDLE = anyopaque;
 const D3D12_GPU_VIRTUAL_ADDRESS = u64;
 const D3D12_QUERY_TYPE = u32;
-const D3D12_SAMPLER_DESC = anyopaque;
 const DescriptorHeap = anyopaque;
 const HANDLE = *anyopaque;
 const ID3D12CommandAllocator = anyopaque;
@@ -2051,22 +2122,22 @@ pub const removeFenceFn = ?*const fn ([*c]Renderer, [*c]Fence) callconv(.C) void
 extern var _1_removeFence_: *removeFenceFn;
 pub const removeFence = _1_removeFence_;
 
-pub const addSemaphoreFn = ?*const fn ([*c]Renderer, [*c][*c]Semaphore) callconv(.C) void;
+extern fn _1_addSemaphore(renderer: [*c]Renderer, semaphore: [*c][*c]Semaphore) void;
+pub fn add_semaphore(renderer: [*c]Renderer, semaphore: [*c][*c]Semaphore) void {
+    _1_addSemaphore(renderer, semaphore);
+}
 
-extern var _1_addSemaphore_: *addSemaphoreFn;
-pub const addSemaphore = _1_addSemaphore_;
+extern fn _1_removeSemaphore(renderer: [*c]Renderer, semaphore: [*c]Semaphore) void;
+pub fn remove_semaphore(renderer: [*c]Renderer, semaphore: [*c]Semaphore) void {
+    _1_removeSemaphore(renderer, semaphore);
+}
 
-pub const removeSemaphoreFn = ?*const fn ([*c]Renderer, [*c]Semaphore) callconv(.C) void;
-
-extern var _1_removeSemaphore_: *removeSemaphoreFn;
-pub const removeSemaphore = _1_removeSemaphore_;
-
-extern fn _1_addQueue(_: [*c]Renderer, _: [*c]QueueDesc, _: [*c][*c]Queue) void;
+extern fn _1_addQueue(renderer: [*c]Renderer, desc: [*c]QueueDesc, queue: [*c][*c]Queue) void;
 pub fn add_queue(r: [*c]Renderer, qd: [*c]QueueDesc, q: [*c][*c]Queue) void {
     _1_addQueue(r, qd, q);
 }
 
-extern fn _1_removeQueue(_: [*c]Renderer, _: [*c]Queue) void;
+extern fn _1_removeQueue(renderer: [*c]Renderer, queue: [*c]Queue) void;
 pub fn remove_queue(r: [*c]Renderer, q: [*c]Queue) void {
     _1_removeQueue(r, q);
 }
@@ -2133,13 +2204,17 @@ pub const removeRenderTarget = _1_removeRenderTarget_;
 
 pub const addSamplerFn = ?*const fn ([*c]Renderer, [*c]const SamplerDesc, [*c][*c]Sampler) callconv(.C) void;
 
-extern var _1_addSampler_: *addSamplerFn;
-pub const addSampler = _1_addSampler_;
+extern fn _1_addSampler(_: [*c]Renderer, _: [*c]const SamplerDesc, _: [*c][*c]Sampler) void;
+pub fn add_sampler(renderer: [*c]Renderer, desc: [*c]const SamplerDesc, sampler: [*c][*c]Sampler) void {
+    _1_addSampler(renderer, desc, sampler);
+}
 
 pub const removeSamplerFn = ?*const fn ([*c]Renderer, [*c]Sampler) callconv(.C) void;
 
-extern var _1_removeSampler_: *removeSamplerFn;
-pub const removeSampler = _1_removeSampler_;
+extern fn _1_removeSampler(renderer: [*c]Renderer, sampler: [*c]Sampler) void;
+pub fn remove_sampler(renderer: [*c]Renderer, sampler: [*c]Sampler) void {
+    _1_removeSampler(renderer, sampler);
+}
 
 pub const addShaderBinaryFn = ?*const fn ([*c]Renderer, [*c]const BinaryShaderDesc, [*c][*c]Shader) callconv(.C) void;
 
