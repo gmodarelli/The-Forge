@@ -2,6 +2,48 @@
 const std = @import("std");
 //const cpp = @import("cpp");
 
+pub const TinyImageFormat = @import("TinyImageFormat.zig").TinyImageFormat;
+
+/// Taken from IOperatingSystem.h
+pub const ReloadType = packed struct(u32) {
+    RESIZE: bool = false, // 0x1
+    SHADER: bool = false, // 0x2
+    RENDERTARGET: bool = false, // 0x4,
+    __unused: u28 = 0,
+    ALL: bool = false, // 0xffffffff
+
+    pub const RESIZE_RENDERTARGET = ReloadType{
+        .RESIZE = true,
+        .RENDERTARGET = true,
+    };
+
+    pub const RESIZE_SHADER_RENDERTARGET = ReloadType{
+        .RESIZE = true,
+        .SHADER = true,
+        .RENDERTARGET = true,
+    };
+};
+
+pub const ReloadDesc = struct {
+    mType: ReloadType,
+};
+
+// NOTE(gmodarelli): I've only manually written the bindings for Win32
+pub const WindowHandle = extern struct {
+    type: WindowHandleType,
+    window: std.os.windows.HWND,
+};
+
+pub const WindowHandleType = enum(u32) {
+    UNKNOWN,
+    WIN32,
+    XLIB,
+    XCB,
+    WAYLAND,
+    ANDROID,
+    VI_NN,
+};
+
 /// D3D12 structs definitions copied from zig-gamdev/zwin32/d3d12.zig
 pub const D3D12_SAMPLER_DESC = extern struct {
     Filter: D3D12_FILTER,
@@ -105,8 +147,6 @@ const IDXGISwapChain3 = anyopaque;
 const LogLevel = u32;
 const LPCWSTR = *anyopaque;
 const PipelineReflection = anyopaque;
-const TinyImageFormat = u32;
-const WindowHandle = anyopaque;
 
 pub const RendererApi = extern struct {
     bits: c_int = 0,
@@ -1067,7 +1107,7 @@ pub const Texture = extern struct {
         /// Native handle of the underlying resource
         pResource: *ID3D12Resource,
         /// Contains resource allocation info such as parent heap, offset in heap
-        pAllocation: [*c]D3D12MAAllocation,
+        pAllocation: *D3D12MAAllocation,
         bitfield_1: packed struct(u32) {
             mHandleCount: u24, // 24 bits
             /// Padding added by c2z
@@ -2142,15 +2182,15 @@ pub fn remove_queue(r: [*c]Renderer, q: [*c]Queue) void {
     _1_removeQueue(r, q);
 }
 
-pub const addSwapChainFn = ?*const fn ([*c]Renderer, [*c]const SwapChainDesc, [*c][*c]SwapChain) callconv(.C) void;
+extern fn _1_addSwapChain(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, swap_chain: [*c][*c]SwapChain) void;
+pub fn add_swap_chain(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, swap_chain: [*c][*c]SwapChain) void {
+    _1_addSwapChain(renderer, desc, swap_chain);
+}
 
-extern var _1_addSwapChain_: *addSwapChainFn;
-pub const addSwapChain = _1_addSwapChain_;
-
-pub const removeSwapChainFn = ?*const fn ([*c]Renderer, [*c]SwapChain) callconv(.C) void;
-
-extern var _1_removeSwapChain_: *removeSwapChainFn;
-pub const removeSwapChain = _1_removeSwapChain_;
+extern fn _1_removeSwapChain(renderer: [*c]Renderer, swap_chain: [*c]SwapChain) void;
+pub fn remove_swap_chain(renderer: [*c]Renderer, swap_chain: [*c]SwapChain) void {
+    _1_removeSwapChain(renderer, swap_chain);
+}
 
 pub const addResourceHeapFn = ?*const fn ([*c]Renderer, [*c]const ResourceHeapDesc, [*c][*c]ResourceHeap) callconv(.C) void;
 
@@ -2418,13 +2458,17 @@ pub const toggleVSync = _1_toggleVSync_;
 
 pub const getSupportedSwapchainFormatFn = ?*const fn ([*c]Renderer, [*c]const SwapChainDesc, ColorSpace) callconv(.C) TinyImageFormat;
 
-extern var _1_getSupportedSwapchainFormat_: *getSupportedSwapchainFormatFn;
-pub const getSupportedSwapchainFormat = _1_getSupportedSwapchainFormat_;
+extern fn _1_getSupportedSwapchainFormat(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, color_space: ColorSpace) TinyImageFormat;
+pub fn get_supported_swapchain_format(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, color_space: ColorSpace) TinyImageFormat {
+    return _1_getSupportedSwapchainFormat(renderer, desc, color_space);
+}
 
 pub const getRecommendedSwapchainImageCountFn = ?*const fn ([*c]Renderer, [*c]const WindowHandle) callconv(.C) u32;
 
-extern var _1_getRecommendedSwapchainImageCount_: *getRecommendedSwapchainImageCountFn;
-pub const getRecommendedSwapchainImageCount = _1_getRecommendedSwapchainImageCount_;
+extern fn _1_getRecommendedSwapchainImageCount(renderer: [*c]Renderer, window_handle: [*c]const WindowHandle) u32;
+pub fn get_recommended_swapchain_image_count(renderer: [*c]Renderer, window_handle: [*c]const WindowHandle) u32 {
+    return _1_getRecommendedSwapchainImageCount(renderer, window_handle);
+}
 
 pub const addIndirectCommandSignatureFn = ?*const fn ([*c]Renderer, [*c]const CommandSignatureDesc, [*c][*c]CommandSignature) callconv(.C) void;
 
