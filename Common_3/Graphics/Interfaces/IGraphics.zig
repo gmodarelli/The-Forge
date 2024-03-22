@@ -3,6 +3,10 @@ const std = @import("std");
 //const cpp = @import("cpp");
 
 pub const TinyImageFormat = @import("TinyImageFormat.zig").TinyImageFormat;
+const gpu_cmd_ring = @import("GpuCmdRing.zig");
+pub const GpuCmdRing = gpu_cmd_ring.GpuCmdRing;
+pub const GpuCmdRingElememnt = gpu_cmd_ring.GpuCmdRingElement;
+pub const GpuCmdRingDesc = gpu_cmd_ring.GpuCmdRingDesc;
 
 /// Taken from IOperatingSystem.h
 pub const ReloadType = packed struct(u32) {
@@ -2152,15 +2156,15 @@ pub const initRenderer = _1_initRenderer_;
 extern fn _1_exitRenderer_(pRenderer: [*c]Renderer) void;
 pub const exitRenderer = _1_exitRenderer_;
 
-pub const addFenceFn = ?*const fn ([*c]Renderer, [*c][*c]Fence) callconv(.C) void;
+extern fn _1_addFence(renderer: [*c]Renderer, fence: [*c][*c]Fence) void;
+pub fn add_fence(renderer: [*c]Renderer, fence: [*c][*c]Fence) void {
+    _1_addFence(renderer, fence);
+}
 
-extern var _1_addFence_: *addFenceFn;
-pub const addFence = _1_addFence_;
-
-pub const removeFenceFn = ?*const fn ([*c]Renderer, [*c]Fence) callconv(.C) void;
-
-extern var _1_removeFence_: *removeFenceFn;
-pub const removeFence = _1_removeFence_;
+extern fn _1_removeFence(renderer: [*c]Renderer, fence: [*c]Fence) void;
+pub fn remove_fence(renderer: [*c]Renderer, fence: [*c]Fence) void {
+    _1_removeFence(renderer, fence);
+}
 
 extern fn _1_addSemaphore(renderer: [*c]Renderer, semaphore: [*c][*c]Semaphore) void;
 pub fn add_semaphore(renderer: [*c]Renderer, semaphore: [*c][*c]Semaphore) void {
@@ -2202,25 +2206,25 @@ pub const removeResourceHeapFn = ?*const fn ([*c]Renderer, [*c]ResourceHeap) cal
 extern var _1_removeResourceHeap_: *removeResourceHeapFn;
 pub const removeResourceHeap = _1_removeResourceHeap_;
 
-pub const addCmdPoolFn = ?*const fn ([*c]Renderer, [*c]const CmdPoolDesc, [*c][*c]CmdPool) callconv(.C) void;
+extern fn _1_addCmdPool(renderer: [*c]Renderer, desc: [*c]const CmdPoolDesc, cmd_pool: [*c][*c]CmdPool) void;
+pub fn add_cmd_pool(renderer: [*c]Renderer, desc: [*c]const CmdPoolDesc, cmd_pool: [*c][*c]CmdPool) void {
+    _1_addCmdPool(renderer, desc, cmd_pool);
+}
 
-extern var _1_addCmdPool_: *addCmdPoolFn;
-pub const addCmdPool = _1_addCmdPool_;
+extern fn _1_removeCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void;
+pub fn remove_cmd_pool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void {
+    _1_removeCmdPool(renderer, cmd_pool);
+}
 
-pub const removeCmdPoolFn = ?*const fn ([*c]Renderer, [*c]CmdPool) callconv(.C) void;
+extern fn _1_addCmd(renderer: [*c]Renderer, desc: [*c]const CmdDesc, cmd: [*c][*c]Cmd) void;
+pub fn add_cmd(renderer: [*c]Renderer, desc: [*c]const CmdDesc, cmd: [*c][*c]Cmd) void {
+    _1_addCmd(renderer, desc, cmd);
+}
 
-extern var _1_removeCmdPool_: *removeCmdPoolFn;
-pub const removeCmdPool = _1_removeCmdPool_;
-
-pub const addCmdFn = ?*const fn ([*c]Renderer, [*c]const CmdDesc, [*c][*c]Cmd) callconv(.C) void;
-
-extern var _1_addCmd_: *addCmdFn;
-pub const addCmd = _1_addCmd_;
-
-pub const removeCmdFn = ?*const fn ([*c]Renderer, [*c]Cmd) callconv(.C) void;
-
-extern var _1_removeCmd_: *removeCmdFn;
-pub const removeCmd = _1_removeCmd_;
+extern fn _1_removeCmd(renderer: [*c]Renderer, cmd: [*c]Cmd) void;
+pub fn remove_cmd(renderer: [*c]Renderer, cmd: [*c]Cmd) void {
+    _1_removeCmd(renderer, cmd);
+}
 
 pub const addCmd_nFn = ?*const fn ([*c]Renderer, [*c]const CmdDesc, u32, [*c][*c][*c]Cmd) callconv(.C) void;
 

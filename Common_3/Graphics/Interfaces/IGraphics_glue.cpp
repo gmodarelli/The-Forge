@@ -23,16 +23,16 @@ extern "C" void _1_removeSemaphore(Renderer* r, Semaphore* s) { ::removeSemaphor
 extern "C" void _1_addSampler(Renderer* r, const SamplerDesc* d, Sampler** s) { ::addSampler(r, d, s); }
 extern "C" void _1_removeSampler(Renderer* r, Sampler* s) { ::removeSampler(r, s); }
 
-extern "C" const void*     _1_addFence_ = (void*)&::addFence;
-extern "C" const void*     _1_removeFence_ = (void*)&::removeFence;
+extern "C" void            _1_addFence(Renderer* r, Fence** f) { ::addFence(r, f); }
+extern "C" void            _1_removeFence(Renderer* r, Fence* f) { ::removeFence(r, f); }
 extern "C" void            _1_addSwapChain(Renderer* r, const SwapChainDesc* d, SwapChain** s) { ::addSwapChain(r, d, s); }
 extern "C" void            _1_removeSwapChain(Renderer* r, SwapChain* s) { ::removeSwapChain(r, s); }
 extern "C" const void*     _1_addResourceHeap_ = (void*)&::addResourceHeap;
 extern "C" const void*     _1_removeResourceHeap_ = (void*)&::removeResourceHeap;
-extern "C" const void*     _1_addCmdPool_ = (void*)&::addCmdPool;
-extern "C" const void*     _1_removeCmdPool_ = (void*)&::removeCmdPool;
-extern "C" const void*     _1_addCmd_ = (void*)&::addCmd;
-extern "C" const void*     _1_removeCmd_ = (void*)&::removeCmd;
+extern "C" void            _1_addCmdPool(Renderer* r, const CmdPoolDesc* d, CmdPool** c) { ::addCmdPool(r, d, c); }
+extern "C" void            _1_removeCmdPool(Renderer* r, CmdPool* c) { ::removeCmdPool(r, c); }
+extern "C" void            _1_addCmd(Renderer* r, const CmdDesc* d, Cmd** c) { ::addCmd(r, d, c); }
+extern "C" void            _1_removeCmd(Renderer* r, Cmd* c) { ::removeCmd(r, c); }
 extern "C" const void*     _1_addCmd_n_ = (void*)&::addCmd_n;
 extern "C" const void*     _1_removeCmd_n_ = (void*)&::removeCmd_n;
 extern "C" const void*     _1_addRenderTarget_ = (void*)&::addRenderTarget;
