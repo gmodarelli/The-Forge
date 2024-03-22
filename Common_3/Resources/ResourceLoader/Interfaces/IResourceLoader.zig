@@ -2,6 +2,8 @@
 const std = @import("std");
 //const cpp = @import("cpp");
 
+const Graphics = @import("../../../Graphics/Interfaces/IGraphics.zig");
+
 const PipelineCacheFlags = u32;
 const QueueType = u32;
 const ResourceState = u32;
@@ -9,24 +11,24 @@ const TextureCreationFlags = u32;
 const float3 = [3]f32;
 const uint = u32;
 
-const Buffer = anyopaque;
-const BufferDesc = anyopaque;
-const Cmd = anyopaque;
-const Fence = anyopaque;
-const IndexType = anyopaque;
-const IndirectDrawIndexArguments = anyopaque;
+const Buffer = Graphics.Buffer;
+const BufferDesc = Graphics.BufferDesc;
+const Cmd = Graphics.Cmd;
+const Fence = Graphics.Fence;
+const IndexType = Graphics.IndexType;
+const IndirectDrawIndexArguments = Graphics.IndirectDrawIndexArguments;
 const mat4 = anyopaque;
-const PipelineCache = anyopaque;
-const Renderer = anyopaque;
-const ResourcePlacement = anyopaque;
-const ResourceSizeAlign = anyopaque;
-const Sampler = anyopaque;
-const Semaphore = anyopaque;
-const Shader = anyopaque;
-const ShaderConstant = anyopaque;
-const Texture = anyopaque;
-const TextureDesc = anyopaque;
-const VertexLayout = anyopaque;
+const PipelineCache = Graphics.PipelineCache;
+const Renderer = Graphics.Renderer;
+const ResourcePlacement = Graphics.ResourcePlacement;
+const ResourceSizeAlign = Graphics.ResourceSizeAlign;
+const Sampler = Graphics.Sampler;
+const Semaphore = Graphics.Semaphore;
+const Shader = Graphics.Shader;
+const ShaderConstant = Graphics.ShaderConstant;
+const Texture = Graphics.Texture;
+const TextureDesc = Graphics.TextureDesc;
+const VertexLayout = Graphics.VertexLayout;
 
 extern const _1_gVertexBufferState_: *const ResourceState;
 pub const gVertexBufferState = _1_gVertexBufferState_;

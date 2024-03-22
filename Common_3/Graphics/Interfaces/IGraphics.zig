@@ -1028,7 +1028,7 @@ pub const Buffer = extern struct {
         /// Native handle of the underlying resource
         pResource: *ID3D12Resource,
         /// Contains resource allocation info such as parent heap, offset in heap
-        pAllocation: [*c]D3D12MAAllocation,
+        pAllocation: *D3D12MAAllocation,
         mPersistentGPUDescriptors: DxDescriptorID,
     };
 };
@@ -2325,25 +2325,25 @@ pub const updateDescriptorSetFn = ?*const fn ([*c]Renderer, u32, [*c]DescriptorS
 extern var _1_updateDescriptorSet_: *updateDescriptorSetFn;
 pub const updateDescriptorSet = _1_updateDescriptorSet_;
 
-pub const resetCmdPoolFn = ?*const fn ([*c]Renderer, [*c]CmdPool) callconv(.C) void;
+extern fn _1_resetCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void;
+pub fn reset_cmd_pool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void {
+    _1_resetCmdPool(renderer, cmd_pool);
+}
 
-extern var _1_resetCmdPool_: *resetCmdPoolFn;
-pub const resetCmdPool = _1_resetCmdPool_;
+extern fn _1_beginCmd(cmd: [*c]Cmd) void;
+pub fn begin_cmd(cmd: [*c]Cmd) void {
+    _1_beginCmd(cmd);
+}
 
-pub const beginCmdFn = ?*const fn ([*c]Cmd) callconv(.C) void;
+extern fn _1_endCmd(cmd: [*c]Cmd) void;
+pub fn end_cmd(cmd: [*c]Cmd) void {
+    _1_endCmd(cmd);
+}
 
-extern var _1_beginCmd_: *beginCmdFn;
-pub const beginCmd = _1_beginCmd_;
-
-pub const endCmdFn = ?*const fn ([*c]Cmd) callconv(.C) void;
-
-extern var _1_endCmd_: *endCmdFn;
-pub const endCmd = _1_endCmd_;
-
-pub const cmdBindRenderTargetsFn = ?*const fn ([*c]Cmd, [*c]const BindRenderTargetsDesc) callconv(.C) void;
-
-extern var _1_cmdBindRenderTargets_: *cmdBindRenderTargetsFn;
-pub const cmdBindRenderTargets = _1_cmdBindRenderTargets_;
+extern fn _1_cmdBindRenderTargets(cmd: [*c]Cmd, desc: [*c]const BindRenderTargetsDesc) void;
+pub fn cmd_bind_render_targets(cmd: [*c]Cmd, desc: [*c]const BindRenderTargetsDesc) void {
+    _1_cmdBindRenderTargets(cmd, desc);
+}
 
 pub const cmdSetSampleLocationsFn = ?*const fn ([*c]Cmd, SampleCount, u32, u32, [*c]SampleLocations) callconv(.C) void;
 
@@ -2352,13 +2352,15 @@ pub const cmdSetSampleLocations = _1_cmdSetSampleLocations_;
 
 pub const cmdSetViewportFn = ?*const fn ([*c]Cmd, f32, f32, f32, f32, f32, f32) callconv(.C) void;
 
-extern var _1_cmdSetViewport_: *cmdSetViewportFn;
-pub const cmdSetViewport = _1_cmdSetViewport_;
+extern fn _1_cmdSetViewport(cmd: [*c]Cmd, x: f32, y: f32, width: f32, height: f32, min_depth: f32, max_depth: f32) void;
+pub fn cmd_set_viewport(cmd: [*c]Cmd, x: f32, y: f32, width: f32, height: f32, min_depth: f32, max_depth: f32) void {
+    _1_cmdSetViewport(cmd, x, y, width, height, min_depth, max_depth);
+}
 
-pub const cmdSetScissorFn = ?*const fn ([*c]Cmd, u32, u32, u32, u32) callconv(.C) void;
-
-extern var _1_cmdSetScissor_: *cmdSetScissorFn;
-pub const cmdSetScissor = _1_cmdSetScissor_;
+extern fn _1_cmdSetScissor(cmd: [*c]Cmd, x: u32, y: u32, width: u32, height: u32) void;
+pub fn cmd_set_scissor(cmd: [*c]Cmd, x: u32, y: u32, width: u32, height: u32) void {
+    _1_cmdSetScissor(cmd, x, y, width, height);
+}
 
 pub const cmdSetStencilReferenceValueFn = ?*const fn ([*c]Cmd, u32) callconv(.C) void;
 
@@ -2420,40 +2422,42 @@ pub const cmdDispatchFn = ?*const fn ([*c]Cmd, u32, u32, u32) callconv(.C) void;
 extern var _1_cmdDispatch_: *cmdDispatchFn;
 pub const cmdDispatch = _1_cmdDispatch_;
 
-pub const cmdResourceBarrierFn = ?*const fn ([*c]Cmd, u32, [*c]BufferBarrier, u32, [*c]TextureBarrier, u32, [*c]RenderTargetBarrier) callconv(.C) void;
-
-extern var _1_cmdResourceBarrier_: *cmdResourceBarrierFn;
-pub const cmdResourceBarrier = _1_cmdResourceBarrier_;
+extern fn _1_cmdResourceBarrier(cmd: [*c]Cmd, buffer_barrier_count: u32, buffer_barrier: [*c]BufferBarrier, texture_barrier_count: u32, texture_barrier: [*c]TextureBarrier, render_target_barrier_count: u32, render_target_barrier: [*c]RenderTargetBarrier) void;
+pub fn cmd_resource_barrier(cmd: [*c]Cmd, buffer_barrier_count: u32, buffer_barrier: [*c]BufferBarrier, texture_barrier_count: u32, texture_barrier: [*c]TextureBarrier, render_target_barrier_count: u32, render_target_barrier: [*c]RenderTargetBarrier) void {
+    _1_cmdResourceBarrier(cmd, buffer_barrier_count, buffer_barrier, texture_barrier_count, texture_barrier, render_target_barrier_count, render_target_barrier);
+}
 
 pub const acquireNextImageFn = ?*const fn ([*c]Renderer, [*c]SwapChain, [*c]Semaphore, [*c]Fence, [*c]u32) callconv(.C) void;
 
-extern var _1_acquireNextImage_: *acquireNextImageFn;
-pub const acquireNextImage = _1_acquireNextImage_;
+extern fn _1_acquireNextImage(renderer: [*c]Renderer, swap_chain: [*c]SwapChain, semaphore: [*c]Semaphore, fence: [*c]Fence, index: [*c]u32) void;
+pub fn acquire_next_image(renderer: [*c]Renderer, swap_chain: [*c]SwapChain, semaphore: [*c]Semaphore, fence: [*c]Fence, index: [*c]u32) void {
+    _1_acquireNextImage(renderer, swap_chain, semaphore, fence, index);
+}
 
-pub const queueSubmitFn = ?*const fn ([*c]Queue, [*c]const QueueSubmitDesc) callconv(.C) void;
+extern fn _1_queueSubmit(queue: [*c]Queue, desc: [*c]const QueueSubmitDesc) void;
+pub fn queue_submit(queue: [*c]Queue, desc: [*c]const QueueSubmitDesc) void {
+    _1_queueSubmit(queue, desc);
+}
 
-extern var _1_queueSubmit_: *queueSubmitFn;
-pub const queueSubmit = _1_queueSubmit_;
+extern fn _1_queuePresent(queue: [*c]Queue, desc: [*c]const QueuePresentDesc) void;
+pub fn queue_present(queue: [*c]Queue, desc: [*c]const QueuePresentDesc) void {
+    _1_queuePresent(queue, desc);
+}
 
-pub const queuePresentFn = ?*const fn ([*c]Queue, [*c]const QueuePresentDesc) callconv(.C) void;
+extern fn _1_waitQueueIdle(queue: [*c]Queue) void;
+pub fn wait_queue_idle(queue: [*c]Queue) void {
+    _1_waitQueueIdle(queue);
+}
 
-extern var _1_queuePresent_: *queuePresentFn;
-pub const queuePresent = _1_queuePresent_;
+extern fn _1_getFenceStatus(renderer: [*c]Renderer, fence: [*c]Fence, status: [*c]FenceStatus) void;
+pub fn get_fence_status(renderer: [*c]Renderer, fence: [*c]Fence, status: [*c]FenceStatus) void {
+    _1_getFenceStatus(renderer, fence, status);
+}
 
-pub const waitQueueIdleFn = ?*const fn ([*c]Queue) callconv(.C) void;
-
-extern var _1_waitQueueIdle_: *waitQueueIdleFn;
-pub const waitQueueIdle = _1_waitQueueIdle_;
-
-pub const getFenceStatusFn = ?*const fn ([*c]Renderer, [*c]Fence, [*c]FenceStatus) callconv(.C) void;
-
-extern var _1_getFenceStatus_: *getFenceStatusFn;
-pub const getFenceStatus = _1_getFenceStatus_;
-
-pub const waitForFencesFn = ?*const fn ([*c]Renderer, u32, [*c][*c]Fence) callconv(.C) void;
-
-extern var _1_waitForFences_: *waitForFencesFn;
-pub const waitForFences = _1_waitForFences_;
+extern fn _1_waitForFences(renderer: [*c]Renderer, count: u32, fences: [*c][*c]Fence) void;
+pub fn wait_for_fences(renderer: [*c]Renderer, count: u32, fences: [*c][*c]Fence) void {
+    _1_waitForFences(renderer, count, fences);
+}
 
 pub const toggleVSyncFn = ?*const fn ([*c]Renderer, [*c][*c]SwapChain) callconv(.C) void;
 

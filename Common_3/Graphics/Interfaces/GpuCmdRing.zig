@@ -14,9 +14,9 @@ pub const GpuCmdRingDesc = struct {
 
 pub const GpuCmdRingElement = struct {
     cmd_pool: *Graphics.CmdPool,
-    cmds: **Graphics.Cmd,
-    fence: *Graphics.Fence,
-    semaphore: *Graphics.Semaphore,
+    cmds: [*c][*c]Graphics.Cmd,
+    fence: [*c]Graphics.Fence,
+    semaphore: [*c]Graphics.Semaphore,
 };
 
 // Lightweight wrapper that works as a ring for command pools, command buffers
@@ -25,9 +25,9 @@ pub const GpuCmdRing = struct {
     pub const gpu_cmds_per_pool_max: usize = 4;
 
     cmd_pools: [gpu_cmd_pools_per_ring_max]?*Graphics.CmdPool,
-    cmds: [gpu_cmd_pools_per_ring_max][gpu_cmds_per_pool_max]?*Graphics.Cmd,
-    fences: [gpu_cmd_pools_per_ring_max][gpu_cmds_per_pool_max]?*Graphics.Fence,
-    semaphores: [gpu_cmd_pools_per_ring_max][gpu_cmds_per_pool_max]?*Graphics.Semaphore,
+    cmds: [gpu_cmd_pools_per_ring_max][gpu_cmds_per_pool_max][*c]Graphics.Cmd,
+    fences: [gpu_cmd_pools_per_ring_max][gpu_cmds_per_pool_max][*c]Graphics.Fence,
+    semaphores: [gpu_cmd_pools_per_ring_max][gpu_cmds_per_pool_max][*c]Graphics.Semaphore,
     pool_index: u32,
     cmd_index: u32,
     fence_index: u32,
@@ -91,25 +91,28 @@ pub const GpuCmdRing = struct {
         }
     }
 
-    pub fn get_next_gpu_cmd_ring_element(self: *GpuCmdRing, cycle_pool: bool, cmd_count: u32) GpuCmdRingElement {
+    pub fn get_next_gpu_cmd_ring_element(self: *GpuCmdRing, cycle_pool: bool, cmd_count: u32) ?GpuCmdRingElement {
         if (cycle_pool) {
-            self.pool_index = (self.pool_index + 1) % self.pool_count;
+            if (self.pool_index == std.math.maxInt(u32)) {
+                self.pool_index = 0;
+            } else {
+                self.pool_index = (self.pool_index + 1) % self.pool_count;
+            }
             self.cmd_index = 0;
             self.fence_index = 0;
         }
 
-        var elem = std.mem.zeroes(GpuCmdRingElement);
-
         if (self.cmd_index + cmd_count < self.cmd_per_pool_count) {
             std.log.debug("Out of command buffers for this pool", .{});
             std.debug.assert(false);
-            return elem;
+            return null;
         }
 
-        elem.cmd_pool = self.cmd_pools[self.pool_index];
+        var elem: GpuCmdRingElement = undefined;
+        elem.cmd_pool = self.cmd_pools[self.pool_index].?;
         elem.cmds = &self.cmds[self.pool_index][self.cmd_index];
-        elem.fence = &self.fences[self.pool_index][self.fence_index];
-        elem.semaphore = &self.semaphores[self.pool_index][self.fence_index];
+        elem.fence = self.fences[self.pool_index][self.fence_index];
+        elem.semaphore = self.semaphores[self.pool_index][self.fence_index];
 
         self.cmd_index += cmd_count;
         self.fence_index += 1;

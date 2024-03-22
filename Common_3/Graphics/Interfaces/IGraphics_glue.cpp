@@ -23,59 +23,69 @@ extern "C" void _1_removeSemaphore(Renderer* r, Semaphore* s) { ::removeSemaphor
 extern "C" void _1_addSampler(Renderer* r, const SamplerDesc* d, Sampler** s) { ::addSampler(r, d, s); }
 extern "C" void _1_removeSampler(Renderer* r, Sampler* s) { ::removeSampler(r, s); }
 
-extern "C" void            _1_addFence(Renderer* r, Fence** f) { ::addFence(r, f); }
-extern "C" void            _1_removeFence(Renderer* r, Fence* f) { ::removeFence(r, f); }
-extern "C" void            _1_addSwapChain(Renderer* r, const SwapChainDesc* d, SwapChain** s) { ::addSwapChain(r, d, s); }
-extern "C" void            _1_removeSwapChain(Renderer* r, SwapChain* s) { ::removeSwapChain(r, s); }
-extern "C" const void*     _1_addResourceHeap_ = (void*)&::addResourceHeap;
-extern "C" const void*     _1_removeResourceHeap_ = (void*)&::removeResourceHeap;
-extern "C" void            _1_addCmdPool(Renderer* r, const CmdPoolDesc* d, CmdPool** c) { ::addCmdPool(r, d, c); }
-extern "C" void            _1_removeCmdPool(Renderer* r, CmdPool* c) { ::removeCmdPool(r, c); }
-extern "C" void            _1_addCmd(Renderer* r, const CmdDesc* d, Cmd** c) { ::addCmd(r, d, c); }
-extern "C" void            _1_removeCmd(Renderer* r, Cmd* c) { ::removeCmd(r, c); }
-extern "C" const void*     _1_addCmd_n_ = (void*)&::addCmd_n;
-extern "C" const void*     _1_removeCmd_n_ = (void*)&::removeCmd_n;
-extern "C" const void*     _1_addRenderTarget_ = (void*)&::addRenderTarget;
-extern "C" const void*     _1_removeRenderTarget_ = (void*)&::removeRenderTarget;
-extern "C" const void*     _1_addShaderBinary_ = (void*)&::addShaderBinary;
-extern "C" const void*     _1_removeShader_ = (void*)&::removeShader;
-extern "C" const void*     _1_addRootSignature_ = (void*)&::addRootSignature;
-extern "C" const void*     _1_removeRootSignature_ = (void*)&::removeRootSignature;
-extern "C" const void*     _1_getDescriptorIndexFromName_ = (void*)&::getDescriptorIndexFromName;
-extern "C" const void*     _1_addPipeline_ = (void*)&::addPipeline;
-extern "C" const void*     _1_removePipeline_ = (void*)&::removePipeline;
-extern "C" const void*     _1_addPipelineCache_ = (void*)&::addPipelineCache;
-extern "C" const void*     _1_getPipelineCacheData_ = (void*)&::getPipelineCacheData;
-extern "C" const void*     _1_removePipelineCache_ = (void*)&::removePipelineCache;
-extern "C" const void*     _1_addDescriptorSet_ = (void*)&::addDescriptorSet;
-extern "C" const void*     _1_removeDescriptorSet_ = (void*)&::removeDescriptorSet;
-extern "C" const void*     _1_updateDescriptorSet_ = (void*)&::updateDescriptorSet;
-extern "C" const void*     _1_resetCmdPool_ = (void*)&::resetCmdPool;
-extern "C" const void*     _1_beginCmd_ = (void*)&::beginCmd;
-extern "C" const void*     _1_endCmd_ = (void*)&::endCmd;
-extern "C" const void*     _1_cmdBindRenderTargets_ = (void*)&::cmdBindRenderTargets;
-extern "C" const void*     _1_cmdSetSampleLocations_ = (void*)&::cmdSetSampleLocations;
-extern "C" const void*     _1_cmdSetViewport_ = (void*)&::cmdSetViewport;
-extern "C" const void*     _1_cmdSetScissor_ = (void*)&::cmdSetScissor;
-extern "C" const void*     _1_cmdSetStencilReferenceValue_ = (void*)&::cmdSetStencilReferenceValue;
-extern "C" const void*     _1_cmdBindPipeline_ = (void*)&::cmdBindPipeline;
-extern "C" const void*     _1_cmdBindDescriptorSet_ = (void*)&::cmdBindDescriptorSet;
-extern "C" const void*     _1_cmdBindPushConstants_ = (void*)&::cmdBindPushConstants;
-extern "C" const void*     _1_cmdBindDescriptorSetWithRootCbvs_ = (void*)&::cmdBindDescriptorSetWithRootCbvs;
-extern "C" const void*     _1_cmdBindIndexBuffer_ = (void*)&::cmdBindIndexBuffer;
-extern "C" const void*     _1_cmdBindVertexBuffer_ = (void*)&::cmdBindVertexBuffer;
-extern "C" const void*     _1_cmdDraw_ = (void*)&::cmdDraw;
-extern "C" const void*     _1_cmdDrawInstanced_ = (void*)&::cmdDrawInstanced;
-extern "C" const void*     _1_cmdDrawIndexed_ = (void*)&::cmdDrawIndexed;
-extern "C" const void*     _1_cmdDrawIndexedInstanced_ = (void*)&::cmdDrawIndexedInstanced;
-extern "C" const void*     _1_cmdDispatch_ = (void*)&::cmdDispatch;
-extern "C" const void*     _1_cmdResourceBarrier_ = (void*)&::cmdResourceBarrier;
-extern "C" const void*     _1_acquireNextImage_ = (void*)&::acquireNextImage;
-extern "C" const void*     _1_queueSubmit_ = (void*)&::queueSubmit;
-extern "C" const void*     _1_queuePresent_ = (void*)&::queuePresent;
-extern "C" const void*     _1_waitQueueIdle_ = (void*)&::waitQueueIdle;
-extern "C" const void*     _1_getFenceStatus_ = (void*)&::getFenceStatus;
-extern "C" const void*     _1_waitForFences_ = (void*)&::waitForFences;
+extern "C" void        _1_addFence(Renderer* r, Fence** f) { ::addFence(r, f); }
+extern "C" void        _1_removeFence(Renderer* r, Fence* f) { ::removeFence(r, f); }
+extern "C" void        _1_addSwapChain(Renderer* r, const SwapChainDesc* d, SwapChain** s) { ::addSwapChain(r, d, s); }
+extern "C" void        _1_removeSwapChain(Renderer* r, SwapChain* s) { ::removeSwapChain(r, s); }
+extern "C" const void* _1_addResourceHeap_ = (void*)&::addResourceHeap;
+extern "C" const void* _1_removeResourceHeap_ = (void*)&::removeResourceHeap;
+extern "C" void        _1_addCmdPool(Renderer* r, const CmdPoolDesc* d, CmdPool** c) { ::addCmdPool(r, d, c); }
+extern "C" void        _1_removeCmdPool(Renderer* r, CmdPool* c) { ::removeCmdPool(r, c); }
+extern "C" void        _1_addCmd(Renderer* r, const CmdDesc* d, Cmd** c) { ::addCmd(r, d, c); }
+extern "C" void        _1_removeCmd(Renderer* r, Cmd* c) { ::removeCmd(r, c); }
+extern "C" const void* _1_addCmd_n_ = (void*)&::addCmd_n;
+extern "C" const void* _1_removeCmd_n_ = (void*)&::removeCmd_n;
+extern "C" const void* _1_addRenderTarget_ = (void*)&::addRenderTarget;
+extern "C" const void* _1_removeRenderTarget_ = (void*)&::removeRenderTarget;
+extern "C" const void* _1_addShaderBinary_ = (void*)&::addShaderBinary;
+extern "C" const void* _1_removeShader_ = (void*)&::removeShader;
+extern "C" const void* _1_addRootSignature_ = (void*)&::addRootSignature;
+extern "C" const void* _1_removeRootSignature_ = (void*)&::removeRootSignature;
+extern "C" const void* _1_getDescriptorIndexFromName_ = (void*)&::getDescriptorIndexFromName;
+extern "C" const void* _1_addPipeline_ = (void*)&::addPipeline;
+extern "C" const void* _1_removePipeline_ = (void*)&::removePipeline;
+extern "C" const void* _1_addPipelineCache_ = (void*)&::addPipelineCache;
+extern "C" const void* _1_getPipelineCacheData_ = (void*)&::getPipelineCacheData;
+extern "C" const void* _1_removePipelineCache_ = (void*)&::removePipelineCache;
+extern "C" const void* _1_addDescriptorSet_ = (void*)&::addDescriptorSet;
+extern "C" const void* _1_removeDescriptorSet_ = (void*)&::removeDescriptorSet;
+extern "C" const void* _1_updateDescriptorSet_ = (void*)&::updateDescriptorSet;
+extern "C" void        _1_resetCmdPool(Renderer* r, CmdPool* c) { ::resetCmdPool(r, c); }
+extern "C" void        _1_beginCmd(Cmd* c) { ::beginCmd(c); }
+extern "C" void        _1_endCmd(Cmd* c) { ::endCmd(c); }
+extern "C" void        _1_cmdBindRenderTargets(Cmd* c, BindRenderTargetsDesc* d) { ::cmdBindRenderTargets(c, d); }
+extern "C" const void* _1_cmdSetSampleLocations_ = (void*)&::cmdSetSampleLocations;
+extern "C" void        _1_cmdSetViewport(Cmd* c, float x, float y, float w, float h, float mind, float maxd)
+{
+    ::cmdSetViewport(c, x, y, w, h, mind, maxd);
+}
+extern "C" void        _1_cmdSetScissor(Cmd* c, uint32_t x, uint32_t y, uint32_t w, uint32_t h) { ::cmdSetScissor(c, x, y, w, h); }
+extern "C" const void* _1_cmdSetStencilReferenceValue_ = (void*)&::cmdSetStencilReferenceValue;
+extern "C" const void* _1_cmdBindPipeline_ = (void*)&::cmdBindPipeline;
+extern "C" const void* _1_cmdBindDescriptorSet_ = (void*)&::cmdBindDescriptorSet;
+extern "C" const void* _1_cmdBindPushConstants_ = (void*)&::cmdBindPushConstants;
+extern "C" const void* _1_cmdBindDescriptorSetWithRootCbvs_ = (void*)&::cmdBindDescriptorSetWithRootCbvs;
+extern "C" const void* _1_cmdBindIndexBuffer_ = (void*)&::cmdBindIndexBuffer;
+extern "C" const void* _1_cmdBindVertexBuffer_ = (void*)&::cmdBindVertexBuffer;
+extern "C" const void* _1_cmdDraw_ = (void*)&::cmdDraw;
+extern "C" const void* _1_cmdDrawInstanced_ = (void*)&::cmdDrawInstanced;
+extern "C" const void* _1_cmdDrawIndexed_ = (void*)&::cmdDrawIndexed;
+extern "C" const void* _1_cmdDrawIndexedInstanced_ = (void*)&::cmdDrawIndexedInstanced;
+extern "C" const void* _1_cmdDispatch_ = (void*)&::cmdDispatch;
+extern "C" void        _1_cmdResourceBarrier(Cmd* c, uint32_t bc, BufferBarrier* b, uint32_t tc, TextureBarrier* t, uint32_t rc,
+                                             RenderTargetBarrier* r)
+{
+    ::cmdResourceBarrier(c, bc, b, tc, t, rc, r);
+}
+extern "C" void _1_acquireNextImage(Renderer* r, SwapChain* sc, Semaphore* s, Fence* f, uint32_t* i)
+{
+    ::acquireNextImage(r, sc, s, f, i);
+};
+extern "C" void            _1_queueSubmit(Queue* q, QueueSubmitDesc* d) { ::queueSubmit(q, d); }
+extern "C" void            _1_queuePresent(Queue* q, QueuePresentDesc* d) { ::queuePresent(q, d); }
+extern "C" void            _1_waitQueueIdle(Queue* q) { ::waitQueueIdle(q); }
+extern "C" void            _1_getFenceStatus(Renderer* r, Fence* f, FenceStatus* s) { ::getFenceStatus(r, f, s); }
+extern "C" void            _1_waitForFences(Renderer* r, uint32_t c, Fence** f) { ::waitForFences(r, c, f); }
 extern "C" const void*     _1_toggleVSync_ = (void*)&::toggleVSync;
 extern "C" TinyImageFormat _1_getSupportedSwapchainFormat(Renderer* r, SwapChainDesc* d, ColorSpace cs)
 {
