@@ -1,5 +1,6 @@
-pub const FileSystem = @import("Common_3/Utilities/Interfaces/IFileSystem.zig");
-pub const Graphics = @import("Common_3/Graphics/Interfaces/IGraphics.zig");
-pub const Log = @import("Common_3/Utilities/Log/Log.zig");
-pub const Memory = @import("Common_3/Utilities/Interfaces/IMemory.zig");
-pub const ResourceLoader = @import("Common_3/Resources/ResourceLoader/Interfaces/IResourceLoader.zig");
+pub const file_system = @import("Common_3/Utilities/Interfaces/IFileSystem.zig");
+pub const font = @import("Common_3/Application/Interfaces/IFont.zig");
+pub const graphics = @import("Common_3/Graphics/Interfaces/IGraphics.zig");
+pub const log = @import("Common_3/Utilities/Log/Log.zig");
+pub const memory = @import("Common_3/Utilities/Interfaces/IMemory.zig");
+pub const resource_loader = @import("Common_3/Resources/ResourceLoader/Interfaces/IResourceLoader.zig");

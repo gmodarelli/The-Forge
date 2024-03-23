@@ -2,21 +2,29 @@
 const std = @import("std");
 //const cpp = @import("cpp");
 
+const graphics = @import("../../Graphics/Interfaces/IGraphics.zig");
+
+/// NOTE(gmodarelli): Manually added plaftorm initialization for font system
+extern fn _1_platformInitFontSystem() bool;
+pub fn platform_init_font_system() bool {
+    return _1_platformInitFontSystem();
+}
+
 const CameraMatrix = anyopaque;
-const ReloadType = u32;
+const ReloadType = graphics.ReloadType;
 const float2 = [2]f32;
 const int2 = [2]i32;
 const mat4 = anyopaque;
 
 /// Creation information for initializing Forge Rendering for fonts and text
 pub const FontSystemDesc = extern struct {
-    pRenderer: [*c]Renderer = null,
+    pRenderer: *Renderer = undefined,
     mFontstashRingSizeBytes: u32 = @as(u32, @intCast(1024 * 1024)),
 };
 
 /// Creation information for initializing Forge Rendering for fonts and text
 pub const FontSystemLoadDesc = extern struct {
-    pCache: [*c]PipelineCache,
+    pCache: *PipelineCache,
     mLoadType: ReloadType,
     /// enum TinyImageFormat
     mColorFormat: u32,
@@ -32,7 +40,7 @@ pub const FontSystemLoadDesc = extern struct {
 
 /// Creation information for loading a font from a file using The Forge
 pub const FontDesc = extern struct {
-    pFontName: [*c]const u8 = &"\"default\"",
+    pFontName: [*c]const u8 = "\"default\"",
     pFontPath: [*c]const u8 = null,
 };
 
@@ -69,7 +77,8 @@ extern fn _1_unloadFontSystem_(unloadType: ReloadType) void;
 /// To be called at application unload time by the App Layer
 pub const unloadFontSystem = _1_unloadFontSystem_;
 
-extern fn _1_cmdDrawTextWithFont_(pCmd: [*c]Cmd, screenCoordsInPx: float2, pDrawDesc: [*c]const FontDrawDesc) void;
+// NOTE(gmodarelli): x and y are screen coordinates in pixels
+extern fn _1_cmdDrawTextWithFont_(pCmd: *Cmd, x: f32, y: f32, pDrawDesc: [*c]const FontDrawDesc) void;
 /// Renders UI-style text to the screen using a loaded font w/ The Forge
 /// This function will assert if Font Rendering has not been initialized
 pub const cmdDrawTextWithFont = _1_cmdDrawTextWithFont_;

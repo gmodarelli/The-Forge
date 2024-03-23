@@ -82,6 +82,10 @@ typedef struct FontDrawDesc
 
 } FontDrawDesc;
 
+#if defined(TIDES)
+FORGE_API bool platformInitFontSystem();
+#endif
+
 /****************************************************************************/
 // MARK: - Application Life Cycle
 /****************************************************************************/
