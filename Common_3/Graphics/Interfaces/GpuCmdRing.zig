@@ -48,7 +48,7 @@ pub const GpuCmdRing = struct {
 
         var pool: usize = 0;
         while (pool < desc.pool_count) : (pool += 1) {
-            Graphics.add_cmd_pool(renderer, &cmd_pool_desc, &gpu_cmd_ring.cmd_pools[pool]);
+            Graphics.addCmdPool(renderer, &cmd_pool_desc, &gpu_cmd_ring.cmd_pools[pool]);
 
             var cmd_desc = std.mem.zeroes(Graphics.CmdDesc);
             cmd_desc.pPool = gpu_cmd_ring.cmd_pools[pool];
@@ -56,11 +56,11 @@ pub const GpuCmdRing = struct {
             var cmd: usize = 0;
             while (cmd < desc.cmd_per_pool_count) : (cmd += 1) {
                 // TODO(gmodarelli): Check if debug graphics is enabled and set the cmd name
-                Graphics.add_cmd(renderer, &cmd_desc, &gpu_cmd_ring.cmds[pool][cmd]);
+                Graphics.addCmd(renderer, &cmd_desc, &gpu_cmd_ring.cmds[pool][cmd]);
 
                 if (desc.add_sync_primitives) {
-                    Graphics.add_fence(renderer, &gpu_cmd_ring.fences[pool][cmd]);
-                    Graphics.add_semaphore(renderer, &gpu_cmd_ring.semaphores[pool][cmd]);
+                    Graphics.addFence(renderer, &gpu_cmd_ring.fences[pool][cmd]);
+                    Graphics.addSemaphore(renderer, &gpu_cmd_ring.semaphores[pool][cmd]);
                 }
             }
         }
@@ -77,17 +77,17 @@ pub const GpuCmdRing = struct {
         while (pool < self.pool_count) : (pool += 1) {
             var cmd: usize = 0;
             while (cmd < self.cmd_per_pool_count) : (cmd += 1) {
-                Graphics.remove_cmd(renderer, self.cmds[pool][cmd]);
+                Graphics.removeCmd(renderer, self.cmds[pool][cmd]);
                 if (self.semaphores[pool][cmd] != null) {
-                    Graphics.remove_semaphore(renderer, self.semaphores[pool][cmd]);
+                    Graphics.removeSemaphore(renderer, self.semaphores[pool][cmd]);
                 }
 
                 if (self.fences[pool][cmd] != null) {
-                    Graphics.remove_fence(renderer, self.fences[pool][cmd]);
+                    Graphics.removeFence(renderer, self.fences[pool][cmd]);
                 }
             }
 
-            Graphics.remove_cmd_pool(renderer, self.cmd_pools[pool]);
+            Graphics.removeCmdPool(renderer, self.cmd_pools[pool]);
         }
     }
 

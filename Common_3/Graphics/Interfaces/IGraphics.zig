@@ -445,31 +445,27 @@ pub const IndexType = extern struct {
     // pub usingnamespace cpp.FlagsMixin(IndexType);
 };
 
-pub const ShaderSemantic = extern struct {
-    bits: c_int = 0,
-
-    pub const SEMANTIC_UNDEFINED: ShaderSemantic = .{ .bits = @as(c_uint, @intCast(0)) };
-    pub const SEMANTIC_POSITION: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 1 };
-    pub const SEMANTIC_NORMAL: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 2 };
-    pub const SEMANTIC_COLOR: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 3 };
-    pub const SEMANTIC_TANGENT: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 4 };
-    pub const SEMANTIC_BITANGENT: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 5 };
-    pub const SEMANTIC_JOINTS: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 6 };
-    pub const SEMANTIC_WEIGHTS: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 7 };
-    pub const SEMANTIC_CUSTOM: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 8 };
-    pub const SEMANTIC_TEXCOORD0: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 9 };
-    pub const SEMANTIC_TEXCOORD1: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 10 };
-    pub const SEMANTIC_TEXCOORD2: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 11 };
-    pub const SEMANTIC_TEXCOORD3: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 12 };
-    pub const SEMANTIC_TEXCOORD4: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 13 };
-    pub const SEMANTIC_TEXCOORD5: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 14 };
-    pub const SEMANTIC_TEXCOORD6: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 15 };
-    pub const SEMANTIC_TEXCOORD7: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 16 };
-    pub const SEMANTIC_TEXCOORD8: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 17 };
-    pub const SEMANTIC_TEXCOORD9: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 18 };
-    pub const MAX_SEMANTICS: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 19 };
-
-    // pub usingnamespace cpp.FlagsMixin(ShaderSemantic);
+pub const ShaderSemantic = enum(u32) {
+    UNDEFINED,
+    POSITION,
+    NORMAL,
+    COLOR,
+    TANGENT,
+    BITANGENT,
+    JOINTS,
+    WEIGHTS,
+    CUSTOM,
+    TEXCOORD0,
+    TEXCOORD1,
+    TEXCOORD2,
+    TEXCOORD3,
+    TEXCOORD4,
+    TEXCOORD5,
+    TEXCOORD6,
+    TEXCOORD7,
+    TEXCOORD8,
+    TEXCOORD9,
+    MAX_SEMANTICS,
 };
 
 pub const BlendConstant = extern struct {
@@ -2157,42 +2153,42 @@ extern fn _1_exitRenderer_(pRenderer: [*c]Renderer) void;
 pub const exitRenderer = _1_exitRenderer_;
 
 extern fn _1_addFence(renderer: [*c]Renderer, fence: [*c][*c]Fence) void;
-pub fn add_fence(renderer: [*c]Renderer, fence: [*c][*c]Fence) void {
+pub fn addFence(renderer: [*c]Renderer, fence: [*c][*c]Fence) void {
     _1_addFence(renderer, fence);
 }
 
 extern fn _1_removeFence(renderer: [*c]Renderer, fence: [*c]Fence) void;
-pub fn remove_fence(renderer: [*c]Renderer, fence: [*c]Fence) void {
+pub fn removeFence(renderer: [*c]Renderer, fence: [*c]Fence) void {
     _1_removeFence(renderer, fence);
 }
 
 extern fn _1_addSemaphore(renderer: [*c]Renderer, semaphore: [*c][*c]Semaphore) void;
-pub fn add_semaphore(renderer: [*c]Renderer, semaphore: [*c][*c]Semaphore) void {
+pub fn addSemaphore(renderer: [*c]Renderer, semaphore: [*c][*c]Semaphore) void {
     _1_addSemaphore(renderer, semaphore);
 }
 
 extern fn _1_removeSemaphore(renderer: [*c]Renderer, semaphore: [*c]Semaphore) void;
-pub fn remove_semaphore(renderer: [*c]Renderer, semaphore: [*c]Semaphore) void {
+pub fn removeSemaphore(renderer: [*c]Renderer, semaphore: [*c]Semaphore) void {
     _1_removeSemaphore(renderer, semaphore);
 }
 
 extern fn _1_addQueue(renderer: [*c]Renderer, desc: [*c]QueueDesc, queue: [*c][*c]Queue) void;
-pub fn add_queue(r: [*c]Renderer, qd: [*c]QueueDesc, q: [*c][*c]Queue) void {
+pub fn addQueue(r: [*c]Renderer, qd: [*c]QueueDesc, q: [*c][*c]Queue) void {
     _1_addQueue(r, qd, q);
 }
 
 extern fn _1_removeQueue(renderer: [*c]Renderer, queue: [*c]Queue) void;
-pub fn remove_queue(r: [*c]Renderer, q: [*c]Queue) void {
+pub fn removeQueue(r: [*c]Renderer, q: [*c]Queue) void {
     _1_removeQueue(r, q);
 }
 
 extern fn _1_addSwapChain(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, swap_chain: [*c][*c]SwapChain) void;
-pub fn add_swap_chain(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, swap_chain: [*c][*c]SwapChain) void {
+pub fn addSwapChain(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, swap_chain: [*c][*c]SwapChain) void {
     _1_addSwapChain(renderer, desc, swap_chain);
 }
 
 extern fn _1_removeSwapChain(renderer: [*c]Renderer, swap_chain: [*c]SwapChain) void;
-pub fn remove_swap_chain(renderer: [*c]Renderer, swap_chain: [*c]SwapChain) void {
+pub fn removeSwapChain(renderer: [*c]Renderer, swap_chain: [*c]SwapChain) void {
     _1_removeSwapChain(renderer, swap_chain);
 }
 
@@ -2207,22 +2203,22 @@ extern var _1_removeResourceHeap_: *removeResourceHeapFn;
 pub const removeResourceHeap = _1_removeResourceHeap_;
 
 extern fn _1_addCmdPool(renderer: [*c]Renderer, desc: [*c]const CmdPoolDesc, cmd_pool: [*c][*c]CmdPool) void;
-pub fn add_cmd_pool(renderer: [*c]Renderer, desc: [*c]const CmdPoolDesc, cmd_pool: [*c][*c]CmdPool) void {
+pub fn addCmdPool(renderer: [*c]Renderer, desc: [*c]const CmdPoolDesc, cmd_pool: [*c][*c]CmdPool) void {
     _1_addCmdPool(renderer, desc, cmd_pool);
 }
 
 extern fn _1_removeCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void;
-pub fn remove_cmd_pool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void {
+pub fn removeCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void {
     _1_removeCmdPool(renderer, cmd_pool);
 }
 
 extern fn _1_addCmd(renderer: [*c]Renderer, desc: [*c]const CmdDesc, cmd: [*c][*c]Cmd) void;
-pub fn add_cmd(renderer: [*c]Renderer, desc: [*c]const CmdDesc, cmd: [*c][*c]Cmd) void {
+pub fn addCmd(renderer: [*c]Renderer, desc: [*c]const CmdDesc, cmd: [*c][*c]Cmd) void {
     _1_addCmd(renderer, desc, cmd);
 }
 
 extern fn _1_removeCmd(renderer: [*c]Renderer, cmd: [*c]Cmd) void;
-pub fn remove_cmd(renderer: [*c]Renderer, cmd: [*c]Cmd) void {
+pub fn removeCmd(renderer: [*c]Renderer, cmd: [*c]Cmd) void {
     _1_removeCmd(renderer, cmd);
 }
 
@@ -2249,14 +2245,14 @@ pub const removeRenderTarget = _1_removeRenderTarget_;
 pub const addSamplerFn = ?*const fn ([*c]Renderer, [*c]const SamplerDesc, [*c][*c]Sampler) callconv(.C) void;
 
 extern fn _1_addSampler(_: [*c]Renderer, _: [*c]const SamplerDesc, _: [*c][*c]Sampler) void;
-pub fn add_sampler(renderer: [*c]Renderer, desc: [*c]const SamplerDesc, sampler: [*c][*c]Sampler) void {
+pub fn addSampler(renderer: [*c]Renderer, desc: [*c]const SamplerDesc, sampler: [*c][*c]Sampler) void {
     _1_addSampler(renderer, desc, sampler);
 }
 
 pub const removeSamplerFn = ?*const fn ([*c]Renderer, [*c]Sampler) callconv(.C) void;
 
 extern fn _1_removeSampler(renderer: [*c]Renderer, sampler: [*c]Sampler) void;
-pub fn remove_sampler(renderer: [*c]Renderer, sampler: [*c]Sampler) void {
+pub fn removeSampler(renderer: [*c]Renderer, sampler: [*c]Sampler) void {
     _1_removeSampler(renderer, sampler);
 }
 
@@ -2326,22 +2322,22 @@ extern var _1_updateDescriptorSet_: *updateDescriptorSetFn;
 pub const updateDescriptorSet = _1_updateDescriptorSet_;
 
 extern fn _1_resetCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void;
-pub fn reset_cmd_pool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void {
+pub fn resetCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void {
     _1_resetCmdPool(renderer, cmd_pool);
 }
 
 extern fn _1_beginCmd(cmd: [*c]Cmd) void;
-pub fn begin_cmd(cmd: [*c]Cmd) void {
+pub fn beginCmd(cmd: [*c]Cmd) void {
     _1_beginCmd(cmd);
 }
 
 extern fn _1_endCmd(cmd: [*c]Cmd) void;
-pub fn end_cmd(cmd: [*c]Cmd) void {
+pub fn endCmd(cmd: [*c]Cmd) void {
     _1_endCmd(cmd);
 }
 
 extern fn _1_cmdBindRenderTargets(cmd: [*c]Cmd, desc: [*c]const BindRenderTargetsDesc) void;
-pub fn cmd_bind_render_targets(cmd: [*c]Cmd, desc: [*c]const BindRenderTargetsDesc) void {
+pub fn cmdBindRenderTargets(cmd: [*c]Cmd, desc: [*c]const BindRenderTargetsDesc) void {
     _1_cmdBindRenderTargets(cmd, desc);
 }
 
@@ -2353,12 +2349,12 @@ pub const cmdSetSampleLocations = _1_cmdSetSampleLocations_;
 pub const cmdSetViewportFn = ?*const fn ([*c]Cmd, f32, f32, f32, f32, f32, f32) callconv(.C) void;
 
 extern fn _1_cmdSetViewport(cmd: [*c]Cmd, x: f32, y: f32, width: f32, height: f32, min_depth: f32, max_depth: f32) void;
-pub fn cmd_set_viewport(cmd: [*c]Cmd, x: f32, y: f32, width: f32, height: f32, min_depth: f32, max_depth: f32) void {
+pub fn cmdSetViewport(cmd: [*c]Cmd, x: f32, y: f32, width: f32, height: f32, min_depth: f32, max_depth: f32) void {
     _1_cmdSetViewport(cmd, x, y, width, height, min_depth, max_depth);
 }
 
 extern fn _1_cmdSetScissor(cmd: [*c]Cmd, x: u32, y: u32, width: u32, height: u32) void;
-pub fn cmd_set_scissor(cmd: [*c]Cmd, x: u32, y: u32, width: u32, height: u32) void {
+pub fn cmdSetScissor(cmd: [*c]Cmd, x: u32, y: u32, width: u32, height: u32) void {
     _1_cmdSetScissor(cmd, x, y, width, height);
 }
 
@@ -2423,39 +2419,39 @@ extern var _1_cmdDispatch_: *cmdDispatchFn;
 pub const cmdDispatch = _1_cmdDispatch_;
 
 extern fn _1_cmdResourceBarrier(cmd: [*c]Cmd, buffer_barrier_count: u32, buffer_barrier: [*c]BufferBarrier, texture_barrier_count: u32, texture_barrier: [*c]TextureBarrier, render_target_barrier_count: u32, render_target_barrier: [*c]RenderTargetBarrier) void;
-pub fn cmd_resource_barrier(cmd: [*c]Cmd, buffer_barrier_count: u32, buffer_barrier: [*c]BufferBarrier, texture_barrier_count: u32, texture_barrier: [*c]TextureBarrier, render_target_barrier_count: u32, render_target_barrier: [*c]RenderTargetBarrier) void {
+pub fn cmdResourceBarrier(cmd: [*c]Cmd, buffer_barrier_count: u32, buffer_barrier: [*c]BufferBarrier, texture_barrier_count: u32, texture_barrier: [*c]TextureBarrier, render_target_barrier_count: u32, render_target_barrier: [*c]RenderTargetBarrier) void {
     _1_cmdResourceBarrier(cmd, buffer_barrier_count, buffer_barrier, texture_barrier_count, texture_barrier, render_target_barrier_count, render_target_barrier);
 }
 
 pub const acquireNextImageFn = ?*const fn ([*c]Renderer, [*c]SwapChain, [*c]Semaphore, [*c]Fence, [*c]u32) callconv(.C) void;
 
 extern fn _1_acquireNextImage(renderer: [*c]Renderer, swap_chain: [*c]SwapChain, semaphore: [*c]Semaphore, fence: [*c]Fence, index: [*c]u32) void;
-pub fn acquire_next_image(renderer: [*c]Renderer, swap_chain: [*c]SwapChain, semaphore: [*c]Semaphore, fence: [*c]Fence, index: [*c]u32) void {
+pub fn acquireNextImage(renderer: [*c]Renderer, swap_chain: [*c]SwapChain, semaphore: [*c]Semaphore, fence: [*c]Fence, index: [*c]u32) void {
     _1_acquireNextImage(renderer, swap_chain, semaphore, fence, index);
 }
 
 extern fn _1_queueSubmit(queue: [*c]Queue, desc: [*c]const QueueSubmitDesc) void;
-pub fn queue_submit(queue: [*c]Queue, desc: [*c]const QueueSubmitDesc) void {
+pub fn queueSubmit(queue: [*c]Queue, desc: [*c]const QueueSubmitDesc) void {
     _1_queueSubmit(queue, desc);
 }
 
 extern fn _1_queuePresent(queue: [*c]Queue, desc: [*c]const QueuePresentDesc) void;
-pub fn queue_present(queue: [*c]Queue, desc: [*c]const QueuePresentDesc) void {
+pub fn queuePresent(queue: [*c]Queue, desc: [*c]const QueuePresentDesc) void {
     _1_queuePresent(queue, desc);
 }
 
 extern fn _1_waitQueueIdle(queue: [*c]Queue) void;
-pub fn wait_queue_idle(queue: [*c]Queue) void {
+pub fn waitQueueIdle(queue: [*c]Queue) void {
     _1_waitQueueIdle(queue);
 }
 
 extern fn _1_getFenceStatus(renderer: [*c]Renderer, fence: [*c]Fence, status: [*c]FenceStatus) void;
-pub fn get_fence_status(renderer: [*c]Renderer, fence: [*c]Fence, status: [*c]FenceStatus) void {
+pub fn getFenceStatus(renderer: [*c]Renderer, fence: [*c]Fence, status: [*c]FenceStatus) void {
     _1_getFenceStatus(renderer, fence, status);
 }
 
 extern fn _1_waitForFences(renderer: [*c]Renderer, count: u32, fences: [*c][*c]Fence) void;
-pub fn wait_for_fences(renderer: [*c]Renderer, count: u32, fences: [*c][*c]Fence) void {
+pub fn waitForFences(renderer: [*c]Renderer, count: u32, fences: [*c][*c]Fence) void {
     _1_waitForFences(renderer, count, fences);
 }
 
@@ -2467,14 +2463,14 @@ pub const toggleVSync = _1_toggleVSync_;
 pub const getSupportedSwapchainFormatFn = ?*const fn ([*c]Renderer, [*c]const SwapChainDesc, ColorSpace) callconv(.C) TinyImageFormat;
 
 extern fn _1_getSupportedSwapchainFormat(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, color_space: ColorSpace) TinyImageFormat;
-pub fn get_supported_swapchain_format(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, color_space: ColorSpace) TinyImageFormat {
+pub fn getSupportedSwapchainFormat(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, color_space: ColorSpace) TinyImageFormat {
     return _1_getSupportedSwapchainFormat(renderer, desc, color_space);
 }
 
 pub const getRecommendedSwapchainImageCountFn = ?*const fn ([*c]Renderer, [*c]const WindowHandle) callconv(.C) u32;
 
 extern fn _1_getRecommendedSwapchainImageCount(renderer: [*c]Renderer, window_handle: [*c]const WindowHandle) u32;
-pub fn get_recommended_swapchain_image_count(renderer: [*c]Renderer, window_handle: [*c]const WindowHandle) u32 {
+pub fn getRecommendedSwapchainImageCount(renderer: [*c]Renderer, window_handle: [*c]const WindowHandle) u32 {
     return _1_getRecommendedSwapchainImageCount(renderer, window_handle);
 }
 

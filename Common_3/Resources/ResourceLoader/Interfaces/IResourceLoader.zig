@@ -223,7 +223,7 @@ pub const GeometryData = extern struct {
     /// Shadow copy of the geometry vertex and index data if requested through the load flags
     pShadow: [*c]ShadowData,
     /// The array of joint inverse bind-pose matrices ( object-space )
-    pInverseBindPoses: [*c]mat4,
+    pInverseBindPoses: *mat4,
     /// The array of data to remap skin batch local joint ids to global joint ids
     pJointRemaps: [*c]u32,
     /// Number of joints in the skinned geometry
