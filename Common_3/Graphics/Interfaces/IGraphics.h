@@ -1012,6 +1012,9 @@ typedef struct BufferDesc
     /// The index of the GPU in SLI/Cross-Fire that owns this buffer, or the Renderer index in unlinked mode.
     uint32_t             mNodeIndex;
     uint32_t             mSharedNodeIndexCount;
+#if defined(TIDES)
+    bool                 bBindless;
+#endif
 } BufferDesc;
 
 typedef struct DEFINE_ALIGNED(Buffer, 64)
@@ -1037,9 +1040,6 @@ typedef struct DEFINE_ALIGNED(Buffer, 64)
             ID3D12Resource*           pResource;
             /// Contains resource allocation info such as parent heap, offset in heap
             D3D12MAAllocation*        pAllocation;
-#if defined(TIDES)
-            DxDescriptorID mPersistentGPUDescriptors;
-#endif
         } mDx;
 #endif
 #if defined(VULKAN)
@@ -1164,10 +1164,6 @@ typedef struct DEFINE_ALIGNED(Texture, 64)
             D3D12MAAllocation* pAllocation;
             uint32_t           mHandleCount : 24;
             uint32_t           mUavStartIndex;
-#if defined(TIDES)
-            /// Descriptor handle of the SRV in a shader visible descriptor heap
-            DxDescriptorID     mPersistentDescriptors;
-#endif
         } mDx;
 #endif
 #if defined(VULKAN)

@@ -910,8 +910,9 @@ TR_BufferHandle TR_createBuffer(TR_Slice initialData, uint32_t dataStride, const
 	Buffer *buffer = NULL;
 
 	BufferLoadDesc desc = {};
-	desc.mDesc.mDescriptors = DESCRIPTOR_TYPE_BUFFER_RAW;
-	desc.mDesc.mFlags = BUFFER_CREATION_FLAG_NO_DESCRIPTOR_VIEW_CREATION;
+	desc.mDesc.bBindless = true;
+	desc.mDesc.mDescriptors = DESCRIPTOR_TYPE_BUFFER | DESCRIPTOR_TYPE_BUFFER_RAW;
+	desc.mDesc.mFlags = BUFFER_CREATION_FLAG_SHADER_DEVICE_ADDRESS;
 	desc.mDesc.mMemoryUsage = RESOURCE_MEMORY_USAGE_GPU_ONLY;
 	desc.mDesc.mSize = initialData.dataSize;
 	// NOTE(gmodarelli): The persistent SRV uses a R32_TYPELESS representation, so we need to provide an element count in terms of 32bit data
@@ -926,9 +927,6 @@ TR_BufferHandle TR_createBuffer(TR_Slice initialData, uint32_t dataStride, const
 	SyncToken token = {};
 	addResource(&desc, &token);
 	waitForToken(&token);
-
-	DECLARE_RENDERER_FUNCTION(void, addPersistentBufferSrv, Renderer *pRenderer, const BufferDesc *pDesc, Buffer **pp_buffer);
-	addPersistentBufferSrv(g_Renderer, &desc.mDesc, &buffer);
 
 	g_GpuBuffers[result.ID] = buffer;
 	return result;
@@ -950,7 +948,7 @@ uint32_t TR_bufferBindlessIndex(TR_BufferHandle bufferHandle)
 	Buffer *buffer = g_GpuBuffers[bufferHandle.ID];
 	assert(buffer);
 
-	return (uint32_t)buffer->mDx.mPersistentGPUDescriptors;
+	return (uint32_t)buffer->mDx.mDescriptors;
 }
 
 TR_MeshHandle TR_loadMesh(const char *path)
@@ -1090,7 +1088,7 @@ uint32_t TR_textureBindlessIndex(TR_TextureHandle textureHandle)
 	Texture *texture = g_Textures[textureHandle.ID];
 	assert(texture);
 
-	return (uint32_t)texture->mDx.mPersistentDescriptors;
+	return (uint32_t)texture->mDx.mDescriptors;
 }
 
 void TR_registerTerrainDrawCalls(TR_Slice drawCallsSlice, TR_Slice pushConstantsSlice)
@@ -1266,8 +1264,9 @@ void LoadStaicEntityTransforms()
 	}
 
 	BufferLoadDesc desc = {};
-	desc.mDesc.mDescriptors = DESCRIPTOR_TYPE_BUFFER_RAW;
-	desc.mDesc.mFlags = BUFFER_CREATION_FLAG_NO_DESCRIPTOR_VIEW_CREATION;
+	desc.mDesc.bBindless = true;
+	desc.mDesc.mDescriptors = DESCRIPTOR_TYPE_BUFFER | DESCRIPTOR_TYPE_BUFFER_RAW;
+	desc.mDesc.mFlags = BUFFER_CREATION_FLAG_SHADER_DEVICE_ADDRESS;
 	desc.mDesc.mMemoryUsage = RESOURCE_MEMORY_USAGE_GPU_ONLY;
 	desc.mDesc.mSize = dataSize;
 	// NOTE(gmodarelli): The persistent SRV uses a R32_TYPELESS representation, so we need to provide an element count in terms of 32bit data
@@ -1281,9 +1280,6 @@ void LoadStaicEntityTransforms()
 	waitForToken(&token);
 
 	tf_free(initialData);
-
-	DECLARE_RENDERER_FUNCTION(void, addPersistentBufferSrv, Renderer *pRenderer, const BufferDesc *pDesc, Buffer **pp_buffer);
-	addPersistentBufferSrv(g_Renderer, &desc.mDesc, &g_TerrainLod3TransformBuffer);
 }
 
 void UnloadStaticEntityTransforms()

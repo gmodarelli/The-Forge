@@ -122,11 +122,6 @@ DECLARE_RENDERER_FUNCTION(void, cmdCopySubresource, Cmd* pCmd, Buffer* pDstBuffe
 DECLARE_RENDERER_FUNCTION(void, addTexture, Renderer* pRenderer, const TextureDesc* pDesc, Texture** ppTexture)
 DECLARE_RENDERER_FUNCTION(void, removeTexture, Renderer* pRenderer, Texture* pTexture)
 
-#if defined(TIDES)
-DECLARE_RENDERER_FUNCTION(void, addPersistentBufferSrv, Renderer* pRenderer, const BufferDesc* pDesc, Buffer** pp_buffer);
-DECLARE_RENDERER_FUNCTION(void, addPersistentTextureSrv, Renderer* pRenderer, const TextureDesc* pDesc, Texture** pp_texture);
-#endif
-
 static void SetObjectName(ID3D12Object* pObject, const char* pName)
 {
 #if defined(ENABLE_GRAPHICS_DEBUG)
@@ -333,10 +328,6 @@ typedef struct DescriptorHeap
     uint32_t                    mDescriptorSize;
     // Usage
     uint32_t                    mUsedDescriptors;
-#if defined(TIDES)
-    uint32_t                     mReservedDescriptorsOffset;
-    uint32_t                     mUsedReservedDescriptors;
-#endif
 } DescriptorHeap;
 
 typedef struct DescriptorIndexMap
@@ -509,28 +500,6 @@ static DxDescriptorID consume_descriptor_handles(DescriptorHeap* pHeap, uint32_t
     ASSERT(result != D3D12_DESCRIPTOR_ID_NONE && "Out of descriptors");
     return firstResult;
 }
-
-#if defined(TIDES)
-static DxDescriptorID consume_persistent_descriptor_handles(DescriptorHeap* pHeap, uint32_t descriptorCount)
-{
-    if (!descriptorCount)
-    {
-        return D3D12_DESCRIPTOR_ID_NONE;
-    }
-
-    DxDescriptorID result = D3D12_DESCRIPTOR_ID_NONE;
-
-    ASSERT(pHeap->mReservedDescriptorsOffset && "This heap doesn't support persisten descriptors");
-    ASSERT(descriptorCount == 1 && "Add support for consuming multiple descriptor handles");
-    MutexLock lock(pHeap->mMutex);
-
-    result = pHeap->mReservedDescriptorsOffset + pHeap->mUsedReservedDescriptors;
-    pHeap->mUsedReservedDescriptors += 1;
-
-    ASSERT(result != D3D12_DESCRIPTOR_ID_NONE && "Out of descriptors");
-    return result;
-}
-#endif
 
 static inline FORGE_CONSTEXPR D3D12_CPU_DESCRIPTOR_HANDLE descriptor_id_to_cpu_handle(DescriptorHeap* pHeap, DxDescriptorID id)
 {
@@ -757,58 +726,6 @@ static void AddBufferSrv(Renderer* pRenderer, DescriptorHeap* pOptionalHeap, ID3
 
     AddSrv(pRenderer, pOptionalHeap, pBuffer, &srvDesc, pOutSrv);
 }
-
-#if defined(TIDES)
-void AddPersistentSrv(Renderer* pRenderer, ID3D12Resource* pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC* pSrvDesc, DxDescriptorID* pInOutId)
-{
-    DescriptorHeap* heap = pRenderer->mDx.pCbvSrvUavHeaps[0];
-    if (D3D12_DESCRIPTOR_ID_NONE == *pInOutId)
-    {
-        *pInOutId = consume_persistent_descriptor_handles(heap, 1);
-    }
-
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuSrvHandle = {};
-    cpuSrvHandle.ptr = heap->mStartCpuHandle.ptr + (uint32_t)(*pInOutId) * heap->mDescriptorSize;
-    // D3D12_GPU_DESCRIPTOR_HANDLE gpuSrvHandle = {};
-    // gpuSrvHandle.ptr = heap->mStartGpuHandle.ptr + (uint32_t)(*pInOutId) * heap->mDescriptorSize;
-
-    pRenderer->mDx.pDevice->CreateShaderResourceView(pResource, pSrvDesc, cpuSrvHandle);
-}
-
-static void AddPersistentBufferSrv(Renderer* pRenderer, ID3D12Resource* pBuffer, bool raw, uint32_t firstElement, uint32_t elementCount, uint32_t stride, DxDescriptorID* pInOutDescriptor)
-{
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Buffer.FirstElement = firstElement;
-    srvDesc.Buffer.NumElements = elementCount;
-    srvDesc.Buffer.StructureByteStride = stride;
-    srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-    srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-    if (raw)
-    {
-        srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-        srvDesc.Buffer.StructureByteStride = 0;
-        srvDesc.Buffer.Flags |= D3D12_BUFFER_SRV_FLAG_RAW;
-    }
-
-    AddPersistentSrv(pRenderer, pBuffer, &srvDesc, pInOutDescriptor);
-
-    // DescriptorHeap* heap = pRenderer->mDx.pCbvSrvUavHeaps[0];
-
-    // if (D3D12_DESCRIPTOR_ID_NONE == *pInOutDescriptor)
-    // {
-    // 	*pInOutDescriptor = consume_persistent_descriptor_handles(heap, 1);
-    // }
-    // 
-    // D3D12_CPU_DESCRIPTOR_HANDLE cpuSrvHandle = {};
-    // cpuSrvHandle.ptr = heap->mStartCpuHandle.ptr + (uint32_t)(*pInOutDescriptor) * heap->mDescriptorSize;
-    // D3D12_GPU_DESCRIPTOR_HANDLE gpuSrvHandle = {};
-    // gpuSrvHandle.ptr = heap->mStartGpuHandle.ptr + (uint32_t)(*pInOutDescriptor) * heap->mDescriptorSize;
-
-    // pRenderer->mDx.pDevice->CreateShaderResourceView(pBuffer, &srvDesc, cpuSrvHandle);
-}
-#endif
 
 static void AddTypedBufferSrv(Renderer* pRenderer, DescriptorHeap* pOptionalHeap, ID3D12Resource* pBuffer, uint32_t firstElement,
                               uint32_t elementCount, TinyImageFormat format, DxDescriptorID* pOutSrv)
@@ -2826,12 +2743,6 @@ void d3d12_initRenderer(const char* appName, const RendererDesc* pDesc, Renderer
             desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
             add_descriptor_heap(pRenderer->mDx.pDevice, &desc, &pRenderer->mDx.pCbvSrvUavHeaps[i]);
 
-#if defined(TIDES)
-            pRenderer->mDx.pCbvSrvUavHeaps[i]->mReservedDescriptorsOffset = pRenderer->mDx.pCbvSrvUavHeaps[i]->mNumDescriptors / 2;
-            pRenderer->mDx.pCbvSrvUavHeaps[i]->mUsedReservedDescriptors = 0;
-            desc.NumDescriptors = pRenderer->mDx.pCbvSrvUavHeaps[i]->mNumDescriptors / 2;
-#endif
-
             // Max sampler descriptor count
             desc.NumDescriptors = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
             desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
@@ -3467,9 +3378,6 @@ void d3d12_addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** ppBu
     // initialize to zero
     Buffer* pBuffer = (Buffer*)tf_calloc_memalign(1, alignof(Buffer), sizeof(Buffer));
     pBuffer->mDx.mDescriptors = D3D12_DESCRIPTOR_ID_NONE;
-#if defined(TIDES)
-    pBuffer->mDx.mPersistentGPUDescriptors = D3D12_DESCRIPTOR_ID_NONE;
-#endif
     ASSERT(ppBuffer);
 
     // add to renderer
@@ -3560,6 +3468,14 @@ void d3d12_addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** ppBu
     if (!(pDesc->mFlags & BUFFER_CREATION_FLAG_NO_DESCRIPTOR_VIEW_CREATION))
     {
         DescriptorHeap* pHeap = pRenderer->mDx.pCPUDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
+        DescriptorHeap* optionalHeap = NULL;
+#if defined(TIDES)
+        if (pDesc->bBindless)
+        {
+            pHeap = pRenderer->mDx.pCbvSrvUavHeaps[0];
+            optionalHeap = pHeap;
+        }
+#endif
         uint32_t        handleCount = ((pDesc->mDescriptors & DESCRIPTOR_TYPE_UNIFORM_BUFFER) ? 1 : 0) +
                                ((pDesc->mDescriptors & DESCRIPTOR_TYPE_BUFFER) ? 1 : 0) +
                                ((pDesc->mDescriptors & DESCRIPTOR_TYPE_RW_BUFFER) ? 1 : 0);
@@ -3581,13 +3497,13 @@ void d3d12_addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** ppBu
             pBuffer->mDx.mUavDescriptorOffset = pBuffer->mDx.mSrvDescriptorOffset + 1;
             if (pDesc->mFormat != TinyImageFormat_UNDEFINED)
             {
-                AddTypedBufferSrv(pRenderer, NULL, pBuffer->mDx.pResource, pDesc->mFirstElement, pDesc->mElementCount, pDesc->mFormat,
+                AddTypedBufferSrv(pRenderer, optionalHeap, pBuffer->mDx.pResource, pDesc->mFirstElement, pDesc->mElementCount, pDesc->mFormat,
                                   &srv);
             }
             else
             {
                 const bool raw = DESCRIPTOR_TYPE_BUFFER_RAW == (pDesc->mDescriptors & DESCRIPTOR_TYPE_BUFFER_RAW);
-                AddBufferSrv(pRenderer, NULL, pBuffer->mDx.pResource, raw, pDesc->mFirstElement, pDesc->mElementCount, pDesc->mStructStride,
+                AddBufferSrv(pRenderer, optionalHeap, pBuffer->mDx.pResource, raw, pDesc->mFirstElement, pDesc->mElementCount, pDesc->mStructStride,
                              &srv);
             }
         }
@@ -3597,14 +3513,14 @@ void d3d12_addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** ppBu
             DxDescriptorID uav = pBuffer->mDx.mDescriptors + pBuffer->mDx.mUavDescriptorOffset;
             if (pDesc->mFormat != TinyImageFormat_UNDEFINED)
             {
-                AddTypedBufferUav(pRenderer, NULL, pBuffer->mDx.pResource, pDesc->mFirstElement, pDesc->mElementCount, pDesc->mFormat,
+                AddTypedBufferUav(pRenderer, optionalHeap, pBuffer->mDx.pResource, pDesc->mFirstElement, pDesc->mElementCount, pDesc->mFormat,
                                   &uav);
             }
             else
             {
                 const bool      raw = DESCRIPTOR_TYPE_RW_BUFFER_RAW == (pDesc->mDescriptors & DESCRIPTOR_TYPE_RW_BUFFER_RAW);
                 ID3D12Resource* pCounterBuffer = pDesc->pCounterBuffer ? pDesc->pCounterBuffer->mDx.pResource : NULL;
-                AddBufferUav(pRenderer, NULL, pBuffer->mDx.pResource, pCounterBuffer, 0, raw, pDesc->mFirstElement, pDesc->mElementCount,
+                AddBufferUav(pRenderer, optionalHeap, pBuffer->mDx.pResource, pCounterBuffer, 0, raw, pDesc->mFirstElement, pDesc->mElementCount,
                              pDesc->mStructStride, &uav);
             }
         }
@@ -3620,14 +3536,6 @@ void d3d12_addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** ppBu
 
     *ppBuffer = pBuffer;
 }
-
-#if defined(TIDES)
-void d3d12_addPersistentBufferSrv(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** ppBuffer)
-{
-    const bool raw = DESCRIPTOR_TYPE_BUFFER_RAW == (pDesc->mDescriptors & DESCRIPTOR_TYPE_BUFFER_RAW);
-    AddPersistentBufferSrv(pRenderer, (*ppBuffer)->mDx.pResource, raw, pDesc->mFirstElement, pDesc->mElementCount, pDesc->mStructStride, &(*ppBuffer)->mDx.mPersistentGPUDescriptors);
-}
-#endif
 
 void d3d12_removeBuffer(Renderer* pRenderer, Buffer* pBuffer)
 {
@@ -3689,9 +3597,6 @@ void d3d12_addTexture(Renderer* pRenderer, const TextureDesc* pDesc, Texture** p
     // allocate new texture
     Texture* pTexture = (Texture*)tf_calloc_memalign(1, alignof(Texture), sizeof(Texture));
     pTexture->mDx.mDescriptors = D3D12_DESCRIPTOR_ID_NONE;
-#if defined(TIDES)
-    pTexture->mDx.mPersistentDescriptors = D3D12_DESCRIPTOR_ID_NONE;
-#endif
     ASSERT(pTexture);
 
     if (pDesc->pNativeHandle)
@@ -3930,14 +3835,7 @@ void d3d12_addTexture(Renderer* pRenderer, const TextureDesc* pDesc, Texture** p
     DescriptorHeap* pHeap = pRenderer->mDx.pCPUDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
     uint32_t        handleCount = (descriptors & DESCRIPTOR_TYPE_TEXTURE) ? 1 : 0;
     handleCount += (descriptors & DESCRIPTOR_TYPE_RW_TEXTURE) ? pDesc->mMipLevels : 0;
-#if defined(TIDES)
-    if (!pDesc->bBindless)
-    {
-        pTexture->mDx.mDescriptors = consume_descriptor_handles(pHeap, handleCount);
-    }
-#else
     pTexture->mDx.mDescriptors = consume_descriptor_handles(pHeap, handleCount);
-#endif
 
     if (descriptors & DESCRIPTOR_TYPE_TEXTURE)
     {
@@ -3945,20 +3843,15 @@ void d3d12_addTexture(Renderer* pRenderer, const TextureDesc* pDesc, Texture** p
 
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
         srvDesc.Format = util_to_dx12_srv_format(dxFormat);
+        DescriptorHeap* heap = NULL;
 #if defined(TIDES)
         if (pDesc->bBindless)
         {
-            AddPersistentSrv(pRenderer, pTexture->mDx.pResource, &srvDesc, &pTexture->mDx.mPersistentDescriptors);
+            heap = pRenderer->mDx.pCbvSrvUavHeaps[0];
         }
-        else
-        {
-            AddSrv(pRenderer, NULL, pTexture->mDx.pResource, &srvDesc, &pTexture->mDx.mDescriptors);
-            ++pTexture->mDx.mUavStartIndex;
-        }
-#else
-        AddSrv(pRenderer, NULL, pTexture->mDx.pResource, &srvDesc, &pTexture->mDx.mDescriptors);
-        ++pTexture->mDx.mUavStartIndex;
 #endif
+        AddSrv(pRenderer, heap, pTexture->mDx.pResource, &srvDesc, &pTexture->mDx.mDescriptors);
+        ++pTexture->mDx.mUavStartIndex;
     }
 
     if (descriptors & DESCRIPTOR_TYPE_RW_TEXTURE)
@@ -7301,10 +7194,6 @@ void initD3D12Renderer(const char* appName, const RendererDesc* pSettings, Rende
     cmdCopySubresource = d3d12_cmdCopySubresource;
     addTexture = d3d12_addTexture;
     removeTexture = d3d12_removeTexture;
-
-#if defined(TIDES)
-    addPersistentBufferSrv = d3d12_addPersistentBufferSrv;
-#endif
 
     // shader functions
     addShaderBinary = d3d12_addShaderBinary;
