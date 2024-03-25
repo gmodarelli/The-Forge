@@ -5,6 +5,7 @@
 
 /// NOTE(gmodarelli): Manually added plaftorm initialization for font system
 extern "C" bool _1_platformInitFontSystem() { return ::platformInitFontSystem(); }
+extern "C" void _1_platformExitFontSystem() { return ::platformExitFontSystem(); }
 
 extern "C" bool _1_initFontSystem_(FontSystemDesc* pDesc) { return ::initFontSystem(pDesc); }
 extern "C" void _1_exitFontSystem_() { ::exitFontSystem(); }

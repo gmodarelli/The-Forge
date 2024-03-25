@@ -84,6 +84,7 @@ typedef struct FontDrawDesc
 
 #if defined(TIDES)
 FORGE_API bool platformInitFontSystem();
+FORGE_API void platformExitFontSystem();
 #endif
 
 /****************************************************************************/

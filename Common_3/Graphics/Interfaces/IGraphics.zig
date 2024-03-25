@@ -996,6 +996,7 @@ pub const BufferDesc = extern struct {
     /// The index of the GPU in SLI/Cross-Fire that owns this buffer, or the Renderer index in unlinked mode.
     mNodeIndex: u32,
     mSharedNodeIndexCount: u32,
+    bBindless: bool,
 };
 
 /// Data structure holding necessary info to create a Buffer
@@ -1025,7 +1026,6 @@ pub const Buffer = extern struct {
         pResource: *ID3D12Resource,
         /// Contains resource allocation info such as parent heap, offset in heap
         pAllocation: *D3D12MAAllocation,
-        mPersistentGPUDescriptors: DxDescriptorID,
     };
 };
 
@@ -1115,8 +1115,6 @@ pub const Texture = extern struct {
         },
 
         mUavStartIndex: u32,
-        /// Descriptor handle of the SRV in a shader visible descriptor heap
-        mPersistentDescriptors: DxDescriptorID,
     };
 };
 

@@ -6,8 +6,13 @@ const graphics = @import("../../Graphics/Interfaces/IGraphics.zig");
 
 /// NOTE(gmodarelli): Manually added plaftorm initialization for font system
 extern fn _1_platformInitFontSystem() bool;
-pub fn platform_init_font_system() bool {
+pub fn platformInitFontSystem() bool {
     return _1_platformInitFontSystem();
+}
+
+extern fn _1_platformExitFontSystem() void;
+pub fn platformExitFontSystem() void {
+    return _1_platformExitFontSystem();
 }
 
 const CameraMatrix = anyopaque;

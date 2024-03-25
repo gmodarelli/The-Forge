@@ -91,7 +91,7 @@ pub const GpuCmdRing = struct {
         }
     }
 
-    pub fn get_next_gpu_cmd_ring_element(self: *GpuCmdRing, cycle_pool: bool, cmd_count: u32) ?GpuCmdRingElement {
+    pub fn getNextGpuCmdRingElement(self: *GpuCmdRing, cycle_pool: bool, cmd_count: u32) ?GpuCmdRingElement {
         if (cycle_pool) {
             if (self.pool_index == std.math.maxInt(u32)) {
                 self.pool_index = 0;
