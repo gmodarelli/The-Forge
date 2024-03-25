@@ -48,6 +48,52 @@ pub const WindowHandleType = enum(u32) {
     VI_NN,
 };
 
+/// D3D structs definitions copied from zig-gamdev/zwin32/d3dcommon.zig
+pub const D3D_PRIMITIVE_TOPOLOGY = enum(u32) {
+    D3D_PRIMITIVE_TOPOLOGY_UNDEFINED = 0,
+    D3D_PRIMITIVE_TOPOLOGY_POINTLIST = 1,
+    D3D_PRIMITIVE_TOPOLOGY_LINELIST = 2,
+    D3D_PRIMITIVE_TOPOLOGY_LINESTRIP = 3,
+    D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST = 4,
+    D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP = 5,
+    D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ = 10,
+    D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ = 11,
+    D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ = 12,
+    D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ = 13,
+    D3D_PRIMITIVE_TOPOLOGY_CONTROL_POINT_PATCHLIST = 33,
+    D3D_PRIMITIVE_TOPOLOTY_2_CONTROL_POINT_PATCHLIST = 34,
+    D3D_PRIMITIVE_TOPOLOTY_3_CONTROL_POINT_PATCHLIST = 35,
+    D3D_PRIMITIVE_TOPOLOTY_4_CONTROL_POINT_PATCHLIST = 36,
+    D3D_PRIMITIVE_TOPOLOTY_5_CONTROL_POINT_PATCHLIST = 37,
+    D3D_PRIMITIVE_TOPOLOTY_6_CONTROL_POINT_PATCHLIST = 38,
+    D3D_PRIMITIVE_TOPOLOTY_7_CONTROL_POINT_PATCHLIST = 39,
+    D3D_PRIMITIVE_TOPOLOTY_8_CONTROL_POINT_PATCHLIST = 40,
+    D3D_PRIMITIVE_TOPOLOTY_9_CONTROL_POINT_PATCHLIST = 41,
+    D3D_PRIMITIVE_TOPOLOTY_10_CONTROL_POINT_PATCHLIST = 42,
+    D3D_PRIMITIVE_TOPOLOTY_11_CONTROL_POINT_PATCHLIST = 43,
+    D3D_PRIMITIVE_TOPOLOTY_12_CONTROL_POINT_PATCHLIST = 44,
+    D3D_PRIMITIVE_TOPOLOTY_13_CONTROL_POINT_PATCHLIST = 45,
+    D3D_PRIMITIVE_TOPOLOTY_14_CONTROL_POINT_PATCHLIST = 46,
+    D3D_PRIMITIVE_TOPOLOTY_15_CONTROL_POINT_PATCHLIST = 47,
+    D3D_PRIMITIVE_TOPOLOTY_16_CONTROL_POINT_PATCHLIST = 48,
+    D3D_PRIMITIVE_TOPOLOTY_17_CONTROL_POINT_PATCHLIST = 49,
+    D3D_PRIMITIVE_TOPOLOTY_18_CONTROL_POINT_PATCHLIST = 50,
+    D3D_PRIMITIVE_TOPOLOTY_19_CONTROL_POINT_PATCHLIST = 51,
+    D3D_PRIMITIVE_TOPOLOTY_20_CONTROL_POINT_PATCHLIST = 52,
+    D3D_PRIMITIVE_TOPOLOTY_21_CONTROL_POINT_PATCHLIST = 53,
+    D3D_PRIMITIVE_TOPOLOTY_22_CONTROL_POINT_PATCHLIST = 54,
+    D3D_PRIMITIVE_TOPOLOTY_23_CONTROL_POINT_PATCHLIST = 55,
+    D3D_PRIMITIVE_TOPOLOTY_24_CONTROL_POINT_PATCHLIST = 56,
+    D3D_PRIMITIVE_TOPOLOTY_25_CONTROL_POINT_PATCHLIST = 57,
+    D3D_PRIMITIVE_TOPOLOTY_26_CONTROL_POINT_PATCHLIST = 58,
+    D3D_PRIMITIVE_TOPOLOTY_27_CONTROL_POINT_PATCHLIST = 59,
+    D3D_PRIMITIVE_TOPOLOTY_28_CONTROL_POINT_PATCHLIST = 60,
+    D3D_PRIMITIVE_TOPOLOTY_29_CONTROL_POINT_PATCHLIST = 61,
+    D3D_PRIMITIVE_TOPOLOTY_30_CONTROL_POINT_PATCHLIST = 62,
+    D3D_PRIMITIVE_TOPOLOTY_31_CONTROL_POINT_PATCHLIST = 63,
+    D3D_PRIMITIVE_TOPOLOTY_32_CONTROL_POINT_PATCHLIST = 64,
+};
+
 /// D3D12 structs definitions copied from zig-gamdev/zwin32/d3d12.zig
 pub const D3D12_SAMPLER_DESC = extern struct {
     Filter: D3D12_FILTER,
@@ -124,7 +170,6 @@ pub const D3D12_COMPARISON_FUNC = enum(u32) {
 pub const DxDescriptorID = i32;
 
 const D3D_FEATURE_LEVEL = u32;
-const D3D_PRIMITIVE_TOPOLOGY = anyopaque;
 const D3D12_GPU_DESCRIPTOR_HANDLE = anyopaque;
 const D3D12_GPU_VIRTUAL_ADDRESS = u64;
 const D3D12_QUERY_TYPE = u32;
@@ -1108,6 +1153,7 @@ pub const Texture = extern struct {
         pResource: *ID3D12Resource,
         /// Contains resource allocation info such as parent heap, offset in heap
         pAllocation: *D3D12MAAllocation,
+
         bitfield_1: packed struct(u32) {
             mHandleCount: u24, // 24 bits
             /// Padding added by c2z
@@ -1287,7 +1333,7 @@ pub const RootSignature = extern struct {
     /// Array of all descriptors declared in the root signature layout
     pDescriptors: [*c]DescriptorInfo,
     /// Translates hash of descriptor name to descriptor index in pDescriptors array
-    pDescriptorNameToIndexMap: [*c]DescriptorIndexMap,
+    pDescriptorNameToIndexMap: *DescriptorIndexMap,
     mDx: __Struct0,
 
     pub const __Struct0 = extern struct {
@@ -1567,7 +1613,7 @@ pub const Shader = extern struct {
     mNumThreadsPerGroup: [3]u32,
     mOutputRenderTargetTypesMask: u32,
     mDx: __Struct0,
-    pReflection: [*c]PipelineReflection,
+    pReflection: *PipelineReflection,
 
     pub const __Struct0 = extern struct {
         pShaderBlobs: [*c]*IDxcBlobEncoding,
@@ -2230,15 +2276,15 @@ pub const removeCmd_nFn = ?*const fn ([*c]Renderer, u32, [*c][*c]Cmd) callconv(.
 extern var _1_removeCmd_n_: *removeCmd_nFn;
 pub const removeCmd_n = _1_removeCmd_n_;
 
-pub const addRenderTargetFn = ?*const fn ([*c]Renderer, [*c]const RenderTargetDesc, [*c][*c]RenderTarget) callconv(.C) void;
+extern fn _1_addRenderTarget(renderer: [*c]Renderer, desc: [*c]const RenderTargetDesc, render_target: [*c][*c]RenderTarget) void;
+pub fn addRenderTarget(renderer: [*c]Renderer, desc: [*c]const RenderTargetDesc, render_target: [*c][*c]RenderTarget) void {
+    _1_addRenderTarget(renderer, desc, render_target);
+}
 
-extern var _1_addRenderTarget_: *addRenderTargetFn;
-pub const addRenderTarget = _1_addRenderTarget_;
-
-pub const removeRenderTargetFn = ?*const fn ([*c]Renderer, [*c]RenderTarget) callconv(.C) void;
-
-extern var _1_removeRenderTarget_: *removeRenderTargetFn;
-pub const removeRenderTarget = _1_removeRenderTarget_;
+extern fn _1_removeRenderTarget(renderer: [*c]Renderer, render_target: [*c]RenderTarget) void;
+pub fn removeRenderTarget(renderer: [*c]Renderer, render_target: [*c]RenderTarget) void {
+    _1_removeRenderTarget(renderer, render_target);
+}
 
 pub const addSamplerFn = ?*const fn ([*c]Renderer, [*c]const SamplerDesc, [*c][*c]Sampler) callconv(.C) void;
 
@@ -2259,35 +2305,35 @@ pub const addShaderBinaryFn = ?*const fn ([*c]Renderer, [*c]const BinaryShaderDe
 extern var _1_addShaderBinary_: *addShaderBinaryFn;
 pub const addShaderBinary = _1_addShaderBinary_;
 
-pub const removeShaderFn = ?*const fn ([*c]Renderer, [*c]Shader) callconv(.C) void;
+extern fn _1_removeShader(renderer: [*c]Renderer, shader: [*c]Shader) void;
+pub fn removeShader(renderer: [*c]Renderer, shader: [*c]Shader) void {
+    _1_removeShader(renderer, shader);
+}
 
-extern var _1_removeShader_: *removeShaderFn;
-pub const removeShader = _1_removeShader_;
+extern fn _1_addRootSignature(renderer: [*c]Renderer, desc: [*c]const RootSignatureDesc, root_signature: [*c][*c]RootSignature) void;
+pub fn addRootSignature(renderer: [*c]Renderer, desc: [*c]const RootSignatureDesc, root_signature: [*c][*c]RootSignature) void {
+    _1_addRootSignature(renderer, desc, root_signature);
+}
 
-pub const addRootSignatureFn = ?*const fn ([*c]Renderer, [*c]const RootSignatureDesc, [*c][*c]RootSignature) callconv(.C) void;
-
-extern var _1_addRootSignature_: *addRootSignatureFn;
-pub const addRootSignature = _1_addRootSignature_;
-
-pub const removeRootSignatureFn = ?*const fn ([*c]Renderer, [*c]RootSignature) callconv(.C) void;
-
-extern var _1_removeRootSignature_: *removeRootSignatureFn;
-pub const removeRootSignature = _1_removeRootSignature_;
+extern fn _1_removeRootSignature(renderer: [*c]Renderer, root_signature: [*c]RootSignature) void;
+pub fn removeRootSignature(renderer: [*c]Renderer, root_signature: [*c]RootSignature) void {
+    _1_removeRootSignature(renderer, root_signature);
+}
 
 pub const getDescriptorIndexFromNameFn = ?*const fn ([*c]const RootSignature, [*c]const u8) callconv(.C) u32;
 
 extern var _1_getDescriptorIndexFromName_: *getDescriptorIndexFromNameFn;
 pub const getDescriptorIndexFromName = _1_getDescriptorIndexFromName_;
 
-pub const addPipelineFn = ?*const fn ([*c]Renderer, [*c]const PipelineDesc, [*c][*c]Pipeline) callconv(.C) void;
+extern fn _1_addPipeline(renderer: [*c]Renderer, desc: [*c]const PipelineDesc, pipeline: [*c][*c]Pipeline) void;
+pub fn addPipeline(renderer: [*c]Renderer, desc: [*c]const PipelineDesc, pipeline: [*c][*c]Pipeline) void {
+    _1_addPipeline(renderer, desc, pipeline);
+}
 
-extern var _1_addPipeline_: *addPipelineFn;
-pub const addPipeline = _1_addPipeline_;
-
-pub const removePipelineFn = ?*const fn ([*c]Renderer, [*c]Pipeline) callconv(.C) void;
-
-extern var _1_removePipeline_: *removePipelineFn;
-pub const removePipeline = _1_removePipeline_;
+extern fn _1_removePipeline(renderer: [*c]Renderer, pipeline: [*c]Pipeline) void;
+pub fn removePipeline(renderer: [*c]Renderer, pipeline: [*c]Pipeline) void {
+    _1_removePipeline(renderer, pipeline);
+}
 
 pub const addPipelineCacheFn = ?*const fn ([*c]Renderer, [*c]const PipelineCacheDesc, [*c][*c]PipelineCache) callconv(.C) void;
 

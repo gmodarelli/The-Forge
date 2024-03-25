@@ -35,15 +35,15 @@ extern "C" void        _1_addCmd(Renderer* r, const CmdDesc* d, Cmd** c) { ::add
 extern "C" void        _1_removeCmd(Renderer* r, Cmd* c) { ::removeCmd(r, c); }
 extern "C" const void* _1_addCmd_n_ = (void*)&::addCmd_n;
 extern "C" const void* _1_removeCmd_n_ = (void*)&::removeCmd_n;
-extern "C" const void* _1_addRenderTarget_ = (void*)&::addRenderTarget;
-extern "C" const void* _1_removeRenderTarget_ = (void*)&::removeRenderTarget;
+extern "C" void        _1_addRenderTarget(Renderer* r, RenderTargetDesc* d, RenderTarget** rt) { ::addRenderTarget(r, d, rt); }
+extern "C" void        _1_removeRenderTarget(Renderer* r, RenderTarget* rt) { ::removeRenderTarget(r, rt); }
 extern "C" const void* _1_addShaderBinary_ = (void*)&::addShaderBinary;
-extern "C" const void* _1_removeShader_ = (void*)&::removeShader;
-extern "C" const void* _1_addRootSignature_ = (void*)&::addRootSignature;
-extern "C" const void* _1_removeRootSignature_ = (void*)&::removeRootSignature;
+extern "C" void        _1_removeShader(Renderer* r, Shader* s) { ::removeShader(r, s); }
+extern "C" void        _1_addRootSignature(Renderer* r, RootSignatureDesc* d, RootSignature** rs) { ::addRootSignature(r, d, rs); }
+extern "C" void        _1_removeRootSignature(Renderer* r, RootSignature* rs) { ::removeRootSignature(r, rs); }
 extern "C" const void* _1_getDescriptorIndexFromName_ = (void*)&::getDescriptorIndexFromName;
-extern "C" const void* _1_addPipeline_ = (void*)&::addPipeline;
-extern "C" const void* _1_removePipeline_ = (void*)&::removePipeline;
+extern "C" void        _1_addPipeline(Renderer* r, PipelineDesc* d, Pipeline** p) { ::addPipeline(r, d, p); }
+extern "C" void        _1_removePipeline(Renderer* r, Pipeline* p) { ::removePipeline(r, p); }
 extern "C" const void* _1_addPipelineCache_ = (void*)&::addPipelineCache;
 extern "C" const void* _1_getPipelineCacheData_ = (void*)&::getPipelineCacheData;
 extern "C" const void* _1_removePipelineCache_ = (void*)&::removePipelineCache;
