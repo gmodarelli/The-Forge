@@ -870,6 +870,15 @@ pub const RenderTargetBarrier = extern struct {
     },
 
     mArrayLayer: u16,
+
+    pub fn init(render_target: [*c]RenderTarget, current_state: ResourceState, new_state: ResourceState) RenderTargetBarrier {
+        var barrier = std.mem.zeroes(RenderTargetBarrier);
+        barrier.pRenderTarget = render_target;
+        barrier.mCurrentState = current_state;
+        barrier.mNewState = new_state;
+
+        return barrier;
+    }
 };
 
 pub const ReadRange = extern struct {
@@ -1418,7 +1427,7 @@ pub const DescriptorData = extern struct {
         /// Array of buffer descriptors (srv, uav and cbv buffers)
         ppBuffers: [*c][*c]Buffer,
         /// Custom binding (raytracing acceleration structure ...)
-        ppAccelerationStructures: [*c][*c]AccelerationStructure,
+        ppAccelerationStructures: [*c]*AccelerationStructure,
     };
 };
 
@@ -2320,10 +2329,10 @@ pub fn removeRootSignature(renderer: [*c]Renderer, root_signature: [*c]RootSigna
     _1_removeRootSignature(renderer, root_signature);
 }
 
-pub const getDescriptorIndexFromNameFn = ?*const fn ([*c]const RootSignature, [*c]const u8) callconv(.C) u32;
-
-extern var _1_getDescriptorIndexFromName_: *getDescriptorIndexFromNameFn;
-pub const getDescriptorIndexFromName = _1_getDescriptorIndexFromName_;
+extern fn _1_getDescriptorIndexFromName(root_signature: [*c]const RootSignature, name: [*c]const u8) u32;
+pub fn getDescriptorIndexFromName(root_signature: [*c]const RootSignature, name: [*c]const u8) u32 {
+    return _1_getDescriptorIndexFromName(root_signature, name);
+}
 
 extern fn _1_addPipeline(renderer: [*c]Renderer, desc: [*c]const PipelineDesc, pipeline: [*c][*c]Pipeline) void;
 pub fn addPipeline(renderer: [*c]Renderer, desc: [*c]const PipelineDesc, pipeline: [*c][*c]Pipeline) void {
@@ -2350,20 +2359,20 @@ pub const removePipelineCacheFn = ?*const fn ([*c]Renderer, [*c]PipelineCache) c
 extern var _1_removePipelineCache_: *removePipelineCacheFn;
 pub const removePipelineCache = _1_removePipelineCache_;
 
-pub const addDescriptorSetFn = ?*const fn ([*c]Renderer, [*c]const DescriptorSetDesc, [*c][*c]DescriptorSet) callconv(.C) void;
+extern fn _1_addDescriptorSet(renderer: [*c]Renderer, desc: [*c]const DescriptorSetDesc, descriptor_sets: [*c][*c]DescriptorSet) void;
+pub fn addDescriptorSet(renderer: [*c]Renderer, desc: [*c]const DescriptorSetDesc, descriptor_sets: [*c][*c]DescriptorSet) void {
+    _1_addDescriptorSet(renderer, desc, descriptor_sets);
+}
 
-extern var _1_addDescriptorSet_: *addDescriptorSetFn;
-pub const addDescriptorSet = _1_addDescriptorSet_;
+extern fn _1_removeDescriptorSet(renderer: [*c]Renderer, descriptor_set: [*c]DescriptorSet) void;
+pub fn removeDescriptorSet(renderer: [*c]Renderer, descriptor_set: [*c]DescriptorSet) void {
+    _1_removeDescriptorSet(renderer, descriptor_set);
+}
 
-pub const removeDescriptorSetFn = ?*const fn ([*c]Renderer, [*c]DescriptorSet) callconv(.C) void;
-
-extern var _1_removeDescriptorSet_: *removeDescriptorSetFn;
-pub const removeDescriptorSet = _1_removeDescriptorSet_;
-
-pub const updateDescriptorSetFn = ?*const fn ([*c]Renderer, u32, [*c]DescriptorSet, u32, [*c]const DescriptorData) callconv(.C) void;
-
-extern var _1_updateDescriptorSet_: *updateDescriptorSetFn;
-pub const updateDescriptorSet = _1_updateDescriptorSet_;
+extern fn _1_updateDescriptorSet(renderer: [*c]Renderer, index: u32, descriptor_set: [*c]DescriptorSet, count: u32, params: [*c]const DescriptorData) void;
+pub fn updateDescriptorSet(renderer: [*c]Renderer, index: u32, descriptor_set: [*c]DescriptorSet, count: u32, params: [*c]const DescriptorData) void {
+    _1_updateDescriptorSet(renderer, index, descriptor_set, count, params);
+}
 
 extern fn _1_resetCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void;
 pub fn resetCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void {
@@ -2407,35 +2416,35 @@ pub const cmdSetStencilReferenceValueFn = ?*const fn ([*c]Cmd, u32) callconv(.C)
 extern var _1_cmdSetStencilReferenceValue_: *cmdSetStencilReferenceValueFn;
 pub const cmdSetStencilReferenceValue = _1_cmdSetStencilReferenceValue_;
 
-pub const cmdBindPipelineFn = ?*const fn ([*c]Cmd, [*c]Pipeline) callconv(.C) void;
+extern fn _1_cmdBindPipeline(cmd_list: [*c]Cmd, pipeline: [*c]Pipeline) void;
+pub fn cmdBindPipeline(cmd_list: [*c]Cmd, pipeline: [*c]Pipeline) void {
+    _1_cmdBindPipeline(cmd_list, pipeline);
+}
 
-extern var _1_cmdBindPipeline_: *cmdBindPipelineFn;
-pub const cmdBindPipeline = _1_cmdBindPipeline_;
+extern fn _1_cmdBindDescriptorSet(cmd: [*c]Cmd, index: u32, descriptor_set: [*c]DescriptorSet) void;
+pub fn cmdBindDescriptorSet(cmd: [*c]Cmd, index: u32, descriptor_set: [*c]DescriptorSet) void {
+    _1_cmdBindDescriptorSet(cmd, index, descriptor_set);
+}
 
-pub const cmdBindDescriptorSetFn = ?*const fn ([*c]Cmd, u32, [*c]DescriptorSet) callconv(.C) void;
-
-extern var _1_cmdBindDescriptorSet_: *cmdBindDescriptorSetFn;
-pub const cmdBindDescriptorSet = _1_cmdBindDescriptorSet_;
-
-pub const cmdBindPushConstantsFn = ?*const fn ([*c]Cmd, [*c]RootSignature, u32, ?*const anyopaque) callconv(.C) void;
-
-extern var _1_cmdBindPushConstants_: *cmdBindPushConstantsFn;
-pub const cmdBindPushConstants = _1_cmdBindPushConstants_;
+extern fn _1_cmdBindPushConstants(cmd_list: [*c]Cmd, root_signature: [*c]RootSignature, param_index: u32, constants: ?*const anyopaque) void;
+pub fn cmdBindPushConstants(cmd_list: [*c]Cmd, root_signature: [*c]RootSignature, param_index: u32, constants: ?*const anyopaque) void {
+    _1_cmdBindPushConstants(cmd_list, root_signature, param_index, constants);
+}
 
 pub const cmdBindDescriptorSetWithRootCbvsFn = ?*const fn ([*c]Cmd, u32, [*c]DescriptorSet, u32, [*c]const DescriptorData) callconv(.C) void;
 
 extern var _1_cmdBindDescriptorSetWithRootCbvs_: *cmdBindDescriptorSetWithRootCbvsFn;
 pub const cmdBindDescriptorSetWithRootCbvs = _1_cmdBindDescriptorSetWithRootCbvs_;
 
-pub const cmdBindIndexBufferFn = ?*const fn ([*c]Cmd, [*c]Buffer, u32, u64) callconv(.C) void;
+extern fn _1_cmdBindIndexBuffer(cmd_list: [*c]Cmd, buffer: [*c]Buffer, index_type: u32, offset: u64) void;
+pub fn cmdBindIndexBuffer(cmd_list: [*c]Cmd, buffer: [*c]Buffer, index_type: u32, offset: u64) void {
+    _1_cmdBindIndexBuffer(cmd_list, buffer, index_type, offset);
+}
 
-extern var _1_cmdBindIndexBuffer_: *cmdBindIndexBufferFn;
-pub const cmdBindIndexBuffer = _1_cmdBindIndexBuffer_;
-
-pub const cmdBindVertexBufferFn = ?*const fn ([*c]Cmd, u32, [*c][*c]Buffer, [*c]const u32, [*c]const u64) callconv(.C) void;
-
-extern var _1_cmdBindVertexBuffer_: *cmdBindVertexBufferFn;
-pub const cmdBindVertexBuffer = _1_cmdBindVertexBuffer_;
+extern fn _1_cmdBindVertexBuffer(cmd_list: [*c]Cmd, buffer_count: u32, buffers: [*c][*c]Buffer, strides: [*c]const u32, offsets: [*c]const u64) void;
+pub fn cmdBindVertexBuffer(cmd_list: [*c]Cmd, buffer_count: u32, buffers: [*c][*c]Buffer, strides: [*c]const u32, offsets: [*c]const u64) void {
+    _1_cmdBindVertexBuffer(cmd_list, buffer_count, buffers, strides, offsets);
+}
 
 pub const cmdDrawFn = ?*const fn ([*c]Cmd, u32, u32) callconv(.C) void;
 
@@ -2452,10 +2461,10 @@ pub const cmdDrawIndexedFn = ?*const fn ([*c]Cmd, u32, u32, u32) callconv(.C) vo
 extern var _1_cmdDrawIndexed_: *cmdDrawIndexedFn;
 pub const cmdDrawIndexed = _1_cmdDrawIndexed_;
 
-pub const cmdDrawIndexedInstancedFn = ?*const fn ([*c]Cmd, u32, u32, u32, u32, u32) callconv(.C) void;
-
-extern var _1_cmdDrawIndexedInstanced_: *cmdDrawIndexedInstancedFn;
-pub const cmdDrawIndexedInstanced = _1_cmdDrawIndexedInstanced_;
+extern fn _1_cmdDrawIndexedInstanced(cmd_list: [*c]Cmd, index_count: u32, first_index: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void;
+pub fn cmdDrawIndexedInstanced(cmd_list: [*c]Cmd, index_count: u32, first_index: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void {
+    _1_cmdDrawIndexedInstanced(cmd_list, index_count, first_index, instance_count, first_vertex, first_instance);
+}
 
 pub const cmdDispatchFn = ?*const fn ([*c]Cmd, u32, u32, u32) callconv(.C) void;
 
@@ -2466,8 +2475,6 @@ extern fn _1_cmdResourceBarrier(cmd: [*c]Cmd, buffer_barrier_count: u32, buffer_
 pub fn cmdResourceBarrier(cmd: [*c]Cmd, buffer_barrier_count: u32, buffer_barrier: [*c]BufferBarrier, texture_barrier_count: u32, texture_barrier: [*c]TextureBarrier, render_target_barrier_count: u32, render_target_barrier: [*c]RenderTargetBarrier) void {
     _1_cmdResourceBarrier(cmd, buffer_barrier_count, buffer_barrier, texture_barrier_count, texture_barrier, render_target_barrier_count, render_target_barrier);
 }
-
-pub const acquireNextImageFn = ?*const fn ([*c]Renderer, [*c]SwapChain, [*c]Semaphore, [*c]Fence, [*c]u32) callconv(.C) void;
 
 extern fn _1_acquireNextImage(renderer: [*c]Renderer, swap_chain: [*c]SwapChain, semaphore: [*c]Semaphore, fence: [*c]Fence, index: [*c]u32) void;
 pub fn acquireNextImage(renderer: [*c]Renderer, swap_chain: [*c]SwapChain, semaphore: [*c]Semaphore, fence: [*c]Fence, index: [*c]u32) void {

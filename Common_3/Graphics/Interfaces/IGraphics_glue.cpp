@@ -41,15 +41,25 @@ extern "C" const void* _1_addShaderBinary_ = (void*)&::addShaderBinary;
 extern "C" void        _1_removeShader(Renderer* r, Shader* s) { ::removeShader(r, s); }
 extern "C" void        _1_addRootSignature(Renderer* r, RootSignatureDesc* d, RootSignature** rs) { ::addRootSignature(r, d, rs); }
 extern "C" void        _1_removeRootSignature(Renderer* r, RootSignature* rs) { ::removeRootSignature(r, rs); }
-extern "C" const void* _1_getDescriptorIndexFromName_ = (void*)&::getDescriptorIndexFromName;
+extern "C" uint32_t    _1_getDescriptorIndexFromName(RootSignature* rs, const char* n) { return ::getDescriptorIndexFromName(rs, n); }
 extern "C" void        _1_addPipeline(Renderer* r, PipelineDesc* d, Pipeline** p) { ::addPipeline(r, d, p); }
 extern "C" void        _1_removePipeline(Renderer* r, Pipeline* p) { ::removePipeline(r, p); }
 extern "C" const void* _1_addPipelineCache_ = (void*)&::addPipelineCache;
 extern "C" const void* _1_getPipelineCacheData_ = (void*)&::getPipelineCacheData;
 extern "C" const void* _1_removePipelineCache_ = (void*)&::removePipelineCache;
-extern "C" const void* _1_addDescriptorSet_ = (void*)&::addDescriptorSet;
-extern "C" const void* _1_removeDescriptorSet_ = (void*)&::removeDescriptorSet;
-extern "C" const void* _1_updateDescriptorSet_ = (void*)&::updateDescriptorSet;
+extern "C" void        _1_addDescriptorSet(Renderer* pRenderer, const DescriptorSetDesc* pDesc, DescriptorSet** ppDescriptorSet)
+{
+    ::addDescriptorSet(pRenderer, pDesc, ppDescriptorSet);
+}
+extern "C" void _1_removeDescriptorSet(Renderer* pRenderer, DescriptorSet* pDescriptorSet)
+{
+    ::removeDescriptorSet(pRenderer, pDescriptorSet);
+}
+extern "C" void _1_updateDescriptorSet(Renderer* pRenderer, uint32_t index, DescriptorSet* pDescriptorSet, uint32_t count,
+                                       const DescriptorData* pParams)
+{
+    ::updateDescriptorSet(pRenderer, index, pDescriptorSet, count, pParams);
+}
 extern "C" void        _1_resetCmdPool(Renderer* r, CmdPool* c) { ::resetCmdPool(r, c); }
 extern "C" void        _1_beginCmd(Cmd* c) { ::beginCmd(c); }
 extern "C" void        _1_endCmd(Cmd* c) { ::endCmd(c); }
@@ -61,16 +71,28 @@ extern "C" void        _1_cmdSetViewport(Cmd* c, float x, float y, float w, floa
 }
 extern "C" void        _1_cmdSetScissor(Cmd* c, uint32_t x, uint32_t y, uint32_t w, uint32_t h) { ::cmdSetScissor(c, x, y, w, h); }
 extern "C" const void* _1_cmdSetStencilReferenceValue_ = (void*)&::cmdSetStencilReferenceValue;
-extern "C" const void* _1_cmdBindPipeline_ = (void*)&::cmdBindPipeline;
-extern "C" const void* _1_cmdBindDescriptorSet_ = (void*)&::cmdBindDescriptorSet;
-extern "C" const void* _1_cmdBindPushConstants_ = (void*)&::cmdBindPushConstants;
+extern "C" void        _1_cmdBindPipeline(Cmd* c, Pipeline* p) { ::cmdBindPipeline(c, p); }
+extern "C" void        _1_cmdBindDescriptorSet(Cmd* pCmd, uint32_t index, DescriptorSet* pDescriptorSet)
+{
+    ::cmdBindDescriptorSet(pCmd, index, pDescriptorSet);
+}
+extern "C" void _1_cmdBindPushConstants(Cmd* pCmd, RootSignature* pRootSignature, uint32_t paramIndex, const void* pConstants)
+{
+    ::cmdBindPushConstants(pCmd, pRootSignature, paramIndex, pConstants);
+}
 extern "C" const void* _1_cmdBindDescriptorSetWithRootCbvs_ = (void*)&::cmdBindDescriptorSetWithRootCbvs;
-extern "C" const void* _1_cmdBindIndexBuffer_ = (void*)&::cmdBindIndexBuffer;
-extern "C" const void* _1_cmdBindVertexBuffer_ = (void*)&::cmdBindVertexBuffer;
+extern "C" void        _1_cmdBindIndexBuffer(Cmd* c, Buffer* b, uint32_t it, uint64_t o) { ::cmdBindIndexBuffer(c, b, it, o); }
+extern "C" void        _1_cmdBindVertexBuffer(Cmd* c, uint32_t bc, Buffer** b, const uint32_t* s, const uint64_t* o)
+{
+    ::cmdBindVertexBuffer(c, bc, b, s, o);
+}
 extern "C" const void* _1_cmdDraw_ = (void*)&::cmdDraw;
 extern "C" const void* _1_cmdDrawInstanced_ = (void*)&::cmdDrawInstanced;
 extern "C" const void* _1_cmdDrawIndexed_ = (void*)&::cmdDrawIndexed;
-extern "C" const void* _1_cmdDrawIndexedInstanced_ = (void*)&::cmdDrawIndexedInstanced;
+extern "C" void        _1_cmdDrawIndexedInstanced(Cmd* c, uint32_t ic, uint32_t fi, uint32_t inc, uint32_t fv, uint32_t fin)
+{
+    ::cmdDrawIndexedInstanced(c, ic, fi, inc, fv, fin);
+}
 extern "C" const void* _1_cmdDispatch_ = (void*)&::cmdDispatch;
 extern "C" void        _1_cmdResourceBarrier(Cmd* c, uint32_t bc, BufferBarrier* b, uint32_t tc, TextureBarrier* t, uint32_t rc,
                                              RenderTargetBarrier* r)
