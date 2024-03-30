@@ -86,16 +86,19 @@ extern "C" void        _1_cmdBindVertexBuffer(Cmd* c, uint32_t bc, Buffer** b, c
 {
     ::cmdBindVertexBuffer(c, bc, b, s, o);
 }
-extern "C" const void* _1_cmdDraw_ = (void*)&::cmdDraw;
+extern "C" void        _1_cmdDraw(Cmd* pCmd, uint32_t vertexCount, uint32_t firstVertex) { ::cmdDraw(pCmd, vertexCount, firstVertex); }
 extern "C" const void* _1_cmdDrawInstanced_ = (void*)&::cmdDrawInstanced;
 extern "C" const void* _1_cmdDrawIndexed_ = (void*)&::cmdDrawIndexed;
 extern "C" void        _1_cmdDrawIndexedInstanced(Cmd* c, uint32_t ic, uint32_t fi, uint32_t inc, uint32_t fv, uint32_t fin)
 {
     ::cmdDrawIndexedInstanced(c, ic, fi, inc, fv, fin);
 }
-extern "C" const void* _1_cmdDispatch_ = (void*)&::cmdDispatch;
-extern "C" void        _1_cmdResourceBarrier(Cmd* c, uint32_t bc, BufferBarrier* b, uint32_t tc, TextureBarrier* t, uint32_t rc,
-                                             RenderTargetBarrier* r)
+extern "C" void _1_cmdDispatch(Cmd* pCmd, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+{
+    ::cmdDispatch(pCmd, groupCountX, groupCountY, groupCountZ);
+}
+extern "C" void _1_cmdResourceBarrier(Cmd* c, uint32_t bc, BufferBarrier* b, uint32_t tc, TextureBarrier* t, uint32_t rc,
+                                      RenderTargetBarrier* r)
 {
     ::cmdResourceBarrier(c, bc, b, tc, t, rc, r);
 }

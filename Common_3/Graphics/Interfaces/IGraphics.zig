@@ -839,6 +839,15 @@ pub const TextureBarrier = extern struct {
     },
 
     mArrayLayer: u16,
+
+    pub fn init(texture: [*c]Texture, current_state: ResourceState, new_state: ResourceState) TextureBarrier {
+        var barrier = std.mem.zeroes(TextureBarrier);
+        barrier.pTexture = texture;
+        barrier.mCurrentState = current_state;
+        barrier.mNewState = new_state;
+
+        return barrier;
+    }
 };
 
 pub const RenderTargetBarrier = extern struct {
@@ -2446,10 +2455,10 @@ pub fn cmdBindVertexBuffer(cmd_list: [*c]Cmd, buffer_count: u32, buffers: [*c][*
     _1_cmdBindVertexBuffer(cmd_list, buffer_count, buffers, strides, offsets);
 }
 
-pub const cmdDrawFn = ?*const fn ([*c]Cmd, u32, u32) callconv(.C) void;
-
-extern var _1_cmdDraw_: *cmdDrawFn;
-pub const cmdDraw = _1_cmdDraw_;
+extern fn _1_cmdDraw(cmd_list: [*c]Cmd, vertex_count: u32, first_vertex: u32) void;
+pub fn cmdDraw(cmd_list: [*c]Cmd, vertex_count: u32, first_vertex: u32) void {
+    _1_cmdDraw(cmd_list, vertex_count, first_vertex);
+}
 
 pub const cmdDrawInstancedFn = ?*const fn ([*c]Cmd, u32, u32, u32, u32) callconv(.C) void;
 
@@ -2466,10 +2475,10 @@ pub fn cmdDrawIndexedInstanced(cmd_list: [*c]Cmd, index_count: u32, first_index:
     _1_cmdDrawIndexedInstanced(cmd_list, index_count, first_index, instance_count, first_vertex, first_instance);
 }
 
-pub const cmdDispatchFn = ?*const fn ([*c]Cmd, u32, u32, u32) callconv(.C) void;
-
-extern var _1_cmdDispatch_: *cmdDispatchFn;
-pub const cmdDispatch = _1_cmdDispatch_;
+extern fn _1_cmdDispatch(cmd_list: [*c]Cmd, group_count_x: u32, group_count_y: u32, group_count_z: u32) void;
+pub fn cmdDispatch(cmd_list: [*c]Cmd, group_count_x: u32, group_count_y: u32, group_count_z: u32) void {
+    _1_cmdDispatch(cmd_list, group_count_x, group_count_y, group_count_z);
+}
 
 extern fn _1_cmdResourceBarrier(cmd: [*c]Cmd, buffer_barrier_count: u32, buffer_barrier: [*c]BufferBarrier, texture_barrier_count: u32, texture_barrier: [*c]TextureBarrier, render_target_barrier_count: u32, render_target_barrier: [*c]RenderTargetBarrier) void;
 pub fn cmdResourceBarrier(cmd: [*c]Cmd, buffer_barrier_count: u32, buffer_barrier: [*c]BufferBarrier, texture_barrier_count: u32, texture_barrier: [*c]TextureBarrier, render_target_barrier_count: u32, render_target_barrier: [*c]RenderTargetBarrier) void {
