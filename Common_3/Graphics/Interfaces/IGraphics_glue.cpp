@@ -88,8 +88,11 @@ extern "C" void        _1_cmdBindVertexBuffer(Cmd* c, uint32_t bc, Buffer** b, c
 }
 extern "C" void        _1_cmdDraw(Cmd* pCmd, uint32_t vertexCount, uint32_t firstVertex) { ::cmdDraw(pCmd, vertexCount, firstVertex); }
 extern "C" const void* _1_cmdDrawInstanced_ = (void*)&::cmdDrawInstanced;
-extern "C" const void* _1_cmdDrawIndexed_ = (void*)&::cmdDrawIndexed;
-extern "C" void        _1_cmdDrawIndexedInstanced(Cmd* c, uint32_t ic, uint32_t fi, uint32_t inc, uint32_t fv, uint32_t fin)
+extern "C" void        _1_cmdDrawIndexed(Cmd* pCmd, uint32_t indexCount, uint32_t firstIndex, uint32_t firstVertex)
+{
+    ::cmdDrawIndexed(pCmd, indexCount, firstIndex, firstVertex);
+}
+extern "C" void _1_cmdDrawIndexedInstanced(Cmd* c, uint32_t ic, uint32_t fi, uint32_t inc, uint32_t fv, uint32_t fin)
 {
     ::cmdDrawIndexedInstanced(c, ic, fi, inc, fv, fin);
 }

@@ -2465,10 +2465,10 @@ pub const cmdDrawInstancedFn = ?*const fn ([*c]Cmd, u32, u32, u32, u32) callconv
 extern var _1_cmdDrawInstanced_: *cmdDrawInstancedFn;
 pub const cmdDrawInstanced = _1_cmdDrawInstanced_;
 
-pub const cmdDrawIndexedFn = ?*const fn ([*c]Cmd, u32, u32, u32) callconv(.C) void;
-
-extern var _1_cmdDrawIndexed_: *cmdDrawIndexedFn;
-pub const cmdDrawIndexed = _1_cmdDrawIndexed_;
+extern fn _1_cmdDrawIndexed(cmd_list: [*c]Cmd, index_count: u32, first_index: u32, first_vertex: u32) void;
+pub fn cmdDrawIndexed(cmd_list: [*c]Cmd, index_count: u32, first_index: u32, first_vertex: u32) void {
+    _1_cmdDrawIndexed(cmd_list, index_count, first_index, first_vertex);
+}
 
 extern fn _1_cmdDrawIndexedInstanced(cmd_list: [*c]Cmd, index_count: u32, first_index: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void;
 pub fn cmdDrawIndexedInstanced(cmd_list: [*c]Cmd, index_count: u32, first_index: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void {
