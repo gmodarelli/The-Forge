@@ -37,6 +37,7 @@ pub fn package(
     zforge_cpp.addIncludePath(.{ .path = thisDir() ++ "/Common_3/Graphics/Interfaces" });
     zforge_cpp.addIncludePath(.{ .path = thisDir() ++ "/Common_3/Resources/ResourceLoader/Interfaces" });
     zforge_cpp.addIncludePath(.{ .path = thisDir() ++ "/Common_3/Utilities/Interfaces" });
+    zforge_cpp.addIncludePath(.{ .path = thisDir() ++ "/Common_3/Utilities/Log" });
     zforge_cpp.addCSourceFiles(.{
         .files = &.{
             thisDir() ++ "/Common_3/Application/Interfaces/IFont_glue.cpp",

@@ -13,7 +13,7 @@ pub const LogLevel = extern struct {
     pub const eINFO: LogLevel = .{ .bits = 4 };
     pub const eWARNING: LogLevel = .{ .bits = 8 };
     pub const eERROR: LogLevel = .{ .bits = 16 };
-    pub const eALL: LogLevel = .{ .bits = 0xffff };
+    pub const eALL: LogLevel = .{ .bits = -1 };
 
     // pub usingnamespace cpp.FlagsMixin(LogLevel);
 };
@@ -28,14 +28,14 @@ pub const LogFlushFn = ?*const fn (?*anyopaque) callconv(.C) void;
 /// Initialization/Exit functions are thread unsafe
 /// appName   used to create appName.log. Pass NULL to disable
 /// level     mask of LogLevel bits. Log is ignored if its level is missing in mask. Use eALL to enable full log
-extern fn initLog(appName: [*c]const u8, level: LogLevel) void;
-pub fn init_log(appName: [*c]const u8, level: LogLevel) void {
-    initLog(appName, level);
+extern fn _1_initLog_(appName: [*c]const u8, level: LogLevel) void;
+pub fn initLog(appName: [*c]const u8, level: LogLevel) void {
+    _1_initLog_(appName, level);
 }
 
-extern fn exitLog() void;
-pub fn exit_log() void {
-    exitLog();
+extern fn _1_exitLog_() void;
+pub fn exitLog() void {
+    _1_exitLog_();
 }
 
 extern fn _1_addLogFile_(filename: [*c]const u8, file_mode: FileMode, log_level: LogLevel) void;
