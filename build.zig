@@ -22,7 +22,9 @@ pub fn package(
     _: struct {},
 ) Package {
     const zforge = b.createModule(.{
-        .root_source_file = .{ .path = thisDir() ++ "/main.zig" },
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = .{ .path = "external/The-Forge/main.zig" },
     });
 
     const zforge_cpp = b.addStaticLibrary(.{
@@ -33,26 +35,26 @@ pub fn package(
 
     zforge_cpp.linkLibC();
     // zforge_cpp.linkLibCpp();
-    zforge_cpp.addIncludePath(.{ .path = thisDir() ++ "/Common_3/Application/Interfaces" });
-    zforge_cpp.addIncludePath(.{ .path = thisDir() ++ "/Common_3/Graphics/Interfaces" });
-    zforge_cpp.addIncludePath(.{ .path = thisDir() ++ "/Common_3/Resources/ResourceLoader/Interfaces" });
-    zforge_cpp.addIncludePath(.{ .path = thisDir() ++ "/Common_3/Utilities/Interfaces" });
+    zforge_cpp.addIncludePath(.{ .path = "external/The-Forge/Common_3/Application/Interfaces" });
+    zforge_cpp.addIncludePath(.{ .path = "external/The-Forge/Common_3/Graphics/Interfaces" });
+    zforge_cpp.addIncludePath(.{ .path = "external/The-Forge/Common_3/Resources/ResourceLoader/Interfaces" });
+    zforge_cpp.addIncludePath(.{ .path = "external/The-Forge/Common_3/Utilities/Interfaces" });
     zforge_cpp.addIncludePath(.{ .path = thisDir() ++ "/Common_3/Utilities/Log" });
     zforge_cpp.addCSourceFiles(.{
         .files = &.{
-            thisDir() ++ "/Common_3/Application/Interfaces/IFont_glue.cpp",
-            thisDir() ++ "/Common_3/Graphics/Interfaces/IGraphics_glue.cpp",
-            thisDir() ++ "/Common_3/Resources/ResourceLoader/Interfaces/IResourceLoader_glue.cpp",
-            thisDir() ++ "/Common_3/Utilities/Interfaces/IFileSystem_glue.cpp",
-            thisDir() ++ "/Common_3/Utilities/Interfaces/ILog_glue.cpp",
-            thisDir() ++ "/Common_3/Utilities/Interfaces/IMemory_glue.cpp",
-            thisDir() ++ "/Common_3/Utilities/Log/Log_glue.cpp",
+            "external/The-Forge/Common_3/Application/Interfaces/IFont_glue.cpp",
+            "external/The-Forge/Common_3/Graphics/Interfaces/IGraphics_glue.cpp",
+            "external/The-Forge/Common_3/Resources/ResourceLoader/Interfaces/IResourceLoader_glue.cpp",
+            "external/The-Forge/Common_3/Utilities/Interfaces/IFileSystem_glue.cpp",
+            "external/The-Forge/Common_3/Utilities/Interfaces/ILog_glue.cpp",
+            "external/The-Forge/Common_3/Utilities/Interfaces/IMemory_glue.cpp",
+            "external/The-Forge/Common_3/Utilities/Log/Log_glue.cpp",
         },
         .flags = &.{"-DTIDES"},
     });
 
     const tides_renderer_build_step = buildTheForgeRenderer(b);
-    const tides_renderer_base_path = thisDir() ++ "/Examples_3/TidesRenderer";
+    const tides_renderer_base_path = "external/The-Forge/Examples_3/TidesRenderer";
     // TODO(gmodarelli): Check if OS is windows and if target is debug
     const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/Debug";
     zforge_cpp.addLibraryPath(.{ .path = tides_renderer_output_path });
