@@ -2474,8 +2474,12 @@ void uiNewFrame()
         }
     }
 #endif
+#if defined(TIDES)
+#if defined(ENABLE_FORGE_UI) || defined(ENABLE_FORGE_REMOTE_UI)
     pUserInterface->mDynamicTexturesCount = 0;
     ImGui::NewFrame();
+#endif
+#endif
 }
 
 void uiEndFrame() { ImGui::EndFrame(); }

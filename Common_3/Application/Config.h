@@ -283,7 +283,9 @@ COMPILE_ASSERT(sizeof(ssize_t) == sizeof(int64_t));
 // #define ENABLE_MATH_CHECKS // Enables low level math library debug checks like SIMD variable alignment checks
 #define ENABLE_FORGE_SCRIPTING
 #define ENABLE_FORGE_RELOAD_SHADER
+#if !defined(TIDES)
 #define ENABLE_FORGE_UI
+#endif
 #define ENABLE_FORGE_FONTS
 #define ENABLE_FORGE_INPUT
 #define ENABLE_FORGE_ANIMATION_DEBUG
@@ -404,6 +406,8 @@ COMPILE_ASSERT(sizeof(ssize_t) == sizeof(int64_t));
 //////////////////////////////////////////////
 #if defined(FORGE_DEBUG)
 #if defined(ANDROID) || defined(_WIN32) || defined(PROSPERO) || defined(XBOX) || defined(__APPLE__) || defined(ORBIS)
+#if !defined(TIDES)
 #define ENABLE_FORGE_REMOTE_UI
+#endif
 #endif
 #endif

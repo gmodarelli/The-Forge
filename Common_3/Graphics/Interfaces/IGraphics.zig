@@ -170,15 +170,14 @@ pub const D3D12_COMPARISON_FUNC = enum(u32) {
 pub const DxDescriptorID = i32;
 
 const D3D_FEATURE_LEVEL = u32;
-const D3D12_GPU_DESCRIPTOR_HANDLE = anyopaque;
 const D3D12_GPU_VIRTUAL_ADDRESS = u64;
 const D3D12_QUERY_TYPE = u32;
-const DescriptorHeap = anyopaque;
 const HANDLE = *anyopaque;
 const ID3D12CommandAllocator = anyopaque;
 const ID3D12CommandQueue = anyopaque;
 const ID3D12CommandSignature = anyopaque;
 const ID3D12Debug = anyopaque;
+const ID3D12DescriptorHeap = anyopaque;
 const ID3D12Device = anyopaque;
 const ID3D12Fence = anyopaque;
 const ID3D12GraphicsCommandList1 = anyopaque;
@@ -195,7 +194,44 @@ const IDXGIFactory6 = anyopaque;
 const IDXGISwapChain3 = anyopaque;
 const LogLevel = u32;
 const LPCWSTR = *anyopaque;
+const Mutex = anyopaque;
 const PipelineReflection = anyopaque;
+
+pub const D3D12_CPU_DESCRIPTOR_HANDLE = extern struct {
+    ptr: u64,
+};
+
+pub const D3D12_GPU_DESCRIPTOR_HANDLE = extern struct {
+    ptr: u64,
+};
+
+pub const D3D12_DESCRIPTOR_HEAP_TYPE = enum(u32) {
+    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
+    D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+    D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+    D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES,
+};
+
+pub const DescriptorHeap = extern struct {
+    /// DX Heap
+    pHeap: *ID3D12DescriptorHeap,
+    /// Lock for multi-threaded descriptor allocations
+    mMutex: std.os.windows.CRITICAL_SECTION, // NOTE(gmodarelli): Windows-only
+    pDevice: *ID3D12Device,
+    /// Start position in the heap
+    mStartCpuHandle: D3D12_CPU_DESCRIPTOR_HANDLE,
+    mStartGpuHandle: D3D12_GPU_DESCRIPTOR_HANDLE,
+    // Bitmask to track free regions (set bit means occupied)
+    pFlags: *u32,
+    /// Description
+    mType: D3D12_DESCRIPTOR_HEAP_TYPE,
+    mNumDescriptors: u32,
+    /// Descriptor Increment Size
+    mDescriptorSize: u32,
+    // Usage
+    mUsedDescriptors: u32,
+};
 
 pub const RendererApi = extern struct {
     bits: c_int = 0,
@@ -1499,6 +1535,8 @@ pub const MarkerType = extern struct {
 };
 
 pub const Cmd = extern struct {
+    mDx: __Struct0,
+
     pRenderer: [*c]Renderer,
     pQueue: [*c]Queue,
 
