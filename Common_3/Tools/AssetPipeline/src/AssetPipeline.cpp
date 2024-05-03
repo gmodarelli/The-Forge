@@ -1343,6 +1343,35 @@ static inline void util_unpack_uint8_to_uint16_joints(uint32_t count, uint32_t s
     }
 }
 
+static inline void util_pack_color16_to_color8(uint32_t count, uint32_t srcStride, uint32_t dstStride, uint32_t offset, const uint8_t* src, uint8_t* dst)
+{
+    float srcMaxValue = (float)0xffff;
+    float dstMaxValue = (float)0xff;
+
+    for (uint32_t e = 0; e < count; ++e)
+    {
+        const uint16_t* srcBase = (const uint16_t*)(src + e * srcStride);
+        uint8_t* dstBase = (uint8_t*)(dst + e * dstStride + offset);
+        dstBase[0] = (uint8_t)((srcBase[0] / srcMaxValue) * dstMaxValue);
+        dstBase[1] = (uint8_t)((srcBase[1] / srcMaxValue) * dstMaxValue);
+        dstBase[2] = (uint8_t)((srcBase[2] / srcMaxValue) * dstMaxValue);
+        dstBase[3] = (uint8_t)((srcBase[3] / srcMaxValue) * dstMaxValue);
+    }
+}
+
+static inline void util_pack_color32_to_color8(uint32_t count, uint32_t srcStride, uint32_t dstStride, uint32_t offset, const uint8_t* src, uint8_t* dst)
+{
+    for (uint32_t e = 0; e < count; ++e)
+    {
+        const float* srcBase = (const float*)(src + e * srcStride);
+        uint8_t* dstBase = (uint8_t*)(dst + e * dstStride + offset);
+        dstBase[0] = (uint8_t)(srcBase[0] * 255.0f);
+        dstBase[1] = (uint8_t)(srcBase[1] * 255.0f);
+        dstBase[2] = (uint8_t)(srcBase[2] * 255.0f);
+        dstBase[3] = (uint8_t)(srcBase[3] * 255.0f);
+    }
+}
+
 void OnGLTFFind(ResourceDirectory resourceDir, const char* filename, void* pUserData)
 {
     bstring** inputFileNames = (bstring**)pUserData;
@@ -1872,6 +1901,16 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
                         LOGF(eERROR, "Joint size doesn't match");
                         ASSERT(false);
                     }
+                    break;
+                }
+                case cgltf_attribute_type_color:
+                {
+                    if (sizeof(uint8_t) * 4 == dstFormatSize && sizeof(uint16_t) * 4 == srcFormatSize)
+                        vertexPacking[attr->mSemantic] = util_pack_color16_to_color8;
+
+                    if (sizeof(uint8_t) * 4 == dstFormatSize && sizeof(uint32_t) * 4 == srcFormatSize)
+                        vertexPacking[attr->mSemantic] = util_pack_color32_to_color8;
+
                     break;
                 }
                 default:
@@ -2610,21 +2649,26 @@ int AssetPipelineRun(AssetPipelineParams* assetParams)
             vertexLayout.mAttribs[2].mBinding = 2;
             vertexLayout.mAttribs[2].mLocation = 2;
             vertexLayout.mAttribs[2].mOffset = 0;
-            vertexLayout.mAttribs[3].mSemantic = SEMANTIC_TEXCOORD0;
-            vertexLayout.mAttribs[3].mFormat = TinyImageFormat_R32_UINT;
+            vertexLayout.mAttribs[3].mSemantic = SEMANTIC_COLOR;
+            vertexLayout.mAttribs[3].mFormat = TinyImageFormat_R8G8B8A8_UNORM;
             vertexLayout.mAttribs[3].mBinding = 3;
             vertexLayout.mAttribs[3].mLocation = 3;
             vertexLayout.mAttribs[3].mOffset = 0;
-            vertexLayout.mAttribs[4].mSemantic = SEMANTIC_JOINTS;
-            vertexLayout.mAttribs[4].mFormat = TinyImageFormat_R16G16B16A16_UINT;
+            vertexLayout.mAttribs[4].mSemantic = SEMANTIC_TEXCOORD0;
+            vertexLayout.mAttribs[4].mFormat = TinyImageFormat_R32_UINT;
             vertexLayout.mAttribs[4].mBinding = 4;
             vertexLayout.mAttribs[4].mLocation = 4;
             vertexLayout.mAttribs[4].mOffset = 0;
-            vertexLayout.mAttribs[5].mSemantic = SEMANTIC_WEIGHTS;
-            vertexLayout.mAttribs[5].mFormat = TinyImageFormat_R32G32B32A32_SFLOAT;
+            vertexLayout.mAttribs[5].mSemantic = SEMANTIC_JOINTS;
+            vertexLayout.mAttribs[5].mFormat = TinyImageFormat_R16G16B16A16_UINT;
             vertexLayout.mAttribs[5].mBinding = 5;
             vertexLayout.mAttribs[5].mLocation = 5;
             vertexLayout.mAttribs[5].mOffset = 0;
+            vertexLayout.mAttribs[6].mSemantic = SEMANTIC_WEIGHTS;
+            vertexLayout.mAttribs[6].mFormat = TinyImageFormat_R32G32B32A32_SFLOAT;
+            vertexLayout.mAttribs[6].mBinding = 6;
+            vertexLayout.mAttribs[6].mLocation = 6;
+            vertexLayout.mAttribs[6].mOffset = 0;
         }
 
         ProcessGLTFParams glTFParams = {};
