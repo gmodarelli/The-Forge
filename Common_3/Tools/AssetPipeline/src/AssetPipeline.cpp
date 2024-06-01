@@ -2633,7 +2633,7 @@ int AssetPipelineRun(AssetPipelineParams* assetParams)
         }
         else
         {
-            vertexLayout.mAttribCount = 6;
+            vertexLayout.mAttribCount = 8;
             vertexLayout.mAttribs[0].mSemantic = SEMANTIC_POSITION;
             vertexLayout.mAttribs[0].mFormat = TinyImageFormat_R32G32B32_SFLOAT;
             vertexLayout.mAttribs[0].mBinding = 0;
@@ -2659,16 +2659,21 @@ int AssetPipelineRun(AssetPipelineParams* assetParams)
             vertexLayout.mAttribs[4].mBinding = 4;
             vertexLayout.mAttribs[4].mLocation = 4;
             vertexLayout.mAttribs[4].mOffset = 0;
-            vertexLayout.mAttribs[5].mSemantic = SEMANTIC_JOINTS;
-            vertexLayout.mAttribs[5].mFormat = TinyImageFormat_R16G16B16A16_UINT;
+            vertexLayout.mAttribs[5].mSemantic = SEMANTIC_TEXCOORD1;
+            vertexLayout.mAttribs[5].mFormat = TinyImageFormat_R32G32_SFLOAT;
             vertexLayout.mAttribs[5].mBinding = 5;
             vertexLayout.mAttribs[5].mLocation = 5;
             vertexLayout.mAttribs[5].mOffset = 0;
-            vertexLayout.mAttribs[6].mSemantic = SEMANTIC_WEIGHTS;
-            vertexLayout.mAttribs[6].mFormat = TinyImageFormat_R32G32B32A32_SFLOAT;
+            vertexLayout.mAttribs[6].mSemantic = SEMANTIC_JOINTS;
+            vertexLayout.mAttribs[6].mFormat = TinyImageFormat_R16G16B16A16_UINT;
             vertexLayout.mAttribs[6].mBinding = 6;
             vertexLayout.mAttribs[6].mLocation = 6;
             vertexLayout.mAttribs[6].mOffset = 0;
+            vertexLayout.mAttribs[7].mSemantic = SEMANTIC_WEIGHTS;
+            vertexLayout.mAttribs[7].mFormat = TinyImageFormat_R32G32B32A32_SFLOAT;
+            vertexLayout.mAttribs[7].mBinding = 7;
+            vertexLayout.mAttribs[7].mLocation = 7;
+            vertexLayout.mAttribs[7].mOffset = 0;
         }
 
         ProcessGLTFParams glTFParams = {};

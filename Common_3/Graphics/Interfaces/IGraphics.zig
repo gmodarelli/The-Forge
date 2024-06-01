@@ -2,11 +2,16 @@
 const std = @import("std");
 //const cpp = @import("cpp");
 
-pub const TinyImageFormat = @import("TinyImageFormat.zig").TinyImageFormat;
+const tiny_image_format = @import("TinyImageFormat.zig");
+pub const TinyImageFormat = tiny_image_format.TinyImageFormat;
 const gpu_cmd_ring = @import("GpuCmdRing.zig");
 pub const GpuCmdRing = gpu_cmd_ring.GpuCmdRing;
 pub const GpuCmdRingElememnt = gpu_cmd_ring.GpuCmdRingElement;
 pub const GpuCmdRingDesc = gpu_cmd_ring.GpuCmdRingDesc;
+
+pub fn byteSizeOfBlock(format: TinyImageFormat) u32 {
+    return tiny_image_format.bitSizeOfBlock(format) >> 3;
+}
 
 /// Taken from IOperatingSystem.h
 pub const ReloadType = packed struct(u32) {
