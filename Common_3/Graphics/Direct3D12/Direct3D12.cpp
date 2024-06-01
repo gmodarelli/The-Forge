@@ -2742,6 +2742,11 @@ void d3d12_initRenderer(const char* appName, const RendererDesc* pDesc, Renderer
             desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
             add_descriptor_heap(pRenderer->mDx.pDevice, &desc, &pRenderer->mDx.pCbvSrvUavHeaps[i]);
 
+#if defined(TIDES)
+            // NOTE: We're consuming the first descriptor handle to reserve it for DearImGUI
+            consume_descriptor_handles(pRenderer->mDx.pCbvSrvUavHeaps[0], 1);
+#endif
+
             // Max sampler descriptor count
             desc.NumDescriptors = D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE;
             desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
