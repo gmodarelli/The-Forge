@@ -2560,8 +2560,10 @@ pub fn waitForFences(renderer: [*c]Renderer, count: u32, fences: [*c][*c]Fence) 
 
 pub const toggleVSyncFn = ?*const fn ([*c]Renderer, [*c][*c]SwapChain) callconv(.C) void;
 
-extern var _1_toggleVSync_: *toggleVSyncFn;
-pub const toggleVSync = _1_toggleVSync_;
+extern fn _1_toggleVSync(renderer: [*c]Renderer, swapchain: [*c][*c]SwapChain) void;
+pub fn toggleVSync(renderer: [*c]Renderer, swapchain: [*c][*c]SwapChain) void {
+    _1_toggleVSync(renderer, swapchain);
+}
 
 pub const getSupportedSwapchainFormatFn = ?*const fn ([*c]Renderer, [*c]const SwapChainDesc, ColorSpace) callconv(.C) TinyImageFormat;
 

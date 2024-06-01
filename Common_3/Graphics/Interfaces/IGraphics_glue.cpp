@@ -114,7 +114,7 @@ extern "C" void            _1_queuePresent(Queue* q, QueuePresentDesc* d) { ::qu
 extern "C" void            _1_waitQueueIdle(Queue* q) { ::waitQueueIdle(q); }
 extern "C" void            _1_getFenceStatus(Renderer* r, Fence* f, FenceStatus* s) { ::getFenceStatus(r, f, s); }
 extern "C" void            _1_waitForFences(Renderer* r, uint32_t c, Fence** f) { ::waitForFences(r, c, f); }
-extern "C" const void*     _1_toggleVSync_ = (void*)&::toggleVSync;
+extern "C" void            _1_toggleVSync(Renderer* r, SwapChain** s) { ::toggleVSync(r, s); }
 extern "C" TinyImageFormat _1_getSupportedSwapchainFormat(Renderer* r, SwapChainDesc* d, ColorSpace cs)
 {
     return ::getSupportedSwapchainFormat(r, d, cs);
