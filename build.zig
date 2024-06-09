@@ -4,14 +4,14 @@ pub const Package = struct {
     zforge: *std.Build.Module,
     zforge_cpp: *std.Build.Step.Compile,
 
-    pub fn link(pkg: Package, exe: *std.Build.Step.Compile) void {
+    pub fn link(pkg: Package, b: *std.Build, exe: *std.Build.Step.Compile) void {
         exe.root_module.addImport("zforge", pkg.zforge);
         exe.linkLibrary(pkg.zforge_cpp);
 
-        const tides_renderer_base_path = thisDir() ++ "/Examples_3/TidesRenderer";
+        const tides_renderer_base_path = "external/The-Forge/Examples_3/TidesRenderer";
         const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/Debug";
         exe.linkLibC();
-        exe.addLibraryPath(.{ .path = tides_renderer_output_path });
+        exe.addLibraryPath(b.path(tides_renderer_output_path));
     }
 };
 
@@ -24,7 +24,7 @@ pub fn package(
     const zforge = b.createModule(.{
         .target = target,
         .optimize = optimize,
-        .root_source_file = .{ .path = "external/The-Forge/main.zig" },
+        .root_source_file = b.path("external/The-Forge/main.zig"),
     });
 
     const zforge_cpp = b.addStaticLibrary(.{
@@ -35,11 +35,11 @@ pub fn package(
 
     zforge_cpp.linkLibC();
     // zforge_cpp.linkLibCpp();
-    zforge_cpp.addIncludePath(.{ .path = "external/The-Forge/Common_3/Application/Interfaces" });
-    zforge_cpp.addIncludePath(.{ .path = "external/The-Forge/Common_3/Graphics/Interfaces" });
-    zforge_cpp.addIncludePath(.{ .path = "external/The-Forge/Common_3/Resources/ResourceLoader/Interfaces" });
-    zforge_cpp.addIncludePath(.{ .path = "external/The-Forge/Common_3/Utilities/Interfaces" });
-    zforge_cpp.addIncludePath(.{ .path = thisDir() ++ "/Common_3/Utilities/Log" });
+    zforge_cpp.addIncludePath(b.path("external/The-Forge/Common_3/Application/Interfaces"));
+    zforge_cpp.addIncludePath(b.path("external/The-Forge/Common_3/Graphics/Interfaces"));
+    zforge_cpp.addIncludePath(b.path("external/The-Forge/Common_3/Resources/ResourceLoader/Interfaces"));
+    zforge_cpp.addIncludePath(b.path("external/The-Forge/Common_3/Utilities/Interfaces"));
+    zforge_cpp.addIncludePath(b.path("Common_3/Utilities/Log"));
     zforge_cpp.addCSourceFiles(.{
         .files = &.{
             "external/The-Forge/Common_3/Application/Interfaces/IFont_glue.cpp",
@@ -55,11 +55,12 @@ pub fn package(
 
     const tides_renderer_build_step = buildTheForgeRenderer(b);
     const tides_renderer_base_path = "external/The-Forge/Examples_3/TidesRenderer";
+    const tides_the_forge_base_path = "external/The-Forge"; // HACK(Anders)
     // TODO(gmodarelli): Check if OS is windows and if target is debug
     const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/Debug";
-    zforge_cpp.addLibraryPath(.{ .path = tides_renderer_output_path });
+    zforge_cpp.addLibraryPath(b.path(tides_renderer_base_path));
     zforge_cpp.linkSystemLibrary("TidesRenderer");
-    zforge_cpp.addLibraryPath(.{ .path = tides_renderer_output_path });
+    zforge_cpp.addLibraryPath(b.path(tides_renderer_output_path));
     // zforge_cpp.linkSystemLibrary("advapi32");
     // zforge_cpp.linkSystemLibrary("comdlg32");
     zforge_cpp.linkSystemLibrary("dxguid");
@@ -82,33 +83,33 @@ pub fn package(
     zforge_cpp.step.dependOn(tides_renderer_build_step);
 
     // Install DLLs
-    var install_file = b.addInstallFile(.{ .path = tides_renderer_output_path ++ "/TidesRenderer.dll" }, "bin/TidesRenderer.dll");
+    var install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/TidesRenderer.dll"), "bin/TidesRenderer.dll");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(.{ .path = tides_renderer_output_path ++ "/TidesRenderer.pdb" }, "bin/TidesRenderer.pdb");
+    install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/TidesRenderer.pdb"), "bin/TidesRenderer.pdb");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(.{ .path = tides_renderer_output_path ++ "/WinPixEventRunTime.dll" }, "bin/WinPixEventRunTime.dll");
+    install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/WinPixEventRunTime.dll"), "bin/WinPixEventRunTime.dll");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(.{ .path = tides_renderer_output_path ++ "/amd_ags_x64.dll" }, "bin/amd_ags_x64.dll");
+    install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/amd_ags_x64.dll"), "bin/amd_ags_x64.dll");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(.{ .path = tides_renderer_output_path ++ "/dxcompiler.dll" }, "bin/dxcompiler.dll");
+    install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/dxcompiler.dll"), "bin/dxcompiler.dll");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(.{ .path = tides_renderer_output_path ++ "/VkLayer_khronos_validation.dll" }, "bin/VkLayer_khronos_validation.dll");
+    install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/VkLayer_khronos_validation.dll"), "bin/VkLayer_khronos_validation.dll");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
 
     // Install Configuration Files
-    install_file = b.addInstallFile(.{ .path = tides_renderer_base_path ++ "/src/GPUCfg/gpu.cfg" }, "bin/GPUCfg/gpu.cfg");
+    install_file = b.addInstallFile(b.path(tides_renderer_base_path ++ "/src/GPUCfg/gpu.cfg"), "bin/GPUCfg/gpu.cfg");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(.{ .path = thisDir() ++ "/Common_3/OS/Windows/pc_gpu.data" }, "bin/GPUCfg/gpu.data");
+    install_file = b.addInstallFile(b.path(tides_the_forge_base_path ++ "/Common_3/OS/Windows/pc_gpu.data"), "bin/GPUCfg/gpu.data");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(.{ .path = tides_renderer_output_path ++ "/VkLayer_khronos_validation.json" }, "bin/VkLayer_khronos_validation.json");
+    install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/VkLayer_khronos_validation.json"), "bin/VkLayer_khronos_validation.json");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
 
