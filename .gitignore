@@ -252,5 +252,5 @@ Common_3/Application/ThirdParty/noesisgui/SDK/_build/**/build
 **/clang-tools/out-files.txt
 
 # Begin TIDES changes
-zig-cache
+.zig-cache
 # End TIDES changes
