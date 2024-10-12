@@ -64,7 +64,6 @@ pub fn package(
     // zforge_cpp.linkSystemLibrary("advapi32");
     // zforge_cpp.linkSystemLibrary("comdlg32");
     zforge_cpp.linkSystemLibrary("dxguid");
-    zforge_cpp.linkSystemLibrary("gainputstatic");
     // zforge_cpp.linkSystemLibrary("gdi32");
     // zforge_cpp.linkSystemLibrary("kernel32");
     // zforge_cpp.linkSystemLibrary("odbc32");
@@ -98,18 +97,12 @@ pub fn package(
     install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/dxcompiler.dll"), "bin/dxcompiler.dll");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/VkLayer_khronos_validation.dll"), "bin/VkLayer_khronos_validation.dll");
-    install_file.step.dependOn(tides_renderer_build_step);
-    zforge_cpp.step.dependOn(&install_file.step);
 
     // Install Configuration Files
     install_file = b.addInstallFile(b.path(tides_renderer_base_path ++ "/src/GPUCfg/gpu.cfg"), "bin/GPUCfg/gpu.cfg");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(b.path(tides_the_forge_base_path ++ "/Common_3/OS/Windows/pc_gpu.data"), "bin/GPUCfg/gpu.data");
-    install_file.step.dependOn(tides_renderer_build_step);
-    zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/VkLayer_khronos_validation.json"), "bin/VkLayer_khronos_validation.json");
+    install_file = b.addInstallFile(b.path(tides_the_forge_base_path ++ "/Common_3/OS/Windows/pc_gpu.data"), "bin/gpu.data");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
 

@@ -2250,6 +2250,9 @@ pub const initRendererContext = _1_initRendererContext_;
 extern fn _1_exitRendererContext_(pContext: [*c]RendererContext) void;
 pub const exitRendererContext = _1_exitRendererContext_;
 
+extern fn _1_initGPUConfiguration_(pExtendedSettings: [*c]ExtendedSettings) void;
+pub const initGPUConfiguration = _1_initGPUConfiguration_;
+
 extern fn _1_initRenderer_(appName: [*c]const u8, pSettings: [*c]const RendererDesc, ppRenderer: [*c][*c]Renderer) void;
 /// allocates memory and initializes the renderer -> returns pRenderer
 pub const initRenderer = _1_initRenderer_;

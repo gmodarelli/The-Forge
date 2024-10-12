@@ -279,8 +279,6 @@ int TR_initRenderer(TR_AppSettings *appSettings)
 
 	RendererDesc settings;
 	memset(&settings, 0, sizeof(settings));
-	settings.mD3D11Supported = false;
-	settings.mGLESSupported = false;
 	settings.mShaderTarget = SHADER_TARGET_6_6;
 	initRenderer(appName, &settings, &g_Renderer);
 
@@ -293,16 +291,16 @@ int TR_initRenderer(TR_AppSettings *appSettings)
 	QueueDesc queueDesc = {};
 	queueDesc.mType = QUEUE_TYPE_GRAPHICS;
 	queueDesc.mFlag = QUEUE_FLAG_INIT_MICROPROFILE;
-	addQueue(g_Renderer, &queueDesc, &g_GraphicsQueue);
+	initQueue(g_Renderer, &queueDesc, &g_GraphicsQueue);
 
 	GpuCmdRingDesc cmdRingDesc = {};
 	cmdRingDesc.pQueue = g_GraphicsQueue;
 	cmdRingDesc.mPoolCount = g_DataBufferCount;
 	cmdRingDesc.mCmdPerPoolCount = 1;
 	cmdRingDesc.mAddSyncPrimitives = true;
-	addGpuCmdRing(g_Renderer, &cmdRingDesc, &g_GraphicsCmdRing);
+	initGpuCmdRing(g_Renderer, &cmdRingDesc, &g_GraphicsCmdRing);
 
-	addSemaphore(g_Renderer, &g_ImageAcquiredSemaphore);
+	initSemaphore(g_Renderer, &g_ImageAcquiredSemaphore);
 
 	ResourceLoaderDesc resourceLoaderDesc = {256ull * TF_MB, 2, false, false};
 	initResourceLoaderInterface(g_Renderer, &resourceLoaderDesc);
@@ -436,9 +434,9 @@ void TR_exitRenderer()
 	exitFontSystem();
 
 	exitResourceLoaderInterface(g_Renderer);
-	removeSemaphore(g_Renderer, g_ImageAcquiredSemaphore);
-	removeGpuCmdRing(g_Renderer, &g_GraphicsCmdRing);
-	removeQueue(g_Renderer, g_GraphicsQueue);
+	exitSemaphore(g_Renderer, g_ImageAcquiredSemaphore);
+	exitGpuCmdRing(g_Renderer, &g_GraphicsCmdRing);
+	exitQueue(g_Renderer, g_GraphicsQueue);
 	exitRenderer(g_Renderer);
 	g_Renderer = NULL;
 
@@ -1134,7 +1132,7 @@ bool AddSwapChain()
 
 	TinyImageFormat hdrFormat = getSupportedSwapchainFormat(g_Renderer, &swapChainDesc, COLOR_SPACE_P2020);
 	const bool wantsHDR = OUTPUT_MODE_P2020 == g_AppSettings->outputMode;
-	const bool supportsHDR = g_Renderer->pGpu->mSettings.mHDRSupported && hdrFormat != TinyImageFormat_UNDEFINED;
+	const bool supportsHDR = g_Renderer->pGpu->mHDRSupported && hdrFormat != TinyImageFormat_UNDEFINED;
 	if (wantsHDR)
 	{
 		if (supportsHDR)
@@ -1384,16 +1382,16 @@ void ComputePBRMaps()
 	brdfIntegrationLoadDesc.ppTexture = &g_TextureBRDFLut;
 	addResource(&brdfIntegrationLoadDesc, &token);
 
-	GPUPresetLevel presetLevel = g_Renderer->pGpu->mSettings.mGpuVendorPreset.mPresetLevel;
+	GPUPresetLevel presetLevel = g_Renderer->pGpu->mGpuVendorPreset.mPresetLevel;
 
 	ShaderLoadDesc brdfIntegrationShaderDesc = {};
-	brdfIntegrationShaderDesc.mStages[0].pFileName = "brdf_integration.comp";
+	brdfIntegrationShaderDesc.mComp.pFileName = "brdf_integration.comp";
 
 	ShaderLoadDesc irradianceShaderDesc = {};
-	irradianceShaderDesc.mStages[0].pFileName = "compute_irradiance_map.comp";
+	irradianceShaderDesc.mComp.pFileName = "compute_irradiance_map.comp";
 
 	ShaderLoadDesc specularShaderDesc = {};
-	specularShaderDesc.mStages[0].pFileName = "compute_specular_map.comp";
+	specularShaderDesc.mComp.pFileName = "compute_specular_map.comp";
 
 	addShader(g_Renderer, &irradianceShaderDesc, &pIrradianceShader);
 	addShader(g_Renderer, &specularShaderDesc, &pSpecularShader);
@@ -1583,38 +1581,38 @@ void RemoveUniformBuffers()
 void LoadShaders()
 {
 	ShaderLoadDesc skyboxShaderDesc = {};
-	skyboxShaderDesc.mStages[0].pFileName = "skybox.vert";
-	skyboxShaderDesc.mStages[1].pFileName = "skybox.frag";
+	skyboxShaderDesc.mVert.pFileName = "skybox.vert";
+	skyboxShaderDesc.mFrag.pFileName = "skybox.frag";
 	addShader(g_Renderer, &skyboxShaderDesc, &g_ShaderSkybox);
 
 	ShaderLoadDesc terrainShaderDesc = {};
-	terrainShaderDesc.mStages[0].pFileName = "terrain.vert";
-	terrainShaderDesc.mStages[1].pFileName = "terrain.frag";
+	terrainShaderDesc.mVert.pFileName = "terrain.vert";
+	terrainShaderDesc.mFrag.pFileName = "terrain.frag";
 	addShader(g_Renderer, &terrainShaderDesc, &g_ShaderTerrain);
 
 	ShaderLoadDesc litOpaqueShaderDesc = {};
-	litOpaqueShaderDesc.mStages[0].pFileName = "lit.vert";
-	litOpaqueShaderDesc.mStages[1].pFileName = "lit_opaque.frag";
+	litOpaqueShaderDesc.mVert.pFileName = "lit.vert";
+	litOpaqueShaderDesc.mFrag.pFileName = "lit_opaque.frag";
 	addShader(g_Renderer, &litOpaqueShaderDesc, &g_ShaderLitOpaque);
 
 	ShaderLoadDesc litMaskedShaderDesc = {};
-	litMaskedShaderDesc.mStages[0].pFileName = "lit.vert";
-	litMaskedShaderDesc.mStages[1].pFileName = "lit_masked.frag";
+	litMaskedShaderDesc.mVert.pFileName = "lit.vert";
+	litMaskedShaderDesc.mFrag.pFileName = "lit_masked.frag";
 	addShader(g_Renderer, &litMaskedShaderDesc, &g_ShaderLitMasked);
 
 	ShaderLoadDesc deferredShadingShaderDesc = {};
-	deferredShadingShaderDesc.mStages[0].pFileName = "fullscreen.vert";
-	deferredShadingShaderDesc.mStages[1].pFileName = "deferred_shading.frag";
+	deferredShadingShaderDesc.mVert.pFileName = "fullscreen.vert";
+	deferredShadingShaderDesc.mFrag.pFileName = "deferred_shading.frag";
 	addShader(g_Renderer, &deferredShadingShaderDesc, &g_ShaderDeferredShading);
 
 	ShaderLoadDesc tonemapperShaderDesc = {};
-	tonemapperShaderDesc.mStages[0].pFileName = "fullscreen.vert";
-	tonemapperShaderDesc.mStages[1].pFileName = "tonemapper.frag";
+	tonemapperShaderDesc.mVert.pFileName = "fullscreen.vert";
+	tonemapperShaderDesc.mFrag.pFileName = "tonemapper.frag";
 	addShader(g_Renderer, &tonemapperShaderDesc, &g_ShaderTonemapper);
 
 	ShaderLoadDesc uiShaderDesc = {};
-	uiShaderDesc.mStages[0].pFileName = "ui.vert";
-	uiShaderDesc.mStages[1].pFileName = "ui.frag";
+	uiShaderDesc.mVert.pFileName = "ui.vert";
+	uiShaderDesc.mFrag.pFileName = "ui.frag";
 	addShader(g_Renderer, &uiShaderDesc, &g_ShaderUI);
 }
 

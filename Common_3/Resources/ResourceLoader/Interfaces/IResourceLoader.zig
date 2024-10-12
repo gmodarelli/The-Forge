@@ -435,7 +435,12 @@ pub const ShaderStageLoadDesc = extern struct {
 };
 
 pub const ShaderLoadDesc = extern struct {
-    mStages: [6]ShaderStageLoadDesc,
+    mVert: ShaderStageLoadDesc,
+    mFrag: ShaderStageLoadDesc,
+    mGeom: ShaderStageLoadDesc,
+    mHull: ShaderStageLoadDesc,
+    mDomain: ShaderStageLoadDesc,
+    mComp: ShaderStageLoadDesc,
     pConstants: [*c]const ShaderConstant,
     mConstantCount: u32,
 };

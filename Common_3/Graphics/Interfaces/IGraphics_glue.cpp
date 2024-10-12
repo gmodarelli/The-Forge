@@ -3,8 +3,8 @@
 
 #include "IGraphics.h"
 
-extern "C" void _1_setRendererInitializationError_(const char* reason) { ::setRendererInitializationError(reason); }
-extern "C" bool _1_hasRendererInitializationError_(const char** outReason) { return ::hasRendererInitializationError(outReason); }
+// extern "C" void _1_setRendererInitializationError_(const char* reason) { ::setRendererInitializationError(reason); }
+// extern "C" bool _1_hasRendererInitializationError_(const char** outReason) { return ::hasRendererInitializationError(outReason); }
 extern "C" void _1_initRendererContext_(const char* appName, const RendererContextDesc* pSettings, RendererContext** ppContext)
 {
     ::initRendererContext(appName, pSettings, ppContext);
@@ -16,25 +16,27 @@ extern "C" void _1_initRenderer_(const char* appName, const RendererDesc* pSetti
 }
 extern "C" void _1_exitRenderer_(Renderer* pRenderer) { ::exitRenderer(pRenderer); }
 
-extern "C" void _1_addQueue(Renderer* r, QueueDesc* qd, Queue** q) { ::addQueue(r, qd, q); }
-extern "C" void _1_removeQueue(Renderer* r, Queue* q) { ::removeQueue(r, q); }
-extern "C" void _1_addSemaphore(Renderer* r, Semaphore** s) { ::addSemaphore(r, s); }
-extern "C" void _1_removeSemaphore(Renderer* r, Semaphore* s) { ::removeSemaphore(r, s); }
+extern "C" void _1_initGPUConfiguration_(ExtendedSettings* pExtendedSettings) { ::initGPUConfiguration(pExtendedSettings); }
+
+extern "C" void _1_addQueue(Renderer* r, QueueDesc* qd, Queue** q) { ::initQueue(r, qd, q); }
+extern "C" void _1_removeQueue(Renderer* r, Queue* q) { ::exitQueue(r, q); }
+extern "C" void _1_addSemaphore(Renderer* r, Semaphore** s) { ::initSemaphore(r, s); }
+extern "C" void _1_removeSemaphore(Renderer* r, Semaphore* s) { ::exitSemaphore(r, s); }
 extern "C" void _1_addSampler(Renderer* r, const SamplerDesc* d, Sampler** s) { ::addSampler(r, d, s); }
 extern "C" void _1_removeSampler(Renderer* r, Sampler* s) { ::removeSampler(r, s); }
 
-extern "C" void        _1_addFence(Renderer* r, Fence** f) { ::addFence(r, f); }
-extern "C" void        _1_removeFence(Renderer* r, Fence* f) { ::removeFence(r, f); }
+extern "C" void        _1_addFence(Renderer* r, Fence** f) { ::initFence(r, f); }
+extern "C" void        _1_removeFence(Renderer* r, Fence* f) { ::exitFence(r, f); }
 extern "C" void        _1_addSwapChain(Renderer* r, const SwapChainDesc* d, SwapChain** s) { ::addSwapChain(r, d, s); }
 extern "C" void        _1_removeSwapChain(Renderer* r, SwapChain* s) { ::removeSwapChain(r, s); }
 extern "C" const void* _1_addResourceHeap_ = (void*)&::addResourceHeap;
 extern "C" const void* _1_removeResourceHeap_ = (void*)&::removeResourceHeap;
-extern "C" void        _1_addCmdPool(Renderer* r, const CmdPoolDesc* d, CmdPool** c) { ::addCmdPool(r, d, c); }
-extern "C" void        _1_removeCmdPool(Renderer* r, CmdPool* c) { ::removeCmdPool(r, c); }
-extern "C" void        _1_addCmd(Renderer* r, const CmdDesc* d, Cmd** c) { ::addCmd(r, d, c); }
-extern "C" void        _1_removeCmd(Renderer* r, Cmd* c) { ::removeCmd(r, c); }
-extern "C" const void* _1_addCmd_n_ = (void*)&::addCmd_n;
-extern "C" const void* _1_removeCmd_n_ = (void*)&::removeCmd_n;
+extern "C" void        _1_addCmdPool(Renderer* r, const CmdPoolDesc* d, CmdPool** c) { ::initCmdPool(r, d, c); }
+extern "C" void        _1_removeCmdPool(Renderer* r, CmdPool* c) { ::exitCmdPool(r, c); }
+extern "C" void        _1_addCmd(Renderer* r, const CmdDesc* d, Cmd** c) { ::initCmd(r, d, c); }
+extern "C" void        _1_removeCmd(Renderer* r, Cmd* c) { ::exitCmd(r, c); }
+extern "C" const void* _1_addCmd_n_ = (void*)&::initCmd_n;
+extern "C" const void* _1_removeCmd_n_ = (void*)&::exitCmd_n;
 extern "C" void        _1_addRenderTarget(Renderer* r, RenderTargetDesc* d, RenderTarget** rt) { ::addRenderTarget(r, d, rt); }
 extern "C" void        _1_removeRenderTarget(Renderer* r, RenderTarget* rt) { ::removeRenderTarget(r, rt); }
 extern "C" const void* _1_addShaderBinary_ = (void*)&::addShaderBinary;
@@ -123,20 +125,17 @@ extern "C" uint32_t _1_getRecommendedSwapchainImageCount(Renderer* r, WindowHand
 {
     return ::getRecommendedSwapchainImageCount(r, wh);
 }
-extern "C" const void* _1_addIndirectCommandSignature_ = (void*)&::addIndirectCommandSignature;
-extern "C" const void* _1_removeIndirectCommandSignature_ = (void*)&::removeIndirectCommandSignature;
 extern "C" const void* _1_cmdExecuteIndirect_ = (void*)&::cmdExecuteIndirect;
 extern "C" const void* _1_getTimestampFrequency_ = (void*)&::getTimestampFrequency;
-extern "C" const void* _1_addQueryPool_ = (void*)&::addQueryPool;
-extern "C" const void* _1_removeQueryPool_ = (void*)&::removeQueryPool;
+extern "C" const void* _1_addQueryPool_ = (void*)&::initQueryPool;
+extern "C" const void* _1_removeQueryPool_ = (void*)&::exitQueryPool;
 extern "C" const void* _1_cmdBeginQuery_ = (void*)&::cmdBeginQuery;
 extern "C" const void* _1_cmdEndQuery_ = (void*)&::cmdEndQuery;
 extern "C" const void* _1_cmdResolveQuery_ = (void*)&::cmdResolveQuery;
 extern "C" const void* _1_cmdResetQuery_ = (void*)&::cmdResetQuery;
 extern "C" const void* _1_getQueryData_ = (void*)&::getQueryData;
-extern "C" const void* _1_calculateMemoryStats_ = (void*)&::calculateMemoryStats;
+extern "C" const void* _1_logMemoryStats_ = (void*)&::logMemoryStats;
 extern "C" const void* _1_calculateMemoryUse_ = (void*)&::calculateMemoryUse;
-extern "C" const void* _1_freeMemoryStats_ = (void*)&::freeMemoryStats;
 extern "C" const void* _1_cmdBeginDebugMarker_ = (void*)&::cmdBeginDebugMarker;
 extern "C" const void* _1_cmdEndDebugMarker_ = (void*)&::cmdEndDebugMarker;
 extern "C" const void* _1_cmdAddDebugMarker_ = (void*)&::cmdAddDebugMarker;
