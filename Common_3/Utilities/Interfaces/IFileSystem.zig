@@ -2,7 +2,9 @@
 const std = @import("std");
 //const cpp = @import("cpp");
 
+// TIDES: BEGIN MANUAL CHANGES
 const time_t = i64;
+// TIDES: END MANUAL CHANGES
 
 pub const ResourceMount = extern struct {
     bits: c_int = 0,
@@ -221,13 +223,10 @@ pub const IFileSystem = extern struct {
     pUser: ?*anyopaque,
 };
 
-// extern var _1_pSystemFileIO_: *[*c]IFileSystem;
-// pub const pSystemFileIO = _1_pSystemFileIO_;
-pub fn getSystemFileIO() [*c]IFileSystem {
-    return _1_getSystemFileIO();
-}
-extern fn _1_getSystemFileIO() [*c]IFileSystem;
+extern var _1_pSystemFileIO_: *[*c]IFileSystem;
+pub const pSystemFileIO = _1_pSystemFileIO_;
 
+pub extern fn fsGetSystemFileIO() [*c]IFileSystem;
 ///*********************************************************************
 ///
 /// MARK: - Initialization
@@ -237,8 +236,6 @@ extern fn _1_getSystemFileIO() [*c]IFileSystem;
 pub extern fn initFileSystem(pDesc: [*c]FileSystemInitDesc) bool;
 /// Frees resources associated with the FileSystem API
 pub extern fn exitFileSystem() void;
-
-pub extern fn fsGetSystemFileIO() [*c]IFileSystem;
 ///*********************************************************************
 ///
 /// MARK: - Archive file system

@@ -2,6 +2,7 @@
 const std = @import("std");
 //const cpp = @import("cpp");
 
+// TIDES: BEGIN MANUAL CHANGES
 const tiny_image_format = @import("TinyImageFormat.zig");
 pub const TinyImageFormat = tiny_image_format.TinyImageFormat;
 const gpu_cmd_ring = @import("GpuCmdRing.zig");
@@ -13,44 +14,43 @@ pub fn byteSizeOfBlock(format: TinyImageFormat) u32 {
     return tiny_image_format.bitSizeOfBlock(format) >> 3;
 }
 
-/// Taken from IOperatingSystem.h
-pub const ReloadType = packed struct(u32) {
-    RESIZE: bool = false, // 0x1
-    SHADER: bool = false, // 0x2
-    RENDERTARGET: bool = false, // 0x4,
-    __unused: u28 = 0,
-    ALL: bool = false, // 0xffffffff
+const DWORD = u32;
+const D3D_FEATURE_LEVEL = u32;
+const D3D12_GPU_VIRTUAL_ADDRESS = u64;
+const D3D12_QUERY_TYPE = u32;
+const HANDLE = *anyopaque;
+const ID3D12CommandAllocator = anyopaque;
+const ID3D12CommandQueue = anyopaque;
+const ID3D12CommandSignature = anyopaque;
+const ID3D12Debug = anyopaque;
+const ID3D12DescriptorHeap = anyopaque;
+const ID3D12Device = anyopaque;
+const ID3D12Fence = anyopaque;
+const ID3D12GraphicsCommandList1 = anyopaque;
+const ID3D12Heap = anyopaque;
+const ID3D12InfoQueue = anyopaque;
+const ID3D12InfoQueue1 = anyopaque;
+const ID3D12DebugCommandList = anyopaque;
+const ID3D12PipelineLibrary = anyopaque;
+const ID3D12PipelineState = anyopaque;
+const ID3D12QueryHeap = anyopaque;
+const ID3D12Resource = anyopaque;
+const ID3D12RootSignature = anyopaque;
+const IDxcBlobEncoding = anyopaque;
+const IDXGIAdapter4 = anyopaque;
+const IDXGIFactory6 = anyopaque;
+const IDXGISwapChain3 = anyopaque;
+const LogLevel = u32;
+const LPCWSTR = *anyopaque;
+const Mutex = anyopaque;
+const PipelineReflection = anyopaque;
 
-    pub const RESIZE_RENDERTARGET = ReloadType{
-        .RESIZE = true,
-        .RENDERTARGET = true,
-    };
-
-    pub const RESIZE_SHADER_RENDERTARGET = ReloadType{
-        .RESIZE = true,
-        .SHADER = true,
-        .RENDERTARGET = true,
-    };
+pub const D3D12_CPU_DESCRIPTOR_HANDLE = extern struct {
+    ptr: u64,
 };
 
-pub const ReloadDesc = struct {
-    mType: ReloadType,
-};
-
-// NOTE(gmodarelli): I've only manually written the bindings for Win32
-pub const WindowHandle = extern struct {
-    type: WindowHandleType,
-    window: std.os.windows.HWND,
-};
-
-pub const WindowHandleType = enum(u32) {
-    UNKNOWN,
-    WIN32,
-    XLIB,
-    XCB,
-    WAYLAND,
-    ANDROID,
-    VI_NN,
+pub const D3D12_GPU_DESCRIPTOR_HANDLE = extern struct {
+    ptr: u64,
 };
 
 /// D3D structs definitions copied from zig-gamdev/zwin32/d3dcommon.zig
@@ -99,7 +99,6 @@ pub const D3D_PRIMITIVE_TOPOLOGY = enum(u32) {
     D3D_PRIMITIVE_TOPOLOTY_32_CONTROL_POINT_PATCHLIST = 64,
 };
 
-/// D3D12 structs definitions copied from zig-gamdev/zwin32/d3d12.zig
 pub const D3D12_SAMPLER_DESC = extern struct {
     Filter: D3D12_FILTER,
     AddressU: D3D12_TEXTURE_ADDRESS_MODE,
@@ -171,45 +170,6 @@ pub const D3D12_COMPARISON_FUNC = enum(u32) {
     ALWAYS = 8,
 };
 
-/// Forward declare opaque memory allocator structs
-pub const DxDescriptorID = i32;
-
-const D3D_FEATURE_LEVEL = u32;
-const D3D12_GPU_VIRTUAL_ADDRESS = u64;
-const D3D12_QUERY_TYPE = u32;
-const HANDLE = *anyopaque;
-const ID3D12CommandAllocator = anyopaque;
-const ID3D12CommandQueue = anyopaque;
-const ID3D12CommandSignature = anyopaque;
-const ID3D12Debug = anyopaque;
-const ID3D12DescriptorHeap = anyopaque;
-const ID3D12Device = anyopaque;
-const ID3D12Fence = anyopaque;
-const ID3D12GraphicsCommandList1 = anyopaque;
-const ID3D12Heap = anyopaque;
-const ID3D12InfoQueue = anyopaque;
-const ID3D12PipelineLibrary = anyopaque;
-const ID3D12PipelineState = anyopaque;
-const ID3D12QueryHeap = anyopaque;
-const ID3D12Resource = anyopaque;
-const ID3D12RootSignature = anyopaque;
-const IDxcBlobEncoding = anyopaque;
-const IDXGIAdapter4 = anyopaque;
-const IDXGIFactory6 = anyopaque;
-const IDXGISwapChain3 = anyopaque;
-const LogLevel = u32;
-const LPCWSTR = *anyopaque;
-const Mutex = anyopaque;
-const PipelineReflection = anyopaque;
-
-pub const D3D12_CPU_DESCRIPTOR_HANDLE = extern struct {
-    ptr: u64,
-};
-
-pub const D3D12_GPU_DESCRIPTOR_HANDLE = extern struct {
-    ptr: u64,
-};
-
 pub const D3D12_DESCRIPTOR_HEAP_TYPE = enum(u32) {
     D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
     D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
@@ -237,6 +197,67 @@ pub const DescriptorHeap = extern struct {
     // Usage
     mUsedDescriptors: u32,
 };
+
+pub const ExtendedSettings = extern struct {
+    mNumSettings: u32,
+    pSettings: *u32,
+    ppSettingNames: [*c][*c]const u8,
+};
+
+pub const GPUPresetLevel = enum(u32) {
+    GPU_PRESET_NONE = 0,
+    GPU_PRESET_OFFICE,  // This means unsupported
+    GPU_PRESET_VERYLOW, // Mostly for mobile GPU
+    GPU_PRESET_LOW,
+    GPU_PRESET_MEDIUM,
+    GPU_PRESET_HIGH,
+    GPU_PRESET_ULTRA,
+    GPU_PRESET_COUNT,
+};
+
+/// Taken from IOperatingSystem.h
+pub const ReloadType = packed struct(u32) {
+    RESIZE: bool = false, // 0x1
+    SHADER: bool = false, // 0x2
+    RENDERTARGET: bool = false, // 0x4,
+    __unused: u28 = 0,
+    ALL: bool = false, // 0xffffffff
+
+    pub const RESIZE_RENDERTARGET = ReloadType{
+        .RESIZE = true,
+        .RENDERTARGET = true,
+    };
+
+    pub const RESIZE_SHADER_RENDERTARGET = ReloadType{
+        .RESIZE = true,
+        .SHADER = true,
+        .RENDERTARGET = true,
+    };
+};
+
+pub const ReloadDesc = struct {
+    mType: ReloadType,
+};
+
+// NOTE(gmodarelli): I've only manually written the bindings for Win32
+pub const WindowHandle = extern struct {
+    type: WindowHandleType,
+    window: std.os.windows.HWND,
+};
+
+pub const WindowHandleType = enum(u32) {
+    UNKNOWN,
+    WIN32,
+    XLIB,
+    XCB,
+    WAYLAND,
+    ANDROID,
+    VI_NN,
+};
+// TIDES: END MANUAL CHANGES
+
+/// Forward declare opaque memory allocator structs
+pub const DxDescriptorID = i32;
 
 pub const RendererApi = extern struct {
     bits: c_int = 0,
@@ -356,9 +377,7 @@ pub const ResourceMemoryUsage = extern struct {
 };
 
 /// Choosing Memory Type
-pub const PlatformParameters = extern struct {
-    /// RendererAPI
-    mSelectedRendererApi: RendererApi,
+pub const GPUSelection = extern struct {
     /// Available GPU capabilities
     ppAvailableGpuNames: [256][4]u8,
     pAvailableGpuIds: [4]u32,
@@ -368,7 +387,11 @@ pub const PlatformParameters = extern struct {
     mPreferedGpuId: u32,
 };
 
+// TIDES: BEGIN MANUAL CHANGES
 /// Forward declarations
+// pub const Renderer = Renderer;
+// TIDES: END MANUAL CHANGES
+
 /// Raytracing
 pub const IndirectDrawArguments = extern struct {
     mVertexCount: u32,
@@ -394,25 +417,15 @@ pub const IndirectDispatchArguments = extern struct {
 pub const IndirectArgumentType = extern struct {
     bits: c_int = 0,
 
-    pub const INDIRECT_ARG_INVALID: IndirectArgumentType = .{ .bits = 0 };
-    pub const INDIRECT_DRAW: IndirectArgumentType = .{ .bits = 1 };
-    pub const INDIRECT_DRAW_INDEX: IndirectArgumentType = .{ .bits = 2 };
-    pub const INDIRECT_DISPATCH: IndirectArgumentType = .{ .bits = 3 };
-    pub const INDIRECT_VERTEX_BUFFER: IndirectArgumentType = .{ .bits = 4 };
-    pub const INDIRECT_INDEX_BUFFER: IndirectArgumentType = .{ .bits = 5 };
-    pub const INDIRECT_CONSTANT: IndirectArgumentType = .{ .bits = 6 };
-    /// only for dx
-    pub const INDIRECT_CONSTANT_BUFFER_VIEW: IndirectArgumentType = .{ .bits = 7 };
-    /// only for dx
-    pub const INDIRECT_SHADER_RESOURCE_VIEW: IndirectArgumentType = .{ .bits = 8 };
-    /// only for dx
-    pub const INDIRECT_UNORDERED_ACCESS_VIEW: IndirectArgumentType = .{ .bits = 9 };
+    pub const INDIRECT_DRAW: IndirectArgumentType = .{ .bits = 0 };
+    pub const INDIRECT_DRAW_INDEX: IndirectArgumentType = .{ .bits = 1 };
+    pub const INDIRECT_DISPATCH: IndirectArgumentType = .{ .bits = 2 };
     /// metal ICB
-    pub const INDIRECT_COMMAND_BUFFER: IndirectArgumentType = .{ .bits = 10 };
+    pub const INDIRECT_COMMAND_BUFFER: IndirectArgumentType = .{ .bits = 3 };
     /// metal ICB reset
-    pub const INDIRECT_COMMAND_BUFFER_RESET: IndirectArgumentType = .{ .bits = 11 };
+    pub const INDIRECT_COMMAND_BUFFER_RESET: IndirectArgumentType = .{ .bits = 4 };
     /// metal ICB optimization
-    pub const INDIRECT_COMMAND_BUFFER_OPTIMIZE: IndirectArgumentType = .{ .bits = 12 };
+    pub const INDIRECT_COMMAND_BUFFER_OPTIMIZE: IndirectArgumentType = .{ .bits = 5 };
 
     // pub usingnamespace cpp.FlagsMixin(IndirectArgumentType);
 };
@@ -480,32 +493,17 @@ pub const ShaderStage = extern struct {
 
     pub const SHADER_STAGE_NONE: ShaderStage = .{ .bits = @as(c_uint, @intCast(0)) };
     pub const SHADER_STAGE_VERT: ShaderStage = .{ .bits = @as(c_uint, @intCast(1)) };
-    pub const SHADER_STAGE_TESC: ShaderStage = .{ .bits = @as(c_uint, @intCast(2)) };
-    pub const SHADER_STAGE_TESE: ShaderStage = .{ .bits = @as(c_uint, @intCast(4)) };
+    pub const SHADER_STAGE_FRAG: ShaderStage = .{ .bits = @as(c_uint, @intCast(2)) };
+    pub const SHADER_STAGE_COMP: ShaderStage = .{ .bits = @as(c_uint, @intCast(4)) };
     pub const SHADER_STAGE_GEOM: ShaderStage = .{ .bits = @as(c_uint, @intCast(8)) };
-    pub const SHADER_STAGE_FRAG: ShaderStage = .{ .bits = @as(c_uint, @intCast(16)) };
-    pub const SHADER_STAGE_COMP: ShaderStage = .{ .bits = @as(c_uint, @intCast(32)) };
+    pub const SHADER_STAGE_TESC: ShaderStage = .{ .bits = @as(c_uint, @intCast(16)) };
+    pub const SHADER_STAGE_TESE: ShaderStage = .{ .bits = @as(c_uint, @intCast(32)) };
     pub const SHADER_STAGE_ALL_GRAPHICS: ShaderStage = .{ .bits = (@as(u32, @intCast(ShaderStage.SHADER_STAGE_VERT.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_GEOM.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_FRAG.bits))) };
     pub const SHADER_STAGE_HULL: ShaderStage = .{ .bits = @as(c_uint, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) };
     pub const SHADER_STAGE_DOMN: ShaderStage = .{ .bits = @as(c_uint, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) };
     pub const SHADER_STAGE_COUNT: ShaderStage = .{ .bits = @as(c_uint, @intCast(6)) };
 
     // pub usingnamespace cpp.FlagsMixin(ShaderStage);
-};
-
-pub const ShaderStageIndex = extern struct {
-    bits: c_int = 0,
-
-    pub const SHADER_STAGE_INDEX_VERT: ShaderStageIndex = .{ .bits = @as(c_uint, @intCast(0)) };
-    pub const SHADER_STAGE_INDEX_TESC: ShaderStageIndex = .{ .bits = ShaderStageIndex.SHADER_STAGE_INDEX_VERT.bits + 1 };
-    pub const SHADER_STAGE_INDEX_TESE: ShaderStageIndex = .{ .bits = ShaderStageIndex.SHADER_STAGE_INDEX_VERT.bits + 2 };
-    pub const SHADER_STAGE_INDEX_GEOM: ShaderStageIndex = .{ .bits = ShaderStageIndex.SHADER_STAGE_INDEX_VERT.bits + 3 };
-    pub const SHADER_STAGE_INDEX_FRAG: ShaderStageIndex = .{ .bits = ShaderStageIndex.SHADER_STAGE_INDEX_VERT.bits + 4 };
-    pub const SHADER_STAGE_INDEX_COMP: ShaderStageIndex = .{ .bits = ShaderStageIndex.SHADER_STAGE_INDEX_VERT.bits + 5 };
-    pub const SHADER_STAGE_INDEX_HULL: ShaderStageIndex = .{ .bits = @as(c_uint, @intCast(ShaderStageIndex.SHADER_STAGE_INDEX_TESC.bits)) };
-    pub const SHADER_STAGE_INDEX_DOMN: ShaderStageIndex = .{ .bits = @as(c_uint, @intCast(ShaderStageIndex.SHADER_STAGE_INDEX_TESE.bits)) };
-
-    // pub usingnamespace cpp.FlagsMixin(ShaderStageIndex);
 };
 
 pub const PrimitiveTopology = extern struct {
@@ -531,27 +529,31 @@ pub const IndexType = extern struct {
     // pub usingnamespace cpp.FlagsMixin(IndexType);
 };
 
-pub const ShaderSemantic = enum(u32) {
-    UNDEFINED,
-    POSITION,
-    NORMAL,
-    COLOR,
-    TANGENT,
-    BITANGENT,
-    JOINTS,
-    WEIGHTS,
-    CUSTOM,
-    TEXCOORD0,
-    TEXCOORD1,
-    TEXCOORD2,
-    TEXCOORD3,
-    TEXCOORD4,
-    TEXCOORD5,
-    TEXCOORD6,
-    TEXCOORD7,
-    TEXCOORD8,
-    TEXCOORD9,
-    MAX_SEMANTICS,
+pub const ShaderSemantic = extern struct {
+    bits: c_int = 0,
+
+    pub const SEMANTIC_UNDEFINED: ShaderSemantic = .{ .bits = @as(c_uint, @intCast(0)) };
+    pub const SEMANTIC_POSITION: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 1 };
+    pub const SEMANTIC_NORMAL: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 2 };
+    pub const SEMANTIC_COLOR: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 3 };
+    pub const SEMANTIC_TANGENT: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 4 };
+    pub const SEMANTIC_BITANGENT: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 5 };
+    pub const SEMANTIC_JOINTS: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 6 };
+    pub const SEMANTIC_WEIGHTS: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 7 };
+    pub const SEMANTIC_CUSTOM: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 8 };
+    pub const SEMANTIC_TEXCOORD0: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 9 };
+    pub const SEMANTIC_TEXCOORD1: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 10 };
+    pub const SEMANTIC_TEXCOORD2: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 11 };
+    pub const SEMANTIC_TEXCOORD3: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 12 };
+    pub const SEMANTIC_TEXCOORD4: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 13 };
+    pub const SEMANTIC_TEXCOORD5: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 14 };
+    pub const SEMANTIC_TEXCOORD6: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 15 };
+    pub const SEMANTIC_TEXCOORD7: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 16 };
+    pub const SEMANTIC_TEXCOORD8: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 17 };
+    pub const SEMANTIC_TEXCOORD9: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 18 };
+    pub const MAX_SEMANTICS: ShaderSemantic = .{ .bits = ShaderSemantic.SEMANTIC_UNDEFINED.bits + 19 };
+
+    // pub usingnamespace cpp.FlagsMixin(ShaderSemantic);
 };
 
 pub const BlendConstant = extern struct {
@@ -762,6 +764,8 @@ pub const BufferCreationFlags = extern struct {
     pub const BUFFER_CREATION_FLAG_SHADER_DEVICE_ADDRESS: BufferCreationFlags = .{ .bits = @as(c_uint, @intCast(32)) };
     /// Flag to specify not to allocate descriptors for the resource
     pub const BUFFER_CREATION_FLAG_SHADER_BINDING_TABLE: BufferCreationFlags = .{ .bits = @as(c_uint, @intCast(64)) };
+    /// Flag to specify not to allocate descriptors for the resource
+    pub const BUFFER_CREATION_FLAG_MARKER: BufferCreationFlags = .{ .bits = @as(c_uint, @intCast(128)) };
 
     // pub usingnamespace cpp.FlagsMixin(BufferCreationFlags);
 };
@@ -803,6 +807,7 @@ pub const TextureCreationFlags = extern struct {
     pub const TEXTURE_CREATION_FLAG_VR_MULTIVIEW: TextureCreationFlags = .{ .bits = @as(c_uint, @intCast(16384)) };
     /// Binds the FFR fragment density if this texture is used as a render target.
     pub const TEXTURE_CREATION_FLAG_VR_FOVEATED_RENDERING: TextureCreationFlags = .{ .bits = @as(c_uint, @intCast(32768)) };
+    pub const TEXTURE_CREATION_FLAG_SAMPLE_LOCATIONS_COMPATIBLE: TextureCreationFlags = .{ .bits = @as(c_uint, @intCast(131072)) };
 
     // pub usingnamespace cpp.FlagsMixin(TextureCreationFlags);
 };
@@ -822,28 +827,13 @@ pub const ColorSpace = extern struct {
 };
 
 /// Used for swapchain
-pub const GPUPresetLevel = extern struct {
-    bits: c_int = 0,
-
-    pub const GPU_PRESET_NONE: GPUPresetLevel = .{ .bits = @as(c_uint, @intCast(0)) };
-    /// This means unsupported
-    pub const GPU_PRESET_OFFICE: GPUPresetLevel = .{ .bits = GPUPresetLevel.GPU_PRESET_NONE.bits + 1 };
-    /// Mostly for mobile GPU
-    pub const GPU_PRESET_VERYLOW: GPUPresetLevel = .{ .bits = GPUPresetLevel.GPU_PRESET_NONE.bits + 2 };
-    pub const GPU_PRESET_LOW: GPUPresetLevel = .{ .bits = GPUPresetLevel.GPU_PRESET_NONE.bits + 3 };
-    pub const GPU_PRESET_MEDIUM: GPUPresetLevel = .{ .bits = GPUPresetLevel.GPU_PRESET_NONE.bits + 4 };
-    pub const GPU_PRESET_HIGH: GPUPresetLevel = .{ .bits = GPUPresetLevel.GPU_PRESET_NONE.bits + 5 };
-    pub const GPU_PRESET_ULTRA: GPUPresetLevel = .{ .bits = GPUPresetLevel.GPU_PRESET_NONE.bits + 6 };
-    pub const GPU_PRESET_COUNT: GPUPresetLevel = .{ .bits = GPUPresetLevel.GPU_PRESET_NONE.bits + 7 };
-
-    // pub usingnamespace cpp.FlagsMixin(GPUPresetLevel);
-};
-
 pub const BufferBarrier = extern struct {
     pBuffer: [*c]Buffer,
     mCurrentState: ResourceState,
     mNewState: ResourceState,
     bitfield_1: packed struct(u8) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mBeginOnly: u1, // 1 bits
         mEndOnly: u1, // 2 bits
         /// Padding added by c2z
@@ -856,6 +846,8 @@ pub const TextureBarrier = extern struct {
     mCurrentState: ResourceState,
     mNewState: ResourceState,
     bitfield_1: packed struct(u8) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mBeginOnly: u1, // 1 bits
         mEndOnly: u1, // 2 bits
         mAcquire: u1, // 3 bits
@@ -865,6 +857,8 @@ pub const TextureBarrier = extern struct {
     },
 
     bitfield_2: packed struct(u8) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mQueueType: u5, // 5 bits
         /// Specifiy whether following barrier targets particular subresource
         mSubresourceBarrier: u1, // 6 bits
@@ -873,6 +867,8 @@ pub const TextureBarrier = extern struct {
     },
 
     bitfield_3: packed struct(u8) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         /// Following values are ignored if mSubresourceBarrier is false
         mMipLevel: u7, // 7 bits
         /// Padding added by c2z
@@ -881,6 +877,7 @@ pub const TextureBarrier = extern struct {
 
     mArrayLayer: u16,
 
+    // TIDES: BEGIN MANUAL CHANGES
     pub fn init(texture: [*c]Texture, current_state: ResourceState, new_state: ResourceState) TextureBarrier {
         var barrier = std.mem.zeroes(TextureBarrier);
         barrier.pTexture = texture;
@@ -889,6 +886,7 @@ pub const TextureBarrier = extern struct {
 
         return barrier;
     }
+    // TIDES: END MANUAL CHANGES
 };
 
 pub const RenderTargetBarrier = extern struct {
@@ -896,6 +894,8 @@ pub const RenderTargetBarrier = extern struct {
     mCurrentState: ResourceState,
     mNewState: ResourceState,
     bitfield_1: packed struct(u8) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mBeginOnly: u1, // 1 bits
         mEndOnly: u1, // 2 bits
         mAcquire: u1, // 3 bits
@@ -905,6 +905,8 @@ pub const RenderTargetBarrier = extern struct {
     },
 
     bitfield_2: packed struct(u8) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mQueueType: u5, // 5 bits
         /// Specifiy whether following barrier targets particular subresource
         mSubresourceBarrier: u1, // 6 bits
@@ -913,6 +915,8 @@ pub const RenderTargetBarrier = extern struct {
     },
 
     bitfield_3: packed struct(u8) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         /// Following values are ignored if mSubresourceBarrier is false
         mMipLevel: u7, // 7 bits
         /// Padding added by c2z
@@ -921,6 +925,7 @@ pub const RenderTargetBarrier = extern struct {
 
     mArrayLayer: u16,
 
+    // TIDES: BEGIN MANUAL CHANGES
     pub fn init(render_target: [*c]RenderTarget, current_state: ResourceState, new_state: ResourceState) RenderTargetBarrier {
         var barrier = std.mem.zeroes(RenderTargetBarrier);
         barrier.pRenderTarget = render_target;
@@ -929,6 +934,7 @@ pub const RenderTargetBarrier = extern struct {
 
         return barrier;
     }
+    // TIDES: END MANUAL CHANGES
 };
 
 pub const ReadRange = extern struct {
@@ -964,7 +970,7 @@ pub const QueryPool = extern struct {
     mStride: u32,
 
     pub const __Struct0 = extern struct {
-        pQueryHeap: *ID3D12QueryHeap,
+        pQueryHeap: [*c]ID3D12QueryHeap,
         pReadbackBuffer: [*c]Buffer,
         mType: D3D12_QUERY_TYPE,
     };
@@ -1109,6 +1115,8 @@ pub const Buffer = extern struct {
     pCpuMappedAddress: ?*anyopaque,
     mDx: __Struct0,
     bitfield_1: packed struct(u64) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mSize: u32, // 32 bits
         mDescriptors: u20, // 52 bits
         mMemoryUsage: u3, // 55 bits
@@ -1126,10 +1134,23 @@ pub const Buffer = extern struct {
         mSrvDescriptorOffset: u8,
         /// Offset from mDescriptors for uav descriptor handle
         mUavDescriptorOffset: u8,
+        bitfield_1: packed struct(u8) {
+            // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
+            mMarkerBuffer: u1, // 1 bits
+            /// Padding added by c2z
+            _dummy_padding: u7,
+        },
+
         /// Native handle of the underlying resource
         pResource: *ID3D12Resource,
-        /// Contains resource allocation info such as parent heap, offset in heap
-        pAllocation: *D3D12MAAllocation,
+        __union_field1: __Union0,
+
+        pub const __Union0 = extern union {
+            pMarkerBufferHeap: *ID3D12Heap,
+            /// Contains resource allocation info such as parent heap, offset in heap
+            pAllocation: *D3D12MAAllocation,
+        };
     };
 };
 
@@ -1179,18 +1200,24 @@ pub const TextureDesc = extern struct {
 pub const Texture = extern struct {
     mDx: __Struct0,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         /// Current state of the buffer
         mWidth: u16, // 16 bits
         mHeight: u16, // 32 bits
     },
 
     bitfield_2: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mDepth: u16, // 16 bits
         mMipLevels: u5, // 21 bits
         mArraySizeMinusOne: u11, // 32 bits
     },
 
     bitfield_3: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mFormat: u8, // 8 bits
         /// Flags specifying which aspects (COLOR,DEPTH,STENCIL) are included in the pImageView
         mAspectMask: u4, // 12 bits
@@ -1212,8 +1239,9 @@ pub const Texture = extern struct {
         pResource: *ID3D12Resource,
         /// Contains resource allocation info such as parent heap, offset in heap
         pAllocation: *D3D12MAAllocation,
-
         bitfield_1: packed struct(u32) {
+            // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
             mHandleCount: u24, // 24 bits
             /// Padding added by c2z
             _dummy_padding: u8,
@@ -1267,16 +1295,22 @@ pub const RenderTarget = extern struct {
     mDx: __Struct0,
     mClearValue: ClearValue,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mArraySize: u16, // 16 bits
         mDepth: u16, // 32 bits
     },
 
     bitfield_2: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mWidth: u16, // 16 bits
         mHeight: u16, // 32 bits
     },
 
     bitfield_3: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mDescriptors: u20, // 20 bits
         mMipLevels: u10, // 30 bits
         /// Padding added by c2z
@@ -1284,6 +1318,8 @@ pub const RenderTarget = extern struct {
     },
 
     bitfield_4: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mSampleQuality: u5, // 5 bits
         /// Padding added by c2z
         _dummy_padding: u27,
@@ -1347,6 +1383,8 @@ pub const DescriptorInfo = extern struct {
     pName: [*c]const u8,
     mType: u32,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mDim: u4, // 4 bits
         mRootDescriptor: u1, // 5 bits
         mStaticSampler: u1, // 6 bits
@@ -1419,6 +1457,8 @@ pub const DescriptorData = extern struct {
     /// Name of descriptor
     pName: [*c]const u8,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         /// Number of array entries to update (array size of ppTextures/ppBuffers/...)
         mCount: u31, // 31 bits
         /// Padding added by c2z
@@ -1426,6 +1466,8 @@ pub const DescriptorData = extern struct {
     },
 
     bitfield_2: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         /// Dst offset into the array descriptor (useful for updating few entries in a large array)
         /// Example: to update 6th entry in a bindless texture descriptor, mArrayOffset will be 6 and mCount will be 1)
         mArrayOffset: u20, // 20 bits
@@ -1439,6 +1481,8 @@ pub const DescriptorData = extern struct {
     /// Range to bind (buffer offset, size)
     pRanges: [*c]DescriptorDataRange,
     bitfield_3: packed struct(u8) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         /// Binds stencil only descriptor instead of color/depth
         mBindStencilResource: u1, // 1 bits
         /// Padding added by c2z
@@ -1495,6 +1539,8 @@ pub const DescriptorSet = extern struct {
         mSamplerStride: u32,
         pRootSignature: [*c]const RootSignature,
         bitfield_1: packed struct(u32) {
+            // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
             mMaxSets: u16, // 16 bits
             mUpdateFrequency: u3, // 19 bits
             mNodeIndex: u4, // 23 bits
@@ -1505,6 +1551,8 @@ pub const DescriptorSet = extern struct {
         },
 
         bitfield_2: packed struct(u32) {
+            // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
             mPipelineType: u3, // 3 bits
             /// Padding added by c2z
             _dummy_padding: u29,
@@ -1528,25 +1576,33 @@ pub const CmdDesc = extern struct {
     pName: [*c]const u8,
 };
 
-pub const MarkerType = extern struct {
+pub const MarkerFlags = extern struct {
     bits: c_int = 0,
 
-    pub const MARKER_TYPE_DEFAULT: MarkerType = .{ .bits = @as(c_uint, @intCast(0)) };
-    pub const MARKER_TYPE_IN: MarkerType = .{ .bits = @as(c_uint, @intCast(1)) };
-    pub const MARKER_TYPE_OUT: MarkerType = .{ .bits = @as(c_uint, @intCast(2)) };
-    pub const MARKER_TYPE_IN_OUT: MarkerType = .{ .bits = @as(c_uint, @intCast(3)) };
+    /// Default flag
+    pub const MARKER_FLAG_NONE: MarkerFlags = .{ .bits = @as(c_uint, @intCast(0)) };
+    /// Default flag
+    pub const MARKER_FLAG_WAIT_FOR_WRITE: MarkerFlags = .{ .bits = @as(c_uint, @intCast(1)) };
 
-    // pub usingnamespace cpp.FlagsMixin(MarkerType);
+    // pub usingnamespace cpp.FlagsMixin(MarkerFlags);
+};
+
+pub const MarkerDesc = extern struct {
+    pBuffer: [*c]Buffer,
+    mOffset: u32,
+    mValue: u32,
+    mFlags: MarkerFlags,
 };
 
 pub const Cmd = extern struct {
     mDx: __Struct0,
-
     pRenderer: [*c]Renderer,
     pQueue: [*c]Queue,
 
     pub const __Struct0 = extern struct {
         pCmdList: *ID3D12GraphicsCommandList1,
+        /// For resource state validation
+        pDebugCmdList: *ID3D12DebugCommandList,
         /// Cached in beginCmd to avoid fetching them during rendering
         pBoundHeaps: [2]*DescriptorHeap,
         mBoundHeapStartHandles: [2]D3D12_GPU_DESCRIPTOR_HANDLE,
@@ -1555,6 +1611,8 @@ pub const Cmd = extern struct {
         pBoundDescriptorSets: [4][*c]DescriptorSet,
         mBoundDescriptorSetIndices: [4]u16,
         bitfield_1: packed struct(u32) {
+            // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
             mNodeIndex: u4, // 4 bits
             mType: u3, // 7 bits
             /// Padding added by c2z
@@ -1562,6 +1620,12 @@ pub const Cmd = extern struct {
         },
 
         pCmdPool: [*c]CmdPool,
+
+        // opaques
+
+        // TIDES: BEGIN MANUAL CHANGES
+        // const DescriptorHeap = anyopaque;
+        // END: BEGIN MANUAL CHANGES
     };
 };
 
@@ -1608,6 +1672,8 @@ pub const QueueDesc = extern struct {
 pub const Queue = extern struct {
     mDx: __Struct0,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mType: u3, // 3 bits
         mNodeIndex: u4, // 7 bits
         /// Padding added by c2z
@@ -1616,7 +1682,7 @@ pub const Queue = extern struct {
 
     pub const __Struct0 = extern struct {
         pQueue: *ID3D12CommandQueue,
-        pFence: [*c]Fence,
+        pFence: *Fence,
         /// To silence mismatching command list on Windows 11 multi GPU
         pRenderer: [*c]Renderer,
     };
@@ -1641,6 +1707,8 @@ pub const BinaryShaderStageDesc = extern struct {
 pub const BinaryShaderDesc = extern struct {
     mStages: ShaderStage,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         /// Specify whether shader will own byte code memory
         mOwnByteCode: u1, // 1 bits
         /// Padding added by c2z
@@ -1659,6 +1727,8 @@ pub const BinaryShaderDesc = extern struct {
 
 pub const Shader = extern struct {
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mStages: u31, // 31 bits
         /// C2Z WARNING: This perhaps shouldn't be padded in this way!
         /// Padding added by c2z
@@ -1666,6 +1736,8 @@ pub const Shader = extern struct {
     },
 
     bitfield_2: packed struct(u8) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mIsMultiviewVR: u1, // 1 bits
         /// Padding added by c2z
         _dummy_padding: u7,
@@ -1881,6 +1953,8 @@ pub const SwapChain = extern struct {
     ppRenderTargets: [*c][*c]RenderTarget,
     mDx: __Struct0,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mImageCount: u8, // 8 bits
         mEnableVsync: u1, // 9 bits
         mColorSpace: u4, // 13 bits
@@ -1894,6 +1968,8 @@ pub const SwapChain = extern struct {
         /// isn't supported by older devices.
         pSwapChain: *IDXGISwapChain3,
         bitfield_1: packed struct(u32) {
+            // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
             /// Sync interval to specify how interval for vsync
             mSyncInterval: u3, // 3 bits
             mFlags: u10, // 13 bits
@@ -1935,18 +2011,12 @@ pub const GpuMode = extern struct {
     // pub usingnamespace cpp.FlagsMixin(GpuMode);
 };
 
-pub const ExtendedSettings = extern struct {
-    mNumSettings: u32,
-    pSettings: [*c]u32,
-    ppSettingNames: [*c]const [*c]u8,
-};
-
 pub const RendererDesc = extern struct {
     mDx: __Struct0,
     mShaderTarget: ShaderTarget,
     mGpuMode: GpuMode,
     /// Apps may want to query additional state for their applications. That information is transferred through here.
-    pExtendedSettings: [*c]ExtendedSettings,
+    pExtendedSettings: *ExtendedSettings,
     /// Required when creating unlinked multiple renderers. Optional otherwise, can be used for explicit GPU selection.
     pContext: [*c]RendererContext,
     mGpuIndex: u32,
@@ -1954,11 +2024,10 @@ pub const RendererDesc = extern struct {
     /// directly to the shader. However, it can slow things down a lot, especially for applications with numerous PSOs. Time to see the
     /// first render frame may take several minutes
     mEnableGpuBasedValidation: bool,
-    mD3D11Supported: bool,
-    mGLESSupported: bool,
-    /// Also, if `ReloadServer` code is interfering with debugging (due to threads/networking), then it can be temporarily disabled via this
-    /// flag. NOTE: This flag overrides the behaviour specified by the `EnableReloadServer` field.
-    mDisableReloadServer: bool,
+    /// to align on PC on 40 bytes
+    mPaddingA: bool,
+    mPaddingB: bool,
+    mPaddingC: bool,
 
     pub const __Struct0 = extern struct {
         mFeatureLevel: D3D_FEATURE_LEVEL,
@@ -1992,18 +2061,6 @@ pub const FormatCapability = extern struct {
     // pub usingnamespace cpp.FlagsMixin(FormatCapability);
 };
 
-pub const GPUCapBits = extern struct {
-    mFormatCaps: [239]FormatCapability,
-};
-
-pub const DefaultResourceAlignment = extern struct {
-    bits: c_int = 0,
-
-    pub const RESOURCE_BUFFER_ALIGNMENT: DefaultResourceAlignment = .{ .bits = 4 };
-
-    // pub usingnamespace cpp.FlagsMixin(DefaultResourceAlignment);
-};
-
 pub const WaveOpsSupportFlags = extern struct {
     bits: c_int = 0,
 
@@ -2022,11 +2079,19 @@ pub const WaveOpsSupportFlags = extern struct {
     // pub usingnamespace cpp.FlagsMixin(WaveOpsSupportFlags);
 };
 
-/// update availableGpuProperties in GPUConfig.cpp if you made changes to this list
-pub const GPUSettings = extern struct {
-    /// set to 0 on OpenGLES platform
+pub const GpuDesc = extern struct {
+    mDx: __Struct0,
+    mFormatCaps: [239]FormatCapability,
+    ///**********************************************************************************
+    ///
+    /// GPU Properties
+    ///**********************************************************************************
+    ///
+    /// update availableGpuProperties, setDefaultGPUProperties in GraphicsConfig.cpp
+    /// if you made changes to this list
     mVRAM: u64,
     mUniformBufferAlignment: u32,
+    mUploadBufferAlignment: u32,
     mUploadBufferTextureAlignment: u32,
     mUploadBufferTextureRowAlignment: u32,
     mMaxVertexInputBindings: u32,
@@ -2038,31 +2103,48 @@ pub const GPUSettings = extern struct {
     mMaxTotalComputeThreads: u32,
     mMaxComputeThreads: [3]u32,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mMultiDrawIndirect: u1, // 1 bits
-        mIndirectRootConstant: u1, // 2 bits
-        mBuiltinDrawID: u1, // 3 bits
-        mIndirectCommandBuffer: u1, // 4 bits
-        mROVsSupported: u1, // 5 bits
-        mTessellationSupported: u1, // 6 bits
-        mGeometryShaderSupported: u1, // 7 bits
-        mGpuBreadcrumbs: u1, // 8 bits
-        mHDRSupported: u1, // 9 bits
-        mTimestampQueries: u1, // 10 bits
-        mOcclusionQueries: u1, // 11 bits
-        mPipelineStatsQueries: u1, // 12 bits
-        mAllowBufferTextureInSameHeap: u1, // 13 bits
-        mRaytracingSupported: u1, // 14 bits
-        mRayPipelineSupported: u1, // 15 bits
-        mRayQuerySupported: u1, // 16 bits
-        mSoftwareVRSSupported: u1, // 17 bits
-        mPrimitiveIdSupported: u1, // 18 bits
+        mMultiDrawIndirectCount: u1, // 2 bits
+        mRootConstant: u1, // 3 bits
+        mIndirectRootConstant: u1, // 4 bits
+        mBuiltinDrawID: u1, // 5 bits
+        mIndirectCommandBuffer: u1, // 6 bits
+        mROVsSupported: u1, // 7 bits
+        mTessellationSupported: u1, // 8 bits
+        mGeometryShaderSupported: u1, // 9 bits
+        mGpuMarkers: u1, // 10 bits
+        mHDRSupported: u1, // 11 bits
+        mTimestampQueries: u1, // 12 bits
+        mOcclusionQueries: u1, // 13 bits
+        mPipelineStatsQueries: u1, // 14 bits
+        mAllowBufferTextureInSameHeap: u1, // 15 bits
+        mRaytracingSupported: u1, // 16 bits
+        mUnifiedMemorySupported: u1, // 17 bits
+        mRayPipelineSupported: u1, // 18 bits
+        mRayQuerySupported: u1, // 19 bits
+        mSoftwareVRSSupported: u1, // 20 bits
+        mPrimitiveIdSupported: u1, // 21 bits
+        mPrimitiveIdPsSupported: u1, // 22 bits
+        m64BitAtomicsSupported: u1, // 23 bits
         /// Padding added by c2z
-        _dummy_padding: u14,
+        _dummy_padding: u9,
     },
 
     mFeatureLevel: D3D_FEATURE_LEVEL,
-    mMaxBoundTextures: u32,
     bitfield_2: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
+        mSuppressInvalidSubresourceStateAfterExit: u1, // 1 bits
+        /// Padding added by c2z
+        _dummy_padding: u31,
+    },
+
+    mMaxBoundTextures: u32,
+    bitfield_3: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mSamplerAnisotropySupported: u1, // 1 bits
         mGraphicsQueueSupported: u1, // 2 bits
         /// Padding added by c2z
@@ -2070,17 +2152,22 @@ pub const GPUSettings = extern struct {
     },
 
     mAmdAsicFamily: u32,
+
+    pub const __Struct0 = extern struct {
+        pGpu: *IDXGIAdapter4,
+    };
 };
 
-/// update availableGpuProperties in GPUConfig.cpp if you made changes to this list
 pub const Renderer = extern struct {
     mDx: __Struct0,
     pNullDescriptors: *NullDescriptors,
     pContext: [*c]RendererContext,
-    pGpu: [*c]const GpuInfo,
+    pGpu: [*c]const GpuDesc,
     pName: [*c]const u8,
     mRendererApi: RendererApi,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mLinkedNodeCount: u4, // 4 bits
         mUnlinkedRendererIndex: u4, // 8 bits
         mGpuMode: u3, // 11 bits
@@ -2097,7 +2184,9 @@ pub const Renderer = extern struct {
         pSamplerHeaps: [*c]*DescriptorHeap,
         pResourceAllocator: *D3D12MAAllocator,
         pDevice: *ID3D12Device,
-        pDebugValidation: *ID3D12InfoQueue,
+        pDebugValidation: *ID3D12InfoQueue1,
+        mCallbackCookie: DWORD,
+        mUseDebugCallback: bool,
         mSuppressMismatchingCommandListDuringPresent: bool,
     };
 
@@ -2109,60 +2198,21 @@ pub const Renderer = extern struct {
 pub const RendererContextDesc = extern struct {
     mDx: __Struct0,
     mEnableGpuBasedValidation: bool,
-    mD3D11Supported: bool,
-    mGLESSupported: bool,
 
     pub const __Struct0 = extern struct {
         mFeatureLevel: D3D_FEATURE_LEVEL,
     };
 };
 
-pub const GpuInfo = extern struct {
-    mDx: __Struct0,
-    mSettings: GPUSettings,
-    mCapBits: GPUCapBits,
-
-    pub const __Struct0 = extern struct {
-        pGpu: *IDXGIAdapter4,
-    };
-};
-
 pub const RendererContext = extern struct {
     mDx: __Struct0,
-    mGpus: [4]GpuInfo,
+    mGpus: [4]GpuDesc,
     mGpuCount: u32,
 
     pub const __Struct0 = extern struct {
         pDXGIFactory: *IDXGIFactory6,
         pDebug: *ID3D12Debug,
     };
-};
-
-/// Indirect command structure define
-pub const IndirectArgument = extern struct {
-    mType: IndirectArgumentType,
-    mOffset: u32,
-};
-
-/// Indirect command structure define
-pub const IndirectArgumentDescriptor = extern struct {
-    mType: IndirectArgumentType,
-    mIndex: u32,
-    mByteSize: u32,
-};
-
-pub const CommandSignatureDesc = extern struct {
-    pRootSignature: [*c]RootSignature,
-    pArgDescs: [*c]IndirectArgumentDescriptor,
-    mIndirectArgCount: u32,
-    /// Set to true if indirect argument struct should not be aligned to 16 bytes
-    mPacked: bool,
-};
-
-pub const CommandSignature = extern struct {
-    pHandle: *ID3D12CommandSignature,
-    mDrawType: IndirectArgumentType,
-    mStride: u32,
 };
 
 pub const DescriptorSetDesc = extern struct {
@@ -2200,6 +2250,8 @@ pub const BindRenderTargetDesc = extern struct {
     mStoreActionStencil: StoreActionType,
     mArraySlice: u32,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mMipSlice: u10, // 10 bits
         mOverrideClearValue: u1, // 11 bits
         mUseArraySlice: u1, // 12 bits
@@ -2218,6 +2270,8 @@ pub const BindDepthTargetDesc = extern struct {
     mClearValue: ClearValue,
     mArraySlice: u32,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         mMipSlice: u10, // 10 bits
         mOverrideClearValue: u1, // 11 bits
         mUseArraySlice: u1, // 12 bits
@@ -2235,13 +2289,10 @@ pub const BindRenderTargetsDesc = extern struct {
     mExtent: [2]u32,
 };
 
-extern fn _1_setRendererInitializationError_(reason: [*c]const u8) void;
-/// clang-format off
-/// Utilities functions
-pub const setRendererInitializationError = _1_setRendererInitializationError_;
-
-extern fn _1_hasRendererInitializationError_(outReason: [*c]const [*c]u8) bool;
-pub const hasRendererInitializationError = _1_hasRendererInitializationError_;
+// TIDES: BEGIN MANUAL CHANGES
+extern fn _1_initGPUConfiguration_(pExtendedSettings: [*c]ExtendedSettings) void;
+pub const initGPUConfiguration = _1_initGPUConfiguration_;
+// TIDES: END MANUAL CHANGES
 
 extern fn _1_initRendererContext_(appName: [*c]const u8, pSettings: [*c]const RendererContextDesc, ppContext: [*c][*c]RendererContext) void;
 /// Multiple renderer API (optional)
@@ -2250,9 +2301,6 @@ pub const initRendererContext = _1_initRendererContext_;
 extern fn _1_exitRendererContext_(pContext: [*c]RendererContext) void;
 pub const exitRendererContext = _1_exitRendererContext_;
 
-extern fn _1_initGPUConfiguration_(pExtendedSettings: [*c]ExtendedSettings) void;
-pub const initGPUConfiguration = _1_initGPUConfiguration_;
-
 extern fn _1_initRenderer_(appName: [*c]const u8, pSettings: [*c]const RendererDesc, ppRenderer: [*c][*c]Renderer) void;
 /// allocates memory and initializes the renderer -> returns pRenderer
 pub const initRenderer = _1_initRenderer_;
@@ -2260,447 +2308,289 @@ pub const initRenderer = _1_initRenderer_;
 extern fn _1_exitRenderer_(pRenderer: [*c]Renderer) void;
 pub const exitRenderer = _1_exitRenderer_;
 
-extern fn _1_addFence(renderer: [*c]Renderer, fence: [*c][*c]Fence) void;
-pub fn addFence(renderer: [*c]Renderer, fence: [*c][*c]Fence) void {
-    _1_addFence(renderer, fence);
-}
+extern fn _1_initFence_(pRenderer: [*c]Renderer, ppFence: [*c][*c]Fence) void;
+pub const initFence = _1_initFence_;
 
-extern fn _1_removeFence(renderer: [*c]Renderer, fence: [*c]Fence) void;
-pub fn removeFence(renderer: [*c]Renderer, fence: [*c]Fence) void {
-    _1_removeFence(renderer, fence);
-}
+extern fn _1_exitFence_(pRenderer: [*c]Renderer, pFence: [*c]Fence) void;
+pub const exitFence = _1_exitFence_;
 
-extern fn _1_addSemaphore(renderer: [*c]Renderer, semaphore: [*c][*c]Semaphore) void;
-pub fn addSemaphore(renderer: [*c]Renderer, semaphore: [*c][*c]Semaphore) void {
-    _1_addSemaphore(renderer, semaphore);
-}
+extern fn _1_initSemaphore_(pRenderer: [*c]Renderer, ppSemaphore: [*c][*c]Semaphore) void;
+pub const initSemaphore = _1_initSemaphore_;
 
-extern fn _1_removeSemaphore(renderer: [*c]Renderer, semaphore: [*c]Semaphore) void;
-pub fn removeSemaphore(renderer: [*c]Renderer, semaphore: [*c]Semaphore) void {
-    _1_removeSemaphore(renderer, semaphore);
-}
+extern fn _1_exitSemaphore_(pRenderer: [*c]Renderer, pSemaphore: [*c]Semaphore) void;
+pub const exitSemaphore = _1_exitSemaphore_;
 
-extern fn _1_addQueue(renderer: [*c]Renderer, desc: [*c]QueueDesc, queue: [*c][*c]Queue) void;
-pub fn addQueue(r: [*c]Renderer, qd: [*c]QueueDesc, q: [*c][*c]Queue) void {
-    _1_addQueue(r, qd, q);
-}
+extern fn _1_initQueue_(pRenderer: [*c]Renderer, pQDesc: [*c]QueueDesc, ppQueue: [*c][*c]Queue) void;
+pub const initQueue = _1_initQueue_;
 
-extern fn _1_removeQueue(renderer: [*c]Renderer, queue: [*c]Queue) void;
-pub fn removeQueue(r: [*c]Renderer, q: [*c]Queue) void {
-    _1_removeQueue(r, q);
-}
+extern fn _1_exitQueue_(pRenderer: [*c]Renderer, pQueue: [*c]Queue) void;
+pub const exitQueue = _1_exitQueue_;
 
-extern fn _1_addSwapChain(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, swap_chain: [*c][*c]SwapChain) void;
-pub fn addSwapChain(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, swap_chain: [*c][*c]SwapChain) void {
-    _1_addSwapChain(renderer, desc, swap_chain);
-}
+extern fn _1_addSwapChain_(pRenderer: [*c]Renderer, pDesc: [*c]const SwapChainDesc, ppSwapChain: [*c][*c]SwapChain) void;
+pub const addSwapChain = _1_addSwapChain_;
 
-extern fn _1_removeSwapChain(renderer: [*c]Renderer, swap_chain: [*c]SwapChain) void;
-pub fn removeSwapChain(renderer: [*c]Renderer, swap_chain: [*c]SwapChain) void {
-    _1_removeSwapChain(renderer, swap_chain);
-}
+extern fn _1_removeSwapChain_(pRenderer: [*c]Renderer, pSwapChain: [*c]SwapChain) void;
+pub const removeSwapChain = _1_removeSwapChain_;
 
-pub const addResourceHeapFn = ?*const fn ([*c]Renderer, [*c]const ResourceHeapDesc, [*c][*c]ResourceHeap) callconv(.C) void;
-
-extern var _1_addResourceHeap_: *addResourceHeapFn;
+extern fn _1_addResourceHeap_(pRenderer: [*c]Renderer, pDesc: [*c]const ResourceHeapDesc, ppHeap: [*c][*c]ResourceHeap) void;
+/// memory functions
 pub const addResourceHeap = _1_addResourceHeap_;
 
-pub const removeResourceHeapFn = ?*const fn ([*c]Renderer, [*c]ResourceHeap) callconv(.C) void;
-
-extern var _1_removeResourceHeap_: *removeResourceHeapFn;
+extern fn _1_removeResourceHeap_(pRenderer: [*c]Renderer, pHeap: [*c]ResourceHeap) void;
 pub const removeResourceHeap = _1_removeResourceHeap_;
 
-extern fn _1_addCmdPool(renderer: [*c]Renderer, desc: [*c]const CmdPoolDesc, cmd_pool: [*c][*c]CmdPool) void;
-pub fn addCmdPool(renderer: [*c]Renderer, desc: [*c]const CmdPoolDesc, cmd_pool: [*c][*c]CmdPool) void {
-    _1_addCmdPool(renderer, desc, cmd_pool);
-}
+extern fn _1_initCmdPool_(pRenderer: [*c]Renderer, pDesc: [*c]const CmdPoolDesc, ppCmdPool: [*c][*c]CmdPool) void;
+/// command pool functions
+pub const initCmdPool = _1_initCmdPool_;
 
-extern fn _1_removeCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void;
-pub fn removeCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void {
-    _1_removeCmdPool(renderer, cmd_pool);
-}
+extern fn _1_exitCmdPool_(pRenderer: [*c]Renderer, pCmdPool: [*c]CmdPool) void;
+pub const exitCmdPool = _1_exitCmdPool_;
 
-extern fn _1_addCmd(renderer: [*c]Renderer, desc: [*c]const CmdDesc, cmd: [*c][*c]Cmd) void;
-pub fn addCmd(renderer: [*c]Renderer, desc: [*c]const CmdDesc, cmd: [*c][*c]Cmd) void {
-    _1_addCmd(renderer, desc, cmd);
-}
+extern fn _1_initCmd_(pRenderer: [*c]Renderer, pDesc: [*c]const CmdDesc, ppCmd: [*c][*c]Cmd) void;
+pub const initCmd = _1_initCmd_;
 
-extern fn _1_removeCmd(renderer: [*c]Renderer, cmd: [*c]Cmd) void;
-pub fn removeCmd(renderer: [*c]Renderer, cmd: [*c]Cmd) void {
-    _1_removeCmd(renderer, cmd);
-}
+extern fn _1_exitCmd_(pRenderer: [*c]Renderer, pCmd: [*c]Cmd) void;
+pub const exitCmd = _1_exitCmd_;
 
-pub const addCmd_nFn = ?*const fn ([*c]Renderer, [*c]const CmdDesc, u32, [*c][*c][*c]Cmd) callconv(.C) void;
+extern fn _1_initCmd_n_(pRenderer: [*c]Renderer, pDesc: [*c]const CmdDesc, cmdCount: u32, pppCmds: [*c][*c][*c]Cmd) void;
+pub const initCmd_n = _1_initCmd_n_;
 
-extern var _1_addCmd_n_: *addCmd_nFn;
-pub const addCmd_n = _1_addCmd_n_;
+extern fn _1_exitCmd_n_(pRenderer: [*c]Renderer, cmdCount: u32, ppCmds: [*c][*c]Cmd) void;
+pub const exitCmd_n = _1_exitCmd_n_;
 
-pub const removeCmd_nFn = ?*const fn ([*c]Renderer, u32, [*c][*c]Cmd) callconv(.C) void;
+extern fn _1_addRenderTarget_(pRenderer: [*c]Renderer, pDesc: [*c]const RenderTargetDesc, ppRenderTarget: [*c][*c]RenderTarget) void;
+/// All buffer, texture loading handled by resource system -> IResourceLoader.*
+pub const addRenderTarget = _1_addRenderTarget_;
 
-extern var _1_removeCmd_n_: *removeCmd_nFn;
-pub const removeCmd_n = _1_removeCmd_n_;
+extern fn _1_removeRenderTarget_(pRenderer: [*c]Renderer, pRenderTarget: [*c]RenderTarget) void;
+pub const removeRenderTarget = _1_removeRenderTarget_;
 
-extern fn _1_addRenderTarget(renderer: [*c]Renderer, desc: [*c]const RenderTargetDesc, render_target: [*c][*c]RenderTarget) void;
-pub fn addRenderTarget(renderer: [*c]Renderer, desc: [*c]const RenderTargetDesc, render_target: [*c][*c]RenderTarget) void {
-    _1_addRenderTarget(renderer, desc, render_target);
-}
+extern fn _1_addSampler_(pRenderer: [*c]Renderer, pDesc: [*c]const SamplerDesc, ppSampler: [*c][*c]Sampler) void;
+pub const addSampler = _1_addSampler_;
 
-extern fn _1_removeRenderTarget(renderer: [*c]Renderer, render_target: [*c]RenderTarget) void;
-pub fn removeRenderTarget(renderer: [*c]Renderer, render_target: [*c]RenderTarget) void {
-    _1_removeRenderTarget(renderer, render_target);
-}
+extern fn _1_removeSampler_(pRenderer: [*c]Renderer, pSampler: [*c]Sampler) void;
+pub const removeSampler = _1_removeSampler_;
 
-pub const addSamplerFn = ?*const fn ([*c]Renderer, [*c]const SamplerDesc, [*c][*c]Sampler) callconv(.C) void;
-
-extern fn _1_addSampler(_: [*c]Renderer, _: [*c]const SamplerDesc, _: [*c][*c]Sampler) void;
-pub fn addSampler(renderer: [*c]Renderer, desc: [*c]const SamplerDesc, sampler: [*c][*c]Sampler) void {
-    _1_addSampler(renderer, desc, sampler);
-}
-
-pub const removeSamplerFn = ?*const fn ([*c]Renderer, [*c]Sampler) callconv(.C) void;
-
-extern fn _1_removeSampler(renderer: [*c]Renderer, sampler: [*c]Sampler) void;
-pub fn removeSampler(renderer: [*c]Renderer, sampler: [*c]Sampler) void {
-    _1_removeSampler(renderer, sampler);
-}
-
-pub const addShaderBinaryFn = ?*const fn ([*c]Renderer, [*c]const BinaryShaderDesc, [*c][*c]Shader) callconv(.C) void;
-
-extern var _1_addShaderBinary_: *addShaderBinaryFn;
+extern fn _1_addShaderBinary_(pRenderer: [*c]Renderer, pDesc: [*c]const BinaryShaderDesc, ppShaderProgram: [*c][*c]Shader) void;
+/// shader functions
 pub const addShaderBinary = _1_addShaderBinary_;
 
-extern fn _1_removeShader(renderer: [*c]Renderer, shader: [*c]Shader) void;
-pub fn removeShader(renderer: [*c]Renderer, shader: [*c]Shader) void {
-    _1_removeShader(renderer, shader);
-}
+extern fn _1_removeShader_(pRenderer: [*c]Renderer, pShaderProgram: [*c]Shader) void;
+pub const removeShader = _1_removeShader_;
 
-extern fn _1_addRootSignature(renderer: [*c]Renderer, desc: [*c]const RootSignatureDesc, root_signature: [*c][*c]RootSignature) void;
-pub fn addRootSignature(renderer: [*c]Renderer, desc: [*c]const RootSignatureDesc, root_signature: [*c][*c]RootSignature) void {
-    _1_addRootSignature(renderer, desc, root_signature);
-}
+extern fn _1_addRootSignature_(pRenderer: [*c]Renderer, pDesc: [*c]const RootSignatureDesc, ppRootSignature: [*c][*c]RootSignature) void;
+pub const addRootSignature = _1_addRootSignature_;
 
-extern fn _1_removeRootSignature(renderer: [*c]Renderer, root_signature: [*c]RootSignature) void;
-pub fn removeRootSignature(renderer: [*c]Renderer, root_signature: [*c]RootSignature) void {
-    _1_removeRootSignature(renderer, root_signature);
-}
+extern fn _1_removeRootSignature_(pRenderer: [*c]Renderer, pRootSignature: [*c]RootSignature) void;
+pub const removeRootSignature = _1_removeRootSignature_;
 
-extern fn _1_getDescriptorIndexFromName(root_signature: [*c]const RootSignature, name: [*c]const u8) u32;
-pub fn getDescriptorIndexFromName(root_signature: [*c]const RootSignature, name: [*c]const u8) u32 {
-    return _1_getDescriptorIndexFromName(root_signature, name);
-}
+extern fn _1_getDescriptorIndexFromName_(pRootSignature: [*c]const RootSignature, pName: [*c]const u8) u32;
+pub const getDescriptorIndexFromName = _1_getDescriptorIndexFromName_;
 
-extern fn _1_addPipeline(renderer: [*c]Renderer, desc: [*c]const PipelineDesc, pipeline: [*c][*c]Pipeline) void;
-pub fn addPipeline(renderer: [*c]Renderer, desc: [*c]const PipelineDesc, pipeline: [*c][*c]Pipeline) void {
-    _1_addPipeline(renderer, desc, pipeline);
-}
+extern fn _1_addPipeline_(pRenderer: [*c]Renderer, pPipelineSettings: [*c]const PipelineDesc, ppPipeline: [*c][*c]Pipeline) void;
+/// pipeline functions
+pub const addPipeline = _1_addPipeline_;
 
-extern fn _1_removePipeline(renderer: [*c]Renderer, pipeline: [*c]Pipeline) void;
-pub fn removePipeline(renderer: [*c]Renderer, pipeline: [*c]Pipeline) void {
-    _1_removePipeline(renderer, pipeline);
-}
+extern fn _1_removePipeline_(pRenderer: [*c]Renderer, pPipeline: [*c]Pipeline) void;
+pub const removePipeline = _1_removePipeline_;
 
-pub const addPipelineCacheFn = ?*const fn ([*c]Renderer, [*c]const PipelineCacheDesc, [*c][*c]PipelineCache) callconv(.C) void;
-
-extern var _1_addPipelineCache_: *addPipelineCacheFn;
+extern fn _1_addPipelineCache_(pRenderer: [*c]Renderer, pDesc: [*c]const PipelineCacheDesc, ppPipelineCache: [*c][*c]PipelineCache) void;
 pub const addPipelineCache = _1_addPipelineCache_;
 
-pub const getPipelineCacheDataFn = ?*const fn ([*c]Renderer, [*c]PipelineCache, [*c]usize, ?*anyopaque) callconv(.C) void;
-
-extern var _1_getPipelineCacheData_: *getPipelineCacheDataFn;
+extern fn _1_getPipelineCacheData_(pRenderer: [*c]Renderer, pPipelineCache: [*c]PipelineCache, pSize: [*c]usize, pData: ?*anyopaque) void;
 pub const getPipelineCacheData = _1_getPipelineCacheData_;
 
-pub const removePipelineCacheFn = ?*const fn ([*c]Renderer, [*c]PipelineCache) callconv(.C) void;
-
-extern var _1_removePipelineCache_: *removePipelineCacheFn;
+extern fn _1_removePipelineCache_(pRenderer: [*c]Renderer, pPipelineCache: [*c]PipelineCache) void;
 pub const removePipelineCache = _1_removePipelineCache_;
 
-extern fn _1_addDescriptorSet(renderer: [*c]Renderer, desc: [*c]const DescriptorSetDesc, descriptor_sets: [*c][*c]DescriptorSet) void;
-pub fn addDescriptorSet(renderer: [*c]Renderer, desc: [*c]const DescriptorSetDesc, descriptor_sets: [*c][*c]DescriptorSet) void {
-    _1_addDescriptorSet(renderer, desc, descriptor_sets);
-}
+extern fn _1_addDescriptorSet_(pRenderer: [*c]Renderer, pDesc: [*c]const DescriptorSetDesc, ppDescriptorSet: [*c][*c]DescriptorSet) void;
+/// Descriptor Set functions
+pub const addDescriptorSet = _1_addDescriptorSet_;
 
-extern fn _1_removeDescriptorSet(renderer: [*c]Renderer, descriptor_set: [*c]DescriptorSet) void;
-pub fn removeDescriptorSet(renderer: [*c]Renderer, descriptor_set: [*c]DescriptorSet) void {
-    _1_removeDescriptorSet(renderer, descriptor_set);
-}
+extern fn _1_removeDescriptorSet_(pRenderer: [*c]Renderer, pDescriptorSet: [*c]DescriptorSet) void;
+pub const removeDescriptorSet = _1_removeDescriptorSet_;
 
-extern fn _1_updateDescriptorSet(renderer: [*c]Renderer, index: u32, descriptor_set: [*c]DescriptorSet, count: u32, params: [*c]const DescriptorData) void;
-pub fn updateDescriptorSet(renderer: [*c]Renderer, index: u32, descriptor_set: [*c]DescriptorSet, count: u32, params: [*c]const DescriptorData) void {
-    _1_updateDescriptorSet(renderer, index, descriptor_set, count, params);
-}
+extern fn _1_updateDescriptorSet_(pRenderer: [*c]Renderer, index: u32, pDescriptorSet: [*c]DescriptorSet, count: u32, pParams: [*c]const DescriptorData) void;
+pub const updateDescriptorSet = _1_updateDescriptorSet_;
 
-extern fn _1_resetCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void;
-pub fn resetCmdPool(renderer: [*c]Renderer, cmd_pool: [*c]CmdPool) void {
-    _1_resetCmdPool(renderer, cmd_pool);
-}
+extern fn _1_resetCmdPool_(pRenderer: [*c]Renderer, pCmdPool: [*c]CmdPool) void;
+/// command buffer functions
+pub const resetCmdPool = _1_resetCmdPool_;
 
-extern fn _1_beginCmd(cmd: [*c]Cmd) void;
-pub fn beginCmd(cmd: [*c]Cmd) void {
-    _1_beginCmd(cmd);
-}
+extern fn _1_beginCmd_(pCmd: [*c]Cmd) void;
+pub const beginCmd = _1_beginCmd_;
 
-extern fn _1_endCmd(cmd: [*c]Cmd) void;
-pub fn endCmd(cmd: [*c]Cmd) void {
-    _1_endCmd(cmd);
-}
+extern fn _1_endCmd_(pCmd: [*c]Cmd) void;
+pub const endCmd = _1_endCmd_;
 
-extern fn _1_cmdBindRenderTargets(cmd: [*c]Cmd, desc: [*c]const BindRenderTargetsDesc) void;
-pub fn cmdBindRenderTargets(cmd: [*c]Cmd, desc: [*c]const BindRenderTargetsDesc) void {
-    _1_cmdBindRenderTargets(cmd, desc);
-}
+extern fn _1_cmdBindRenderTargets_(pCmd: [*c]Cmd, pDesc: [*c]const BindRenderTargetsDesc) void;
+pub const cmdBindRenderTargets = _1_cmdBindRenderTargets_;
 
-pub const cmdSetSampleLocationsFn = ?*const fn ([*c]Cmd, SampleCount, u32, u32, [*c]SampleLocations) callconv(.C) void;
-
-extern var _1_cmdSetSampleLocations_: *cmdSetSampleLocationsFn;
+extern fn _1_cmdSetSampleLocations_(pCmd: [*c]Cmd, samplesCount: SampleCount, gridSizeX: u32, gridSizeY: u32, plocations: [*c]SampleLocations) void;
 pub const cmdSetSampleLocations = _1_cmdSetSampleLocations_;
 
-pub const cmdSetViewportFn = ?*const fn ([*c]Cmd, f32, f32, f32, f32, f32, f32) callconv(.C) void;
+extern fn _1_cmdSetViewport_(pCmd: [*c]Cmd, x: f32, y: f32, width: f32, height: f32, minDepth: f32, maxDepth: f32) void;
+pub const cmdSetViewport = _1_cmdSetViewport_;
 
-extern fn _1_cmdSetViewport(cmd: [*c]Cmd, x: f32, y: f32, width: f32, height: f32, min_depth: f32, max_depth: f32) void;
-pub fn cmdSetViewport(cmd: [*c]Cmd, x: f32, y: f32, width: f32, height: f32, min_depth: f32, max_depth: f32) void {
-    _1_cmdSetViewport(cmd, x, y, width, height, min_depth, max_depth);
-}
+extern fn _1_cmdSetScissor_(pCmd: [*c]Cmd, x: u32, y: u32, width: u32, height: u32) void;
+pub const cmdSetScissor = _1_cmdSetScissor_;
 
-extern fn _1_cmdSetScissor(cmd: [*c]Cmd, x: u32, y: u32, width: u32, height: u32) void;
-pub fn cmdSetScissor(cmd: [*c]Cmd, x: u32, y: u32, width: u32, height: u32) void {
-    _1_cmdSetScissor(cmd, x, y, width, height);
-}
-
-pub const cmdSetStencilReferenceValueFn = ?*const fn ([*c]Cmd, u32) callconv(.C) void;
-
-extern var _1_cmdSetStencilReferenceValue_: *cmdSetStencilReferenceValueFn;
+extern fn _1_cmdSetStencilReferenceValue_(pCmd: [*c]Cmd, val: u32) void;
 pub const cmdSetStencilReferenceValue = _1_cmdSetStencilReferenceValue_;
 
-extern fn _1_cmdBindPipeline(cmd_list: [*c]Cmd, pipeline: [*c]Pipeline) void;
-pub fn cmdBindPipeline(cmd_list: [*c]Cmd, pipeline: [*c]Pipeline) void {
-    _1_cmdBindPipeline(cmd_list, pipeline);
-}
+extern fn _1_cmdBindPipeline_(pCmd: [*c]Cmd, pPipeline: [*c]Pipeline) void;
+pub const cmdBindPipeline = _1_cmdBindPipeline_;
 
-extern fn _1_cmdBindDescriptorSet(cmd: [*c]Cmd, index: u32, descriptor_set: [*c]DescriptorSet) void;
-pub fn cmdBindDescriptorSet(cmd: [*c]Cmd, index: u32, descriptor_set: [*c]DescriptorSet) void {
-    _1_cmdBindDescriptorSet(cmd, index, descriptor_set);
-}
+extern fn _1_cmdBindDescriptorSet_(pCmd: [*c]Cmd, index: u32, pDescriptorSet: [*c]DescriptorSet) void;
+pub const cmdBindDescriptorSet = _1_cmdBindDescriptorSet_;
 
-extern fn _1_cmdBindPushConstants(cmd_list: [*c]Cmd, root_signature: [*c]RootSignature, param_index: u32, constants: ?*const anyopaque) void;
-pub fn cmdBindPushConstants(cmd_list: [*c]Cmd, root_signature: [*c]RootSignature, param_index: u32, constants: ?*const anyopaque) void {
-    _1_cmdBindPushConstants(cmd_list, root_signature, param_index, constants);
-}
+extern fn _1_cmdBindPushConstants_(pCmd: [*c]Cmd, pRootSignature: [*c]RootSignature, paramIndex: u32, pConstants: ?*const anyopaque) void;
+pub const cmdBindPushConstants = _1_cmdBindPushConstants_;
 
-pub const cmdBindDescriptorSetWithRootCbvsFn = ?*const fn ([*c]Cmd, u32, [*c]DescriptorSet, u32, [*c]const DescriptorData) callconv(.C) void;
-
-extern var _1_cmdBindDescriptorSetWithRootCbvs_: *cmdBindDescriptorSetWithRootCbvsFn;
+extern fn _1_cmdBindDescriptorSetWithRootCbvs_(pCmd: [*c]Cmd, index: u32, pDescriptorSet: [*c]DescriptorSet, count: u32, pParams: [*c]const DescriptorData) void;
 pub const cmdBindDescriptorSetWithRootCbvs = _1_cmdBindDescriptorSetWithRootCbvs_;
 
-extern fn _1_cmdBindIndexBuffer(cmd_list: [*c]Cmd, buffer: [*c]Buffer, index_type: u32, offset: u64) void;
-pub fn cmdBindIndexBuffer(cmd_list: [*c]Cmd, buffer: [*c]Buffer, index_type: u32, offset: u64) void {
-    _1_cmdBindIndexBuffer(cmd_list, buffer, index_type, offset);
-}
+extern fn _1_cmdBindIndexBuffer_(pCmd: [*c]Cmd, pBuffer: [*c]Buffer, indexType: u32, offset: u64) void;
+pub const cmdBindIndexBuffer = _1_cmdBindIndexBuffer_;
 
-extern fn _1_cmdBindVertexBuffer(cmd_list: [*c]Cmd, buffer_count: u32, buffers: [*c][*c]Buffer, strides: [*c]const u32, offsets: [*c]const u64) void;
-pub fn cmdBindVertexBuffer(cmd_list: [*c]Cmd, buffer_count: u32, buffers: [*c][*c]Buffer, strides: [*c]const u32, offsets: [*c]const u64) void {
-    _1_cmdBindVertexBuffer(cmd_list, buffer_count, buffers, strides, offsets);
-}
+extern fn _1_cmdBindVertexBuffer_(pCmd: [*c]Cmd, bufferCount: u32, ppBuffers: [*c][*c]Buffer, pStrides: [*c]const u32, pOffsets: [*c]const u64) void;
+pub const cmdBindVertexBuffer = _1_cmdBindVertexBuffer_;
 
-extern fn _1_cmdDraw(cmd_list: [*c]Cmd, vertex_count: u32, first_vertex: u32) void;
-pub fn cmdDraw(cmd_list: [*c]Cmd, vertex_count: u32, first_vertex: u32) void {
-    _1_cmdDraw(cmd_list, vertex_count, first_vertex);
-}
+extern fn _1_cmdDraw_(pCmd: [*c]Cmd, vertexCount: u32, firstVertex: u32) void;
+pub const cmdDraw = _1_cmdDraw_;
 
-pub const cmdDrawInstancedFn = ?*const fn ([*c]Cmd, u32, u32, u32, u32) callconv(.C) void;
-
-extern var _1_cmdDrawInstanced_: *cmdDrawInstancedFn;
+extern fn _1_cmdDrawInstanced_(pCmd: [*c]Cmd, vertexCount: u32, firstVertex: u32, instanceCount: u32, firstInstance: u32) void;
 pub const cmdDrawInstanced = _1_cmdDrawInstanced_;
 
-extern fn _1_cmdDrawIndexed(cmd_list: [*c]Cmd, index_count: u32, first_index: u32, first_vertex: u32) void;
-pub fn cmdDrawIndexed(cmd_list: [*c]Cmd, index_count: u32, first_index: u32, first_vertex: u32) void {
-    _1_cmdDrawIndexed(cmd_list, index_count, first_index, first_vertex);
-}
+extern fn _1_cmdDrawIndexed_(pCmd: [*c]Cmd, indexCount: u32, firstIndex: u32, firstVertex: u32) void;
+pub const cmdDrawIndexed = _1_cmdDrawIndexed_;
 
-extern fn _1_cmdDrawIndexedInstanced(cmd_list: [*c]Cmd, index_count: u32, first_index: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void;
-pub fn cmdDrawIndexedInstanced(cmd_list: [*c]Cmd, index_count: u32, first_index: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void {
-    _1_cmdDrawIndexedInstanced(cmd_list, index_count, first_index, instance_count, first_vertex, first_instance);
-}
+extern fn _1_cmdDrawIndexedInstanced_(pCmd: [*c]Cmd, indexCount: u32, firstIndex: u32, instanceCount: u32, firstVertex: u32, firstInstance: u32) void;
+pub const cmdDrawIndexedInstanced = _1_cmdDrawIndexedInstanced_;
 
-extern fn _1_cmdDispatch(cmd_list: [*c]Cmd, group_count_x: u32, group_count_y: u32, group_count_z: u32) void;
-pub fn cmdDispatch(cmd_list: [*c]Cmd, group_count_x: u32, group_count_y: u32, group_count_z: u32) void {
-    _1_cmdDispatch(cmd_list, group_count_x, group_count_y, group_count_z);
-}
+extern fn _1_cmdDispatch_(pCmd: [*c]Cmd, groupCountX: u32, groupCountY: u32, groupCountZ: u32) void;
+pub const cmdDispatch = _1_cmdDispatch_;
 
-extern fn _1_cmdResourceBarrier(cmd: [*c]Cmd, buffer_barrier_count: u32, buffer_barrier: [*c]BufferBarrier, texture_barrier_count: u32, texture_barrier: [*c]TextureBarrier, render_target_barrier_count: u32, render_target_barrier: [*c]RenderTargetBarrier) void;
-pub fn cmdResourceBarrier(cmd: [*c]Cmd, buffer_barrier_count: u32, buffer_barrier: [*c]BufferBarrier, texture_barrier_count: u32, texture_barrier: [*c]TextureBarrier, render_target_barrier_count: u32, render_target_barrier: [*c]RenderTargetBarrier) void {
-    _1_cmdResourceBarrier(cmd, buffer_barrier_count, buffer_barrier, texture_barrier_count, texture_barrier, render_target_barrier_count, render_target_barrier);
-}
+extern fn _1_cmdResourceBarrier_(pCmd: [*c]Cmd, bufferBarrierCount: u32, pBufferBarriers: [*c]BufferBarrier, textureBarrierCount: u32, pTextureBarriers: [*c]TextureBarrier, rtBarrierCount: u32, pRtBarriers: [*c]RenderTargetBarrier) void;
+/// Transition Commands
+pub const cmdResourceBarrier = _1_cmdResourceBarrier_;
 
-extern fn _1_acquireNextImage(renderer: [*c]Renderer, swap_chain: [*c]SwapChain, semaphore: [*c]Semaphore, fence: [*c]Fence, index: [*c]u32) void;
-pub fn acquireNextImage(renderer: [*c]Renderer, swap_chain: [*c]SwapChain, semaphore: [*c]Semaphore, fence: [*c]Fence, index: [*c]u32) void {
-    _1_acquireNextImage(renderer, swap_chain, semaphore, fence, index);
-}
+extern fn _1_acquireNextImage_(pRenderer: [*c]Renderer, pSwapChain: [*c]SwapChain, pSignalSemaphore: [*c]Semaphore, pFence: [*c]Fence, pImageIndex: [*c]u32) void;
+/// queue/fence/swapchain functions
+pub const acquireNextImage = _1_acquireNextImage_;
 
-extern fn _1_queueSubmit(queue: [*c]Queue, desc: [*c]const QueueSubmitDesc) void;
-pub fn queueSubmit(queue: [*c]Queue, desc: [*c]const QueueSubmitDesc) void {
-    _1_queueSubmit(queue, desc);
-}
+extern fn _1_queueSubmit_(pQueue: [*c]Queue, pDesc: [*c]const QueueSubmitDesc) void;
+pub const queueSubmit = _1_queueSubmit_;
 
-extern fn _1_queuePresent(queue: [*c]Queue, desc: [*c]const QueuePresentDesc) void;
-pub fn queuePresent(queue: [*c]Queue, desc: [*c]const QueuePresentDesc) void {
-    _1_queuePresent(queue, desc);
-}
+extern fn _1_queuePresent_(pQueue: [*c]Queue, pDesc: [*c]const QueuePresentDesc) void;
+pub const queuePresent = _1_queuePresent_;
 
-extern fn _1_waitQueueIdle(queue: [*c]Queue) void;
-pub fn waitQueueIdle(queue: [*c]Queue) void {
-    _1_waitQueueIdle(queue);
-}
+extern fn _1_waitQueueIdle_(pQueue: [*c]Queue) void;
+pub const waitQueueIdle = _1_waitQueueIdle_;
 
-extern fn _1_getFenceStatus(renderer: [*c]Renderer, fence: [*c]Fence, status: [*c]FenceStatus) void;
-pub fn getFenceStatus(renderer: [*c]Renderer, fence: [*c]Fence, status: [*c]FenceStatus) void {
-    _1_getFenceStatus(renderer, fence, status);
-}
+extern fn _1_getFenceStatus_(pRenderer: [*c]Renderer, pFence: [*c]Fence, pFenceStatus: [*c]FenceStatus) void;
+pub const getFenceStatus = _1_getFenceStatus_;
 
-extern fn _1_waitForFences(renderer: [*c]Renderer, count: u32, fences: [*c][*c]Fence) void;
-pub fn waitForFences(renderer: [*c]Renderer, count: u32, fences: [*c][*c]Fence) void {
-    _1_waitForFences(renderer, count, fences);
-}
+extern fn _1_waitForFences_(pRenderer: [*c]Renderer, fenceCount: u32, ppFences: [*c][*c]Fence) void;
+pub const waitForFences = _1_waitForFences_;
 
-pub const toggleVSyncFn = ?*const fn ([*c]Renderer, [*c][*c]SwapChain) callconv(.C) void;
+extern fn _1_toggleVSync_(pRenderer: [*c]Renderer, ppSwapchain: [*c][*c]SwapChain) void;
+pub const toggleVSync = _1_toggleVSync_;
 
-extern fn _1_toggleVSync(renderer: [*c]Renderer, swapchain: [*c][*c]SwapChain) void;
-pub fn toggleVSync(renderer: [*c]Renderer, swapchain: [*c][*c]SwapChain) void {
-    _1_toggleVSync(renderer, swapchain);
-}
+extern fn _1_getSupportedSwapchainFormat_(pRenderer: [*c]Renderer, pDesc: [*c]const SwapChainDesc, colorSpace: ColorSpace) TinyImageFormat;
+///Returns the recommended format for the swapchain.
+///If true is passed for the hintHDR parameter, it will return an HDR format IF the platform supports it
+///If false is passed or the platform does not support HDR a non HDR format is returned.
+///If true is passed for the hintSrgb parameter, it will return format that is will do gamma correction automatically
+///If false is passed for the hintSrgb parameter the gamma correction should be done as a postprocess step before submitting image to swapchain
+pub const getSupportedSwapchainFormat = _1_getSupportedSwapchainFormat_;
 
-pub const getSupportedSwapchainFormatFn = ?*const fn ([*c]Renderer, [*c]const SwapChainDesc, ColorSpace) callconv(.C) TinyImageFormat;
+extern fn _1_getRecommendedSwapchainImageCount_(pRenderer: [*c]Renderer, hwnd: [*c]const WindowHandle) u32;
+pub const getRecommendedSwapchainImageCount = _1_getRecommendedSwapchainImageCount_;
 
-extern fn _1_getSupportedSwapchainFormat(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, color_space: ColorSpace) TinyImageFormat;
-pub fn getSupportedSwapchainFormat(renderer: [*c]Renderer, desc: [*c]const SwapChainDesc, color_space: ColorSpace) TinyImageFormat {
-    return _1_getSupportedSwapchainFormat(renderer, desc, color_space);
-}
-
-pub const getRecommendedSwapchainImageCountFn = ?*const fn ([*c]Renderer, [*c]const WindowHandle) callconv(.C) u32;
-
-extern fn _1_getRecommendedSwapchainImageCount(renderer: [*c]Renderer, window_handle: [*c]const WindowHandle) u32;
-pub fn getRecommendedSwapchainImageCount(renderer: [*c]Renderer, window_handle: [*c]const WindowHandle) u32 {
-    return _1_getRecommendedSwapchainImageCount(renderer, window_handle);
-}
-
-pub const addIndirectCommandSignatureFn = ?*const fn ([*c]Renderer, [*c]const CommandSignatureDesc, [*c][*c]CommandSignature) callconv(.C) void;
-
-extern var _1_addIndirectCommandSignature_: *addIndirectCommandSignatureFn;
-pub const addIndirectCommandSignature = _1_addIndirectCommandSignature_;
-
-pub const removeIndirectCommandSignatureFn = ?*const fn ([*c]Renderer, [*c]CommandSignature) callconv(.C) void;
-
-extern var _1_removeIndirectCommandSignature_: *removeIndirectCommandSignatureFn;
-pub const removeIndirectCommandSignature = _1_removeIndirectCommandSignature_;
-
-pub const cmdExecuteIndirectFn = ?*const fn ([*c]Cmd, [*c]CommandSignature, c_uint, [*c]Buffer, u64, [*c]Buffer, u64) callconv(.C) void;
-
-extern var _1_cmdExecuteIndirect_: *cmdExecuteIndirectFn;
+extern fn _1_cmdExecuteIndirect_(pCmd: [*c]Cmd, type: IndirectArgumentType, maxCommandCount: c_uint, pIndirectBuffer: [*c]Buffer, bufferOffset: u64, pCounterBuffer: [*c]Buffer, counterBufferOffset: u64) void;
+///indirect Draw functions
 pub const cmdExecuteIndirect = _1_cmdExecuteIndirect_;
 
-pub const getTimestampFrequencyFn = ?*const fn ([*c]Queue, [*c]f64) callconv(.C) void;
-
-extern var _1_getTimestampFrequency_: *getTimestampFrequencyFn;
+extern fn _1_getTimestampFrequency_(pQueue: [*c]Queue, pFrequency: [*c]f64) void;
+///*********************************************************************
+///
+/// GPU Query Interface
+///*********************************************************************
 pub const getTimestampFrequency = _1_getTimestampFrequency_;
 
-pub const addQueryPoolFn = ?*const fn ([*c]Renderer, [*c]const QueryPoolDesc, [*c][*c]QueryPool) callconv(.C) void;
+extern fn _1_initQueryPool_(pRenderer: [*c]Renderer, pDesc: [*c]const QueryPoolDesc, ppQueryPool: [*c][*c]QueryPool) void;
+pub const initQueryPool = _1_initQueryPool_;
 
-extern var _1_addQueryPool_: *addQueryPoolFn;
-pub const addQueryPool = _1_addQueryPool_;
+extern fn _1_exitQueryPool_(pRenderer: [*c]Renderer, pQueryPool: [*c]QueryPool) void;
+pub const exitQueryPool = _1_exitQueryPool_;
 
-pub const removeQueryPoolFn = ?*const fn ([*c]Renderer, [*c]QueryPool) callconv(.C) void;
-
-extern var _1_removeQueryPool_: *removeQueryPoolFn;
-pub const removeQueryPool = _1_removeQueryPool_;
-
-pub const cmdBeginQueryFn = ?*const fn ([*c]Cmd, [*c]QueryPool, [*c]QueryDesc) callconv(.C) void;
-
-extern var _1_cmdBeginQuery_: *cmdBeginQueryFn;
+extern fn _1_cmdBeginQuery_(pCmd: [*c]Cmd, pQueryPool: [*c]QueryPool, pQuery: [*c]QueryDesc) void;
 pub const cmdBeginQuery = _1_cmdBeginQuery_;
 
-pub const cmdEndQueryFn = ?*const fn ([*c]Cmd, [*c]QueryPool, [*c]QueryDesc) callconv(.C) void;
-
-extern var _1_cmdEndQuery_: *cmdEndQueryFn;
+extern fn _1_cmdEndQuery_(pCmd: [*c]Cmd, pQueryPool: [*c]QueryPool, pQuery: [*c]QueryDesc) void;
 pub const cmdEndQuery = _1_cmdEndQuery_;
 
-pub const cmdResolveQueryFn = ?*const fn ([*c]Cmd, [*c]QueryPool, u32, u32) callconv(.C) void;
-
-extern var _1_cmdResolveQuery_: *cmdResolveQueryFn;
+extern fn _1_cmdResolveQuery_(pCmd: [*c]Cmd, pQueryPool: [*c]QueryPool, startQuery: u32, queryCount: u32) void;
 pub const cmdResolveQuery = _1_cmdResolveQuery_;
 
-pub const cmdResetQueryFn = ?*const fn ([*c]Cmd, [*c]QueryPool, u32, u32) callconv(.C) void;
-
-extern var _1_cmdResetQuery_: *cmdResetQueryFn;
+extern fn _1_cmdResetQuery_(pCmd: [*c]Cmd, pQueryPool: [*c]QueryPool, startQuery: u32, queryCount: u32) void;
 pub const cmdResetQuery = _1_cmdResetQuery_;
 
-pub const getQueryDataFn = ?*const fn ([*c]Renderer, [*c]QueryPool, u32, [*c]QueryData) callconv(.C) void;
-
-extern var _1_getQueryData_: *getQueryDataFn;
+extern fn _1_getQueryData_(pRenderer: [*c]Renderer, pQueryPool: [*c]QueryPool, queryIndex: u32, pOutData: [*c]QueryData) void;
 pub const getQueryData = _1_getQueryData_;
 
-pub const calculateMemoryStatsFn = ?*const fn ([*c]Renderer, [*c][*c]u8) callconv(.C) void;
+extern fn _1_logMemoryStats_(pRenderer: [*c]Renderer) void;
+///*********************************************************************
+///
+/// Stats Info Interface
+///*********************************************************************
+pub const logMemoryStats = _1_logMemoryStats_;
 
-extern var _1_calculateMemoryStats_: *calculateMemoryStatsFn;
-pub const calculateMemoryStats = _1_calculateMemoryStats_;
-
-pub const calculateMemoryUseFn = ?*const fn ([*c]Renderer, [*c]u64, [*c]u64) callconv(.C) void;
-
-extern var _1_calculateMemoryUse_: *calculateMemoryUseFn;
+extern fn _1_calculateMemoryUse_(pRenderer: [*c]Renderer, usedBytes: [*c]u64, totalAllocatedBytes: [*c]u64) void;
 pub const calculateMemoryUse = _1_calculateMemoryUse_;
 
-pub const freeMemoryStatsFn = ?*const fn ([*c]Renderer, [*c]u8) callconv(.C) void;
-
-extern var _1_freeMemoryStats_: *freeMemoryStatsFn;
-pub const freeMemoryStats = _1_freeMemoryStats_;
-
-pub const cmdBeginDebugMarkerFn = ?*const fn ([*c]Cmd, f32, f32, f32, [*c]const u8) callconv(.C) void;
-
-extern var _1_cmdBeginDebugMarker_: *cmdBeginDebugMarkerFn;
+extern fn _1_cmdBeginDebugMarker_(pCmd: [*c]Cmd, r: f32, g: f32, b: f32, pName: [*c]const u8) void;
+///*********************************************************************
+///
+/// Debug Marker Interface
+///*********************************************************************
 pub const cmdBeginDebugMarker = _1_cmdBeginDebugMarker_;
 
-pub const cmdEndDebugMarkerFn = ?*const fn ([*c]Cmd) callconv(.C) void;
-
-extern var _1_cmdEndDebugMarker_: *cmdEndDebugMarkerFn;
+extern fn _1_cmdEndDebugMarker_(pCmd: [*c]Cmd) void;
 pub const cmdEndDebugMarker = _1_cmdEndDebugMarker_;
 
-pub const cmdAddDebugMarkerFn = ?*const fn ([*c]Cmd, f32, f32, f32, [*c]const u8) callconv(.C) void;
-
-extern var _1_cmdAddDebugMarker_: *cmdAddDebugMarkerFn;
+extern fn _1_cmdAddDebugMarker_(pCmd: [*c]Cmd, r: f32, g: f32, b: f32, pName: [*c]const u8) void;
 pub const cmdAddDebugMarker = _1_cmdAddDebugMarker_;
 
-pub const cmdWriteMarkerFn = ?*const fn ([*c]Cmd, MarkerType, u32, [*c]Buffer, usize, bool) callconv(.C) u32;
-
-extern var _1_cmdWriteMarker_: *cmdWriteMarkerFn;
+extern fn _1_cmdWriteMarker_(pCmd: [*c]Cmd, pDesc: [*c]const MarkerDesc) void;
 pub const cmdWriteMarker = _1_cmdWriteMarker_;
 
-pub const setBufferNameFn = ?*const fn ([*c]Renderer, [*c]Buffer, [*c]const u8) callconv(.C) void;
-
-extern var _1_setBufferName_: *setBufferNameFn;
+extern fn _1_setBufferName_(pRenderer: [*c]Renderer, pBuffer: [*c]Buffer, pName: [*c]const u8) void;
+///*********************************************************************
+///
+/// Resource Debug Naming Interface
+///*********************************************************************
 pub const setBufferName = _1_setBufferName_;
 
-pub const setTextureNameFn = ?*const fn ([*c]Renderer, [*c]Texture, [*c]const u8) callconv(.C) void;
-
-extern var _1_setTextureName_: *setTextureNameFn;
+extern fn _1_setTextureName_(pRenderer: [*c]Renderer, pTexture: [*c]Texture, pName: [*c]const u8) void;
 pub const setTextureName = _1_setTextureName_;
 
-pub const setRenderTargetNameFn = ?*const fn ([*c]Renderer, [*c]RenderTarget, [*c]const u8) callconv(.C) void;
-
-extern var _1_setRenderTargetName_: *setRenderTargetNameFn;
+extern fn _1_setRenderTargetName_(pRenderer: [*c]Renderer, pRenderTarget: [*c]RenderTarget, pName: [*c]const u8) void;
 pub const setRenderTargetName = _1_setRenderTargetName_;
 
-pub const setPipelineNameFn = ?*const fn ([*c]Renderer, [*c]Pipeline, [*c]const u8) callconv(.C) void;
-
-extern var _1_setPipelineName_: *setPipelineNameFn;
+extern fn _1_setPipelineName_(pRenderer: [*c]Renderer, pPipeline: [*c]Pipeline, pName: [*c]const u8) void;
 pub const setPipelineName = _1_setPipelineName_;
 
 // opaques
 
 const D3D12MAAllocator = anyopaque;
 const D3D12MAAllocation = anyopaque;
-const AccelerationStructure = anyopaque;
 const RaytracingHitGroup = anyopaque;
 const DescriptorIndexMap = anyopaque;
 const Raytracing = anyopaque;
 const EsramManager = anyopaque;
+const AccelerationStructure = anyopaque;
 
 // unnamed nodes
 
@@ -2729,8 +2619,6 @@ pub const UnnamedEnum0 = extern struct {
     pub const MAX_DEBUG_NAME_LENGTH: UnnamedEnum0 = .{ .bits = @as(c_uint, @intCast(128)) };
     /// Max number of GPus for either linked or unlinked mode. must update WindowsBase::setupPlatformUI accordingly
     pub const MAX_MIP_LEVELS: UnnamedEnum0 = .{ .bits = 4294967295 };
-    /// Max number of GPus for either linked or unlinked mode. must update WindowsBase::setupPlatformUI accordingly
-    pub const MAX_SWAPCHAIN_IMAGES: UnnamedEnum0 = .{ .bits = @as(c_uint, @intCast(3)) };
     /// max size for GPUVendorPreset strings
     pub const MAX_GPU_VENDOR_STRING_LENGTH: UnnamedEnum0 = .{ .bits = @as(c_uint, @intCast(256)) };
     pub const MAX_SAMPLE_LOCATIONS: UnnamedEnum0 = .{ .bits = @as(c_uint, @intCast(16)) };

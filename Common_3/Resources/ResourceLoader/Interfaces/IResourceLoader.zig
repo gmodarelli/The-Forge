@@ -2,6 +2,7 @@
 const std = @import("std");
 //const cpp = @import("cpp");
 
+// TIDES: BEGIN MANUAL CHANGES
 const Graphics = @import("../../../Graphics/Interfaces/IGraphics.zig");
 
 const PipelineCacheFlags = u32;
@@ -29,6 +30,7 @@ const ShaderConstant = Graphics.ShaderConstant;
 const Texture = Graphics.Texture;
 const TextureDesc = Graphics.TextureDesc;
 const VertexLayout = Graphics.VertexLayout;
+// TIDES: END MANUAL CHANGES
 
 extern const _1_gVertexBufferState_: *const ResourceState;
 pub const gVertexBufferState = _1_gVertexBufferState_;
@@ -182,6 +184,8 @@ pub const Geometry = extern struct {
     /// The array of vertex buffer strides to bind when drawing this geometry
     mVertexStrides: [15]u32,
     bitfield_1: packed struct(u32) {
+        // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
+
         /// Number of vertex buffers in this geometry
         mVertexBufferCount: u8, // 8 bits
         /// Index type (32 or 16 bit)

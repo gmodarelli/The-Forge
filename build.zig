@@ -46,7 +46,6 @@ pub fn package(
             "external/The-Forge/Common_3/Graphics/Interfaces/IGraphics_glue.cpp",
             "external/The-Forge/Common_3/Resources/ResourceLoader/Interfaces/IResourceLoader_glue.cpp",
             "external/The-Forge/Common_3/Utilities/Interfaces/IFileSystem_glue.cpp",
-            "external/The-Forge/Common_3/Utilities/Interfaces/ILog_glue.cpp",
             "external/The-Forge/Common_3/Utilities/Interfaces/IMemory_glue.cpp",
             "external/The-Forge/Common_3/Utilities/Log/Log_glue.cpp",
         },
