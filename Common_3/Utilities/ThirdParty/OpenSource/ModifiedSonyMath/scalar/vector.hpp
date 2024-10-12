@@ -30,6 +30,8 @@
 #ifndef VECTORMATH_SCALAR_VECTOR_HPP
 #define VECTORMATH_SCALAR_VECTOR_HPP
 
+#include "../../../../Interfaces/ILog.h"
+
 namespace Vectormath
 {
 namespace Scalar
@@ -147,10 +149,10 @@ inline const Vector3 slerp(float t, const Vector3 & unitVec0, const Vector3 & un
 	cosAngle = dot(unitVec0, unitVec1);
 	if (cosAngle < VECTORMATH_SLERP_TOL)
 	{
-		angle = std::acosf(cosAngle);
-		recipSinAngle = (1.0f / std::sinf(angle));
-		scale0 = (std::sinf(((1.0f - t) * angle)) * recipSinAngle);
-		scale1 = (std::sinf((t * angle)) * recipSinAngle);
+		angle = acosf(cosAngle);
+		recipSinAngle = (1.0f / sinf(angle));
+		scale0 = (sinf(((1.0f - t) * angle)) * recipSinAngle);
+		scale1 = (sinf((t * angle)) * recipSinAngle);
 	}
 	else
 	{
@@ -325,30 +327,30 @@ inline const Vector3 recipPerElem(const Vector3 & vec)
 
 inline const Vector3 sqrtPerElem(const Vector3 & vec)
 {
-	return Vector3(std::sqrtf(vec.getX()),
-				   std::sqrtf(vec.getY()),
-				   std::sqrtf(vec.getZ()));
+	return Vector3(sqrtf(vec.getX()),
+				   sqrtf(vec.getY()),
+				   sqrtf(vec.getZ()));
 }
 
 inline const Vector3 rsqrtPerElem(const Vector3 & vec)
 {
-	return Vector3((1.0f / std::sqrtf(vec.getX())),
-				   (1.0f / std::sqrtf(vec.getY())),
-				   (1.0f / std::sqrtf(vec.getZ())));
+	return Vector3((1.0f / sqrtf(vec.getX())),
+				   (1.0f / sqrtf(vec.getY())),
+				   (1.0f / sqrtf(vec.getZ())));
 }
 
 inline const Vector3 absPerElem(const Vector3 & vec)
 {
-	return Vector3(std::fabsf(vec.getX()),
-				   std::fabsf(vec.getY()),
-				   std::fabsf(vec.getZ()));
+	return Vector3(fabsf(vec.getX()),
+				   fabsf(vec.getY()),
+				   fabsf(vec.getZ()));
 }
 
 inline const Vector3 copySignPerElem(const Vector3 & vec0, const Vector3 & vec1)
 {
-	return Vector3((vec1.getX() < 0.0f) ? -std::fabsf(vec0.getX()) : std::fabsf(vec0.getX()),
-				   (vec1.getY() < 0.0f) ? -std::fabsf(vec0.getY()) : std::fabsf(vec0.getY()),
-				   (vec1.getZ() < 0.0f) ? -std::fabsf(vec0.getZ()) : std::fabsf(vec0.getZ()));
+	return Vector3((vec1.getX() < 0.0f) ? -fabsf(vec0.getX()) : fabsf(vec0.getX()),
+				   (vec1.getY() < 0.0f) ? -fabsf(vec0.getY()) : fabsf(vec0.getY()),
+				   (vec1.getZ() < 0.0f) ? -fabsf(vec0.getZ()) : fabsf(vec0.getZ()));
 }
 
 inline const Vector3 maxPerElem(const Vector3 & vec0, const Vector3 & vec1)
@@ -409,14 +411,14 @@ inline float lengthSqr(const Vector3 & vec)
 
 inline float length(const Vector3 & vec)
 {
-	return std::sqrtf(lengthSqr(vec));
+	return sqrtf(lengthSqr(vec));
 }
 
 inline const Vector3 normalize(const Vector3 & vec)
 {
 	float lenSqr, lenInv;
 	lenSqr = lengthSqr(vec);
-	lenInv = (1.0f / std::sqrtf(lenSqr));
+	lenInv = (1.0f / sqrtf(lenSqr));
 	return Vector3((vec.getX() * lenInv),
 				   (vec.getY() * lenInv),
 				   (vec.getZ() * lenInv));
@@ -457,12 +459,12 @@ inline bool isNormalizedEst(const Vector3& v)
 
 inline void print(const Vector3 & vec)
 {
-	std::printf("( %f %f %f )\n", vec.getX(), vec.getY(), vec.getZ());
+	LOGF(eINFO, "( %f %f %f )\n", vec.getX(), vec.getY(), vec.getZ());
 }
 
 inline void print(const Vector3 & vec, const char * name)
 {
-	std::printf("%s: ( %f %f %f )\n", name, vec.getX(), vec.getY(), vec.getZ());
+	LOGF(eINFO, "%s: ( %f %f %f )\n", name, vec.getX(), vec.getY(), vec.getZ());
 }
 
 #endif // VECTORMATH_DEBUG
@@ -603,10 +605,10 @@ inline const Vector4 slerp(float t, const Vector4 & unitVec0, const Vector4 & un
 	cosAngle = dot(unitVec0, unitVec1);
 	if (cosAngle < VECTORMATH_SLERP_TOL)
 	{
-		angle = std::acosf(cosAngle);
-		recipSinAngle = (1.0f / std::sinf(angle));
-		scale0 = (std::sinf(((1.0f - t) * angle)) * recipSinAngle);
-		scale1 = (std::sinf((t * angle)) * recipSinAngle);
+		angle = acosf(cosAngle);
+		recipSinAngle = (1.0f / sinf(angle));
+		scale0 = (sinf(((1.0f - t) * angle)) * recipSinAngle);
+		scale1 = (sinf((t * angle)) * recipSinAngle);
 	}
 	else
 	{
@@ -795,10 +797,10 @@ inline const Vector4 recipPerElem(const Vector4 & vec)
 
 inline const Vector4 sqrtPerElem(const Vector4 & vec)
 {
-	return Vector4(std::sqrtf(vec.getX()),
-				   std::sqrtf(vec.getY()),
-				   std::sqrtf(vec.getZ()),
-				   std::sqrtf(vec.getW()));
+	return Vector4(sqrtf(vec.getX()),
+				   sqrtf(vec.getY()),
+				   sqrtf(vec.getZ()),
+				   sqrtf(vec.getW()));
 }
 
 
@@ -848,7 +850,7 @@ inline const Vector4 rcpEst(const Vector4& v) {
 	float vY = v.getY();
 	float vZ = v.getZ();
 	float vW = v.getW();
-  
+
 	float rX = ret.getX();
 	float rY = ret.getY();
 	float rZ = ret.getZ();
@@ -873,7 +875,7 @@ inline const Vector4 rSqrtEst(const Vector4& v) {
 	float vY = v.getY();
 	float vZ = v.getZ();
 	float vW = v.getW();
-  
+
 	float rX = ret.getX();
 	float rY = ret.getY();
 	float rZ = ret.getZ();
@@ -898,7 +900,7 @@ inline const Vector4 rSqrtEstNR(const Vector4& v) {
 	float vY = v.getY();
 	float vZ = v.getZ();
 	float vW = v.getW();
-  
+
 	float rX = ret.getX();
 	float rY = ret.getY();
 	float rZ = ret.getZ();
@@ -922,26 +924,26 @@ inline const Vector4 rSqrtEstNR(const Vector4& v) {
 
 inline const Vector4 rsqrtPerElem(const Vector4 & vec)
 {
-	return Vector4((1.0f / std::sqrtf(vec.getX())),
-				   (1.0f / std::sqrtf(vec.getY())),
-				   (1.0f / std::sqrtf(vec.getZ())),
-				   (1.0f / std::sqrtf(vec.getW())));
+	return Vector4((1.0f / sqrtf(vec.getX())),
+				   (1.0f / sqrtf(vec.getY())),
+				   (1.0f / sqrtf(vec.getZ())),
+				   (1.0f / sqrtf(vec.getW())));
 }
 
 inline const Vector4 absPerElem(const Vector4 & vec)
 {
-	return Vector4(std::fabsf(vec.getX()),
-				   std::fabsf(vec.getY()),
-				   std::fabsf(vec.getZ()),
-				   std::fabsf(vec.getW()));
+	return Vector4(fabsf(vec.getX()),
+				   fabsf(vec.getY()),
+				   fabsf(vec.getZ()),
+				   fabsf(vec.getW()));
 }
 
 inline const Vector4 copySignPerElem(const Vector4 & vec0, const Vector4 & vec1)
 {
-	return Vector4((vec1.getX() < 0.0f) ? -std::fabsf(vec0.getX()) : std::fabsf(vec0.getX()),
-				   (vec1.getY() < 0.0f) ? -std::fabsf(vec0.getY()) : std::fabsf(vec0.getY()),
-				   (vec1.getZ() < 0.0f) ? -std::fabsf(vec0.getZ()) : std::fabsf(vec0.getZ()),
-				   (vec1.getW() < 0.0f) ? -std::fabsf(vec0.getW()) : std::fabsf(vec0.getW()));
+	return Vector4((vec1.getX() < 0.0f) ? -fabsf(vec0.getX()) : fabsf(vec0.getX()),
+				   (vec1.getY() < 0.0f) ? -fabsf(vec0.getY()) : fabsf(vec0.getY()),
+				   (vec1.getZ() < 0.0f) ? -fabsf(vec0.getZ()) : fabsf(vec0.getZ()),
+				   (vec1.getW() < 0.0f) ? -fabsf(vec0.getW()) : fabsf(vec0.getW()));
 }
 
 inline const Vector4 maxPerElem(const Vector4 & vec0, const Vector4 & vec1)
@@ -1009,14 +1011,14 @@ inline float lengthSqr(const Vector4 & vec)
 
 inline float length(const Vector4 & vec)
 {
-	return std::sqrtf(lengthSqr(vec));
+	return sqrtf(lengthSqr(vec));
 }
 
 inline const Vector4 normalize(const Vector4 & vec)
 {
 	float lenSqr, lenInv;
 	lenSqr = lengthSqr(vec);
-	lenInv = (1.0f / std::sqrtf(lenSqr));
+	lenInv = (1.0f / sqrtf(lenSqr));
 	return Vector4((vec.getX() * lenInv),
 				   (vec.getY() * lenInv),
 				   (vec.getZ() * lenInv),
@@ -1099,7 +1101,7 @@ inline const Vector4 xorPerElem(const Vector4& a, const Vector4& b) {
 		{c.i.x ^ d.i.x, c.i.y ^ d.i.y, c.i.z ^ d.i.z, c.i.w ^ d.i.w} };
 	return ret.f;
 }
-	
+
 inline const Vector4 orPerElem(const Vector4& a, const Vector4Int& b) {
 	const VectorFI4 c = {a};
 	const VectorIF4 ret = {
@@ -1219,7 +1221,7 @@ inline void transpose4x3(const Vector4 in[4], Vector4 out[4]) {
 inline void transpose16x16(const Vector4 in[16], Vector4 out[16]) {
 	for (int i = 0; i < 4; ++i) {
 		const int i4 = i * 4;
-		
+
 		out[i4 + 0].setX(*(in[0].getXPtr() + i));
 		out[i4 + 0].setY(*(in[1].getXPtr() + i));
 		out[i4 + 0].setZ(*(in[2].getXPtr() + i));
@@ -1260,12 +1262,12 @@ inline void store3PtrU(const Vector4& v, float* f) {
 
 inline void print(const Vector4 & vec)
 {
-	std::printf("( %f %f %f %f )\n", vec.getX(), vec.getY(), vec.getZ(), vec.getW());
+	LOGF(eINFO, "( %f %f %f %f )\n", vec.getX(), vec.getY(), vec.getZ(), vec.getW());
 }
 
 inline void print(const Vector4 & vec, const char * name)
 {
-	std::printf("%s: ( %f %f %f %f )\n", name, vec.getX(), vec.getY(), vec.getZ(), vec.getW());
+	LOGF(eINFO, "%s: ( %f %f %f %f )\n", name, vec.getX(), vec.getY(), vec.getZ(), vec.getW());
 }
 
 #endif // VECTORMATH_DEBUG
@@ -1328,10 +1330,10 @@ inline const Vector3d slerp(double t, const Vector3d & unitVec0, const Vector3d 
 	cosAngle = dot(unitVec0, unitVec1);
 	if (cosAngle < VECTORMATH_SLERP_TOL)
 	{
-		angle = std::acos(cosAngle);
-		recipSinAngle = (1.0 / std::sin(angle));
-		scale0 = (std::sin(((1.0 - t) * angle)) * recipSinAngle);
-		scale1 = (std::sin((t * angle)) * recipSinAngle);
+		angle = acos(cosAngle);
+		recipSinAngle = (1.0 / sin(angle));
+		scale0 = (sin(((1.0 - t) * angle)) * recipSinAngle);
+		scale1 = (sin((t * angle)) * recipSinAngle);
 	}
 	else
 	{
@@ -1506,30 +1508,30 @@ inline const Vector3d recipPerElem(const Vector3d & vec)
 
 inline const Vector3d sqrtPerElem(const Vector3d & vec)
 {
-	return Vector3d(std::sqrt(vec.getX()),
-				   std::sqrt(vec.getY()),
-				   std::sqrt(vec.getZ()));
+	return Vector3d(sqrt(vec.getX()),
+				   sqrt(vec.getY()),
+				   sqrt(vec.getZ()));
 }
 
 inline const Vector3d rsqrtPerElem(const Vector3d & vec)
 {
-	return Vector3d((1.0 / std::sqrt(vec.getX())),
-				   (1.0 / std::sqrt(vec.getY())),
-				   (1.0 / std::sqrt(vec.getZ())));
+	return Vector3d((1.0 / sqrt(vec.getX())),
+				   (1.0 / sqrt(vec.getY())),
+				   (1.0 / sqrt(vec.getZ())));
 }
 
 inline const Vector3d absPerElem(const Vector3d & vec)
 {
-	return Vector3d(std::fabs(vec.getX()),
-				   std::fabs(vec.getY()),
-				   std::fabs(vec.getZ()));
+	return Vector3d(fabs(vec.getX()),
+				   fabs(vec.getY()),
+				   fabs(vec.getZ()));
 }
 
 inline const Vector3d copySignPerElem(const Vector3d & vec0, const Vector3d & vec1)
 {
-	return Vector3d((vec1.getX() < 0.0) ? -std::fabs(vec0.getX()) : std::fabs(vec0.getX()),
-				   (vec1.getY() < 0.0) ? -std::fabs(vec0.getY()) : std::fabs(vec0.getY()),
-				   (vec1.getZ() < 0.0) ? -std::fabs(vec0.getZ()) : std::fabs(vec0.getZ()));
+	return Vector3d((vec1.getX() < 0.0) ? -fabs(vec0.getX()) : fabs(vec0.getX()),
+				   (vec1.getY() < 0.0) ? -fabs(vec0.getY()) : fabs(vec0.getY()),
+				   (vec1.getZ() < 0.0) ? -fabs(vec0.getZ()) : fabs(vec0.getZ()));
 }
 
 inline const Vector3d maxPerElem(const Vector3d & vec0, const Vector3d & vec1)
@@ -1590,14 +1592,14 @@ inline double lengthSqr(const Vector3d & vec)
 
 inline double length(const Vector3d & vec)
 {
-	return std::sqrt(lengthSqr(vec));
+	return sqrt(lengthSqr(vec));
 }
 
 inline const Vector3d normalize(const Vector3d & vec)
 {
 	double lenSqr, lenInv;
 	lenSqr = lengthSqr(vec);
-	lenInv = (1.0 / std::sqrt(lenSqr));
+	lenInv = (1.0 / sqrt(lenSqr));
 	return Vector3d((vec.getX() * lenInv),
 				   (vec.getY() * lenInv),
 				   (vec.getZ() * lenInv));
@@ -1638,12 +1640,12 @@ inline bool isNormalizedEst(const Vector3d& v)
 
 inline void print(const Vector3d & vec)
 {
-	std::printf("( %f %f %f )\n", vec.getX(), vec.getY(), vec.getZ());
+	LOGF(eINFO, "( %f %f %f )\n", vec.getX(), vec.getY(), vec.getZ());
 }
 
 inline void print(const Vector3d & vec, const char * name)
 {
-	std::printf("%s: ( %f %f %f )\n", name, vec.getX(), vec.getY(), vec.getZ());
+	LOGF(eINFO, "%s: ( %f %f %f )\n", name, vec.getX(), vec.getY(), vec.getZ());
 }
 
 #endif // VECTORMATH_DEBUG
@@ -1776,10 +1778,10 @@ inline const Vector4d slerp(double t, const Vector4d & unitVec0, const Vector4d 
 	cosAngle = dot(unitVec0, unitVec1);
 	if (cosAngle < VECTORMATH_SLERP_TOL_D)
 	{
-		angle = std::acos(cosAngle);
-		recipSinAngle = (1.0 / std::sin(angle));
-		scale0 = (std::sin(((1.0 - t) * angle)) * recipSinAngle);
-		scale1 = (std::sin((t * angle)) * recipSinAngle);
+		angle = acos(cosAngle);
+		recipSinAngle = (1.0 / sin(angle));
+		scale0 = (sin(((1.0 - t) * angle)) * recipSinAngle);
+		scale1 = (sin((t * angle)) * recipSinAngle);
 	}
 	else
 	{
@@ -1968,10 +1970,10 @@ inline const Vector4d recipPerElem(const Vector4d & vec)
 
 inline const Vector4d sqrtPerElem(const Vector4d & vec)
 {
-	return Vector4d(std::sqrt(vec.getX()),
-				   std::sqrt(vec.getY()),
-				   std::sqrt(vec.getZ()),
-				   std::sqrt(vec.getW()));
+	return Vector4d(sqrt(vec.getX()),
+				   sqrt(vec.getY()),
+				   sqrt(vec.getZ()),
+				   sqrt(vec.getW()));
 }
 
 
@@ -2036,7 +2038,7 @@ inline const Vector4d rcpEst(const Vector4d& v) {
 	double vY = v.getY();
 	double vZ = v.getZ();
 	double vW = v.getW();
-  
+
 	double rX = ret.getX();
 	double rY = ret.getY();
 	double rZ = ret.getZ();
@@ -2076,7 +2078,7 @@ inline const Vector4d rSqrtEst(const Vector4d& v) {
 	double vY = v.getY();
 	double vZ = v.getZ();
 	double vW = v.getW();
-  
+
 	double rX = ret.getX();
 	double rY = ret.getY();
 	double rZ = ret.getZ();
@@ -2117,7 +2119,7 @@ inline const Vector4d rSqrtEstNR(const Vector4d& v) {
 	double vY = v.getY();
 	double vZ = v.getZ();
 	double vW = v.getW();
-  
+
 	double rX = ret.getX();
 	double rY = ret.getY();
 	double rZ = ret.getZ();
@@ -2142,26 +2144,26 @@ inline const Vector4d rSqrtEstNR(const Vector4d& v) {
 //
 inline const Vector4d rsqrtPerElem(const Vector4d & vec)
 {
-	return Vector4d((1.0 / std::sqrt(vec.getX())),
-				   (1.0 / std::sqrt(vec.getY())),
-				   (1.0 / std::sqrt(vec.getZ())),
-				   (1.0 / std::sqrt(vec.getW())));
+	return Vector4d((1.0 / sqrt(vec.getX())),
+				   (1.0 / sqrt(vec.getY())),
+				   (1.0 / sqrt(vec.getZ())),
+				   (1.0 / sqrt(vec.getW())));
 }
 
 inline const Vector4d absPerElem(const Vector4d & vec)
 {
-	return Vector4d(std::fabs(vec.getX()),
-				   std::fabs(vec.getY()),
-				   std::fabs(vec.getZ()),
-				   std::fabs(vec.getW()));
+	return Vector4d(fabs(vec.getX()),
+				   fabs(vec.getY()),
+				   fabs(vec.getZ()),
+				   fabs(vec.getW()));
 }
 
 inline const Vector4d copySignPerElem(const Vector4d & vec0, const Vector4d & vec1)
 {
-	return Vector4d((vec1.getX() < 0.0) ? -std::fabs(vec0.getX()) : std::fabs(vec0.getX()),
-				   (vec1.getY() < 0.0) ? -std::fabs(vec0.getY()) : std::fabs(vec0.getY()),
-				   (vec1.getZ() < 0.0) ? -std::fabs(vec0.getZ()) : std::fabs(vec0.getZ()),
-				   (vec1.getW() < 0.0) ? -std::fabs(vec0.getW()) : std::fabs(vec0.getW()));
+	return Vector4d((vec1.getX() < 0.0) ? -fabs(vec0.getX()) : fabs(vec0.getX()),
+				   (vec1.getY() < 0.0) ? -fabs(vec0.getY()) : fabs(vec0.getY()),
+				   (vec1.getZ() < 0.0) ? -fabs(vec0.getZ()) : fabs(vec0.getZ()),
+				   (vec1.getW() < 0.0) ? -fabs(vec0.getW()) : fabs(vec0.getW()));
 }
 
 inline const Vector4d maxPerElem(const Vector4d & vec0, const Vector4d & vec1)
@@ -2229,14 +2231,14 @@ inline double lengthSqr(const Vector4d & vec)
 
 inline double length(const Vector4d & vec)
 {
-	return std::sqrt(lengthSqr(vec));
+	return sqrt(lengthSqr(vec));
 }
 
 inline const Vector4d normalize(const Vector4d & vec)
 {
 	double lenSqr, lenInv;
 	lenSqr = lengthSqr(vec);
-	lenInv = (1.0 / std::sqrt(lenSqr));
+	lenInv = (1.0 / sqrt(lenSqr));
 	return Vector4d((vec.getX() * lenInv),
 				   (vec.getY() * lenInv),
 				   (vec.getZ() * lenInv),
@@ -2311,7 +2313,7 @@ inline const Vector4d xorPerElem(const Vector4d& a, const Vector4Int& b) {
 		{c.i.x ^ b.x, c.i.y ^ b.y, c.i.z ^ b.z, c.i.w ^ b.w}};
 	return ret.d;
 }
-	
+
 inline const Vector4d orPerElem(const Vector4d& a, const Vector4Int& b) {
 	const VectorDI4 c = {a};
 	const VectorID4 ret = {
@@ -2431,7 +2433,7 @@ inline void transpose4x3(const Vector4d in[4], Vector4d out[4]) {
 inline void transpose16x16(const Vector4d in[16], Vector4d out[16]) {
 	for (int i = 0; i < 4; ++i) {
 		const int i4 = i * 4;
-		
+
 		out[i4 + 0].setX(*(in[0].getXPtr() + i));
 		out[i4 + 0].setY(*(in[1].getXPtr() + i));
 		out[i4 + 0].setZ(*(in[2].getXPtr() + i));
@@ -2472,12 +2474,12 @@ inline void store3PtrU(const Vector4d& v, double* f) {
 
 inline void print(const Vector4d & vec)
 {
-	std::printf("( %f %f %f %f )\n", vec.getX(), vec.getY(), vec.getZ(), vec.getW());
+	LOGF(eINFO, "( %f %f %f %f )\n", vec.getX(), vec.getY(), vec.getZ(), vec.getW());
 }
 
 inline void print(const Vector4d & vec, const char * name)
 {
-	std::printf("%s: ( %f %f %f %f )\n", name, vec.getX(), vec.getY(), vec.getZ(), vec.getW());
+	LOGF(eINFO, "%s: ( %f %f %f %f )\n", name, vec.getX(), vec.getY(), vec.getZ(), vec.getW());
 }
 
 #endif // VECTORMATH_DEBUG
@@ -2650,30 +2652,30 @@ inline const Point3 recipPerElem(const Point3 & pnt)
 
 inline const Point3 sqrtPerElem(const Point3 & pnt)
 {
-	return Point3(std::sqrtf(pnt.getX()),
-				  std::sqrtf(pnt.getY()),
-				  std::sqrtf(pnt.getZ()));
+	return Point3(sqrtf(pnt.getX()),
+				  sqrtf(pnt.getY()),
+				  sqrtf(pnt.getZ()));
 }
 
 inline const Point3 rsqrtPerElem(const Point3 & pnt)
 {
-	return Point3((1.0f / std::sqrtf(pnt.getX())),
-				  (1.0f / std::sqrtf(pnt.getY())),
-				  (1.0f / std::sqrtf(pnt.getZ())));
+	return Point3((1.0f / sqrtf(pnt.getX())),
+				  (1.0f / sqrtf(pnt.getY())),
+				  (1.0f / sqrtf(pnt.getZ())));
 }
 
 inline const Point3 absPerElem(const Point3 & pnt)
 {
-	return Point3(std::fabsf(pnt.getX()),
-				  std::fabsf(pnt.getY()),
-				  std::fabsf(pnt.getZ()));
+	return Point3(fabsf(pnt.getX()),
+				  fabsf(pnt.getY()),
+				  fabsf(pnt.getZ()));
 }
 
 inline const Point3 copySignPerElem(const Point3 & pnt0, const Point3 & pnt1)
 {
-	return Point3((pnt1.getX() < 0.0f) ? -std::fabsf(pnt0.getX()) : std::fabsf(pnt0.getX()),
-				  (pnt1.getY() < 0.0f) ? -std::fabsf(pnt0.getY()) : std::fabsf(pnt0.getY()),
-				  (pnt1.getZ() < 0.0f) ? -std::fabsf(pnt0.getZ()) : std::fabsf(pnt0.getZ()));
+	return Point3((pnt1.getX() < 0.0f) ? -fabsf(pnt0.getX()) : fabsf(pnt0.getX()),
+				  (pnt1.getY() < 0.0f) ? -fabsf(pnt0.getY()) : fabsf(pnt0.getY()),
+				  (pnt1.getZ() < 0.0f) ? -fabsf(pnt0.getZ()) : fabsf(pnt0.getZ()));
 }
 
 inline const Point3 maxPerElem(const Point3 & pnt0, const Point3 & pnt1)
@@ -2764,12 +2766,12 @@ inline const Point3 select(const Point3 & pnt0, const Point3 & pnt1, bool select
 
 inline void print(const Point3 & pnt)
 {
-	std::printf("( %f %f %f )\n", pnt.getX(), pnt.getY(), pnt.getZ());
+	LOGF(eINFO, "( %f %f %f )\n", pnt.getX(), pnt.getY(), pnt.getZ());
 }
 
 inline void print(const Point3 & pnt, const char * name)
 {
-	std::printf("%s: ( %f %f %f )\n", name, pnt.getX(), pnt.getY(), pnt.getZ());
+	LOGF(eINFO, "%s: ( %f %f %f )\n", name, pnt.getX(), pnt.getY(), pnt.getZ());
 }
 
 #endif // VECTORMATH_DEBUG
@@ -3509,12 +3511,12 @@ inline const int sum(const IVector3 & vec)
 
 inline void print(const IVector3 & vec)
 {
-	std::printf("( %i %i %i )\n", vec.getX(), vec.getY(), vec.getZ());
+	LOGF(eINFO, "( %i %i %i )\n", vec.getX(), vec.getY(), vec.getZ());
 }
 
 inline void print(const IVector3 & vec, const char * name)
 {
-	std::printf("%s: ( %i %i %i )\n", name, vec.getX(), vec.getY(), vec.getZ());
+	LOGF(eINFO, "%s: ( %i %i %i )\n", name, vec.getX(), vec.getY(), vec.getZ());
 }
 
 #endif // VECTORMATH_DEBUG
@@ -3726,12 +3728,12 @@ inline const uint sum(const UVector3 & vec)
 
 inline void print(const UVector3 & vec)
 {
-	std::printf("( %u %u %u )\n", vec.getX(), vec.getY(), vec.getZ());
+	LOGF(eINFO, "( %u %u %u )\n", vec.getX(), vec.getY(), vec.getZ());
 }
 
 inline void print(const UVector3 & vec, const char * name)
 {
-	std::printf("%s: ( %u %u %u )\n", name, vec.getX(), vec.getY(), vec.getZ());
+	LOGF(eINFO, "%s: ( %u %u %u )\n", name, vec.getX(), vec.getY(), vec.getZ());
 }
 
 #endif // VECTORMATH_DEBUG
@@ -3973,12 +3975,12 @@ inline const int sum(const IVector4 & vec)
 
 inline void print(const IVector4 & vec)
 {
-	std::printf("( %i %i %i %i )\n", vec.getX(), vec.getY(), vec.getZ(), vec.getW());
+	LOGF(eINFO, "( %i %i %i %i )\n", vec.getX(), vec.getY(), vec.getZ(), vec.getW());
 }
 
 inline void print(const IVector4 & vec, const char * name)
 {
-	std::printf("%s: ( %i %i %i %i )\n", name, vec.getX(), vec.getY(), vec.getZ(), vec.getW());
+	LOGF(eINFO, "%s: ( %i %i %i %i )\n", name, vec.getX(), vec.getY(), vec.getZ(), vec.getW());
 }
 
 #endif // VECTORMATH_DEBUG
@@ -4196,12 +4198,12 @@ inline const uint sum(const UVector4 & vec)
 
 inline void print(const UVector4 & vec)
 {
-	std::printf("( %u %u %u %u )\n", vec.getX(), vec.getY(), vec.getZ(), vec.getW());
+	LOGF(eINFO, "( %u %u %u %u )\n", vec.getX(), vec.getY(), vec.getZ(), vec.getW());
 }
 
 inline void print(const UVector4 & vec, const char * name)
 {
-	std::printf("%s: ( %u %u %u %u )\n", name, vec.getX(), vec.getY(), vec.getZ(), vec.getW());
+	LOGF(eINFO, "%s: ( %u %u %u %u )\n", name, vec.getX(), vec.getY(), vec.getZ(), vec.getW());
 }
 
 #endif // VECTORMATH_DEBUG

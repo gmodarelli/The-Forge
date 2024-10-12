@@ -19,18 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\Prospero\Common_3\Tools\AssetPipeline\AssetPipeline_TexturesGnf.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64' and !exists('$(SCE_PROSPERO_SDK_DIR)')">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_XboxOne|x64' and !exists('$(SCE_PROSPERO_SDK_DIR)')">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64' and !exists('$(SCE_PROSPERO_SDK_DIR)')">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_XboxOne|x64' and !exists('$(SCE_PROSPERO_SDK_DIR)')">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\Xbox\Common_3\Tools\AssetPipeline\AssetPipeline_TexturesXbox.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64' and !(exists('$(GXDKLatest)') and exists('$(SolutionDir)..\..\..\..\Xbox\Common_3\ThirdParty\OpenSource\xtexconv\xtexconv.sln'))">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_XboxOne|x64' and !(exists('$(GXDKLatest)') and exists('$(SolutionDir)..\..\..\..\Xbox\Common_3\ThirdParty\OpenSource\xtexconv\xtexconv.sln'))">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64' and !(exists('$(GXDKLatest)') and exists('$(SolutionDir)..\..\..\..\Xbox\Common_3\ThirdParty\OpenSource\xtexconv\xtexconv.sln'))">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_XboxOne|x64' and !(exists('$(GXDKLatest)') and exists('$(SolutionDir)..\..\..\..\Xbox\Common_3\ThirdParty\OpenSource\xtexconv\xtexconv.sln'))">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="..\..\..\..\Prospero\Common_3\Tools\AssetPipeline\AssetPipeline_TexturesGnf.cpp"  Condition="exists('$(SolutionDir)..\..\..\..\Prospero\')"/>
+    <ClCompile Include="..\..\..\..\Xbox\Common_3\Tools\AssetPipeline\AssetPipeline_TexturesXbox.cpp" Condition="exists('$(SolutionDir)..\..\..\..\Xbox\')"/>
     <ClCompile Include="..\..\..\OS\Windows\WindowsToolsFileSystem.cpp" />
     <ClCompile Include="..\..\..\Resources\AnimationSystem\ThirdParty\OpenSource\TressFX\TressFXAsset.cpp" />
     <ClCompile Include="..\..\ThirdParty\OpenSource\meshoptimizer\src\allocator.cpp" />
@@ -100,33 +90,33 @@
   <ImportGroup Label="Shared">
   </ImportGroup>
   <ImportGroup Label="PropertySheets">
-    <Import Project="..\..\..\IDE\Visual Studio\TF_Shared.props" />
+    <Import Project="..\..\..\..\Examples_3\Build_Props\VS\TF_Shared.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VULKAN_SDK)\Include;$(ProjectDir)..\..\..\Resources\AnimationSystem\ThirdParty\OpenSource\ozz-animation\include;</IncludePath>
+    <IncludePath>$(VULKAN_SDK)\Include;</IncludePath>
     <IntDir>$(SolutionDir)\$(Platform)\$(Configuration)\Intermediate\$(ProjectName)\</IntDir>
     <LibraryPath>$(SolutionDir)\$(Platform)\$(Configuration);$(OutDir);$(LibraryPath)</LibraryPath>
     <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(VULKAN_SDK)\Include;$(ProjectDir)..\..\..\Resources\AnimationSystem\ThirdParty\OpenSource\ozz-animation\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(VULKAN_SDK)\Include;$(IncludePath)</IncludePath>
     <IntDir>$(SolutionDir)\$(Platform)\$(Configuration)\Intermediate\$(ProjectName)\</IntDir>
     <LibraryPath>$(SolutionDir)\$(Platform)\$(Configuration);$(OutDir);$(LibraryPath)</LibraryPath>
     <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_XboxOne|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(VULKAN_SDK)\Include;$(ProjectDir)..\..\..\Resources\AnimationSystem\ThirdParty\OpenSource\ozz-animation\include;</IncludePath>
+    <IncludePath>$(VULKAN_SDK)\Include;</IncludePath>
     <IntDir>$(SolutionDir)\$(Platform)\$(Configuration)\Intermediate\$(ProjectName)\</IntDir>
     <LibraryPath>$(SolutionDir)\$(Platform)\$(Configuration);$(OutDir);$(LibraryPath)</LibraryPath>
     <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_XboxOne|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(VULKAN_SDK)\Include;$(ProjectDir)..\..\..\Resources\AnimationSystem\ThirdParty\OpenSource\ozz-animation\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(VULKAN_SDK)\Include;$(IncludePath)</IncludePath>
     <IntDir>$(SolutionDir)\$(Platform)\$(Configuration)\Intermediate\$(ProjectName)\</IntDir>
     <LibraryPath>$(SolutionDir)\$(Platform)\$(Configuration);$(OutDir);$(LibraryPath)</LibraryPath>
     <PreBuildEventUseInBuild>true</PreBuildEventUseInBuild>
@@ -140,8 +130,6 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <DisableSpecificWarnings>
-      </DisableSpecificWarnings>
       <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
       <TreatWarningAsError>false</TreatWarningAsError>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -149,6 +137,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies>%(AdditionalDependencies);WinMM.lib;ozz_animation.lib;ozz_base.lib;ozz_animation_offline.lib;ispc_texcomp.lib;OS.lib;BunyLib.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(OutDir)..\Debug;</AdditionalLibraryDirectories>
       <AdditionalOptions>/ignore:4099</AdditionalOptions>
     </Link>
     <PostBuildEvent>
@@ -159,7 +148,7 @@
       </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64' and exists('$(SCE_PROSPERO_SDK_DIR)')">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64' and exists('$(SCE_PROSPERO_SDK_DIR)') and exists('$(SolutionDir)..\..\..\..\Prospero\')">
     <ClCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);PROSPERO_GNF;</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SCE_PROSPERO_SDK_DIR)\target\include_common;</AdditionalIncludeDirectories>
@@ -192,13 +181,12 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <DisableSpecificWarnings>
-      </DisableSpecificWarnings>
       <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies>%(AdditionalDependencies);WinMM.lib;ozz_animation.lib;ozz_base.lib;ozz_animation_offline.lib;ispc_texcomp.lib;OS.lib;BunyLib.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(OutDir)..\Debug;</AdditionalLibraryDirectories>
       <AdditionalOptions>/ignore:4099</AdditionalOptions>
     </Link>
     <PostBuildEvent>
@@ -216,7 +204,7 @@ $(systemroot)\System32\xcopy /Y "$(ProjectDir)$(Platform)\Debug\ozz_base.lib" "$
       </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug_XboxOne|x64' and exists('$(SCE_PROSPERO_SDK_DIR)')">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug_XboxOne|x64' and exists('$(SCE_PROSPERO_SDK_DIR)') and exists('$(SolutionDir)..\..\..\..\Prospero\')">
     <ClCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);PROSPERO_GNF;</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SCE_PROSPERO_SDK_DIR)\target\include_common;</AdditionalIncludeDirectories>
@@ -251,8 +239,6 @@ $(systemroot)\System32\xcopy /Y "$(ProjectDir)$(Platform)\Debug\ozz_base.lib" "$
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <DisableSpecificWarnings>
-      </DisableSpecificWarnings>
       <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
       <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
@@ -271,7 +257,7 @@ $(systemroot)\System32\xcopy /Y "$(ProjectDir)$(Platform)\Debug\ozz_base.lib" "$
       </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64' and exists('$(SCE_PROSPERO_SDK_DIR)')">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64' and exists('$(SCE_PROSPERO_SDK_DIR)') and exists('$(SolutionDir)..\..\..\..\Prospero\')">
     <ClCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);PROSPERO_GNF;</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SCE_PROSPERO_SDK_DIR)\target\include_common;</AdditionalIncludeDirectories>
@@ -306,8 +292,6 @@ $(systemroot)\System32\xcopy /Y "$(ProjectDir)$(Platform)\Debug\ozz_base.lib" "$
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <DisableSpecificWarnings>
-      </DisableSpecificWarnings>
       <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -332,7 +316,7 @@ $(systemroot)\System32\xcopy /Y "$(ProjectDir)$(Platform)\Release\ozz_base.lib" 
       </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_XboxOne|x64' and exists('$(SCE_PROSPERO_SDK_DIR)')">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release_XboxOne|x64' and exists('$(SCE_PROSPERO_SDK_DIR)') and exists('$(SolutionDir)..\..\..\..\Prospero\')">
     <ClCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);PROSPERO_GNF;</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(SCE_PROSPERO_SDK_DIR)\target\include_common;</AdditionalIncludeDirectories>

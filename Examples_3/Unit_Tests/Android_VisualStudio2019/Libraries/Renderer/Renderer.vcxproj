@@ -13,13 +13,10 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\..\..\Common_3\Graphics\CommonShaderReflection.cpp" />
     <ClCompile Include="..\..\..\..\..\Common_3\Graphics\GraphicsConfig.cpp" />
-    <ClCompile Include="..\..\..\..\..\Common_3\Graphics\PickRenderingApi.cpp" />
-    <ClCompile Include="..\..\..\..\..\Common_3\Graphics\OpenGLES\EGLContextCreator.cpp" />
-    <ClCompile Include="..\..\..\..\..\Common_3\Graphics\OpenGLES\GLES.cpp" />
-    <ClCompile Include="..\..\..\..\..\Common_3\Graphics\OpenGLES\GLESShaderReflection.cpp" />
     <ClCompile Include="..\..\..\..\..\Common_3\Graphics\Vulkan\Vulkan.cpp" />
     <ClCompile Include="..\..\..\..\..\Common_3\Graphics\Vulkan\VulkanRaytracing.cpp" />
     <ClCompile Include="..\..\..\..\..\Common_3\Graphics\Vulkan\VulkanShaderReflection.cpp" />
+    <ClCompile Include="..\..\..\..\..\Common_3\Renderer\ParticleSystem\ParticleSystem.cpp" />
     <ClCompile Include="..\..\..\..\..\Common_3\Renderer\VisibilityBuffer\VisibilityBuffer.cpp" />
     <ClCompile Include="..\..\..\..\..\Common_3\Resources\ResourceLoader\ResourceLoader.cpp" />
     <ClCompile Include="..\..\..\..\..\Common_3\Tools\Network\Network.c" />
@@ -30,10 +27,9 @@
     <ClInclude Include="..\..\..\..\..\Common_3\Graphics\Interfaces\IGraphics.h" />
     <ClInclude Include="..\..\..\..\..\Common_3\Graphics\Interfaces\IRay.h" />
     <ClInclude Include="..\..\..\..\..\Common_3\Graphics\Interfaces\IShaderReflection.h" />
-    <ClInclude Include="..\..\..\..\..\Common_3\Graphics\OpenGLES\GLESCapsBuilder.h" />
-    <ClInclude Include="..\..\..\..\..\Common_3\Graphics\OpenGLES\GLESContextCreator.h" />
     <ClInclude Include="..\..\..\..\..\Common_3\Graphics\Vulkan\VulkanCapsBuilder.h" />
     <ClInclude Include="..\..\..\..\..\Common_3\Graphics\Vulkan\VulkanConfig.h" />
+    <ClInclude Include="..\..\..\..\..\Common_3\Renderer\Interfaces\IParticleSystem.h" />
     <ClInclude Include="..\..\..\..\..\Common_3\Resources\ResourceLoader\Interfaces\IResourceLoader.h" />
     <ClInclude Include="..\..\..\..\..\Common_3\Tools\Network\Network.h" />
     <ClInclude Include="..\..\..\..\..\Common_3\Tools\ReloadServer\ReloadClient.h" />
@@ -47,6 +43,13 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\..\..\..\Common_3\Renderer\ParticleSystem\Shaders\particle.frag.fsl" />
+    <None Include="..\..\..\..\..\Common_3\Renderer\ParticleSystem\Shaders\particle.vert.fsl" />
+    <None Include="..\..\..\..\..\Common_3\Renderer\ParticleSystem\Shaders\particle_defs.h.fsl" />
+    <None Include="..\..\..\..\..\Common_3\Renderer\ParticleSystem\Shaders\particle_random.h.fsl" />
+    <None Include="..\..\..\..\..\Common_3\Renderer\ParticleSystem\Shaders\particle_sets.h.fsl" />
+    <None Include="..\..\..\..\..\Common_3\Renderer\ParticleSystem\Shaders\particle_shared.h.fsl" />
+    <None Include="..\..\..\..\..\Common_3\Renderer\ParticleSystem\Shaders\particle_simulate.comp.fsl" />
     <None Include="..\..\..\..\..\Common_3\Renderer\VisibilityBuffer\Shaders\FSL\batch_compaction.h.fsl" />
     <None Include="..\..\..\..\..\Common_3\Renderer\VisibilityBuffer\Shaders\FSL\clear_buffers.h.fsl" />
     <None Include="..\..\..\..\..\Common_3\Renderer\VisibilityBuffer\Shaders\FSL\triangle_filtering.h.fsl" />
@@ -89,7 +92,7 @@
   <ImportGroup Label="ExtensionSettings" />
   <ImportGroup Label="Shared" />
   <ImportGroup Label="PropertySheets">
-    <Import Project="..\..\..\..\..\Common_3\IDE\Visual Studio\TF_Shared.props" />
+    <Import Project="..\..\..\..\..\Examples_3\Build_Props\VS\TF_Shared.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Android-arm64-v8a'">

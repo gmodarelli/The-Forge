@@ -187,6 +187,12 @@ void FpsCameraController::update(float deltaTime)
         const vec3& v{ m.getCol2().getXYZ() };
         viewPosition -= v * (zoom * k_scrollSpeed);
     }
+
+    drx = 0.0f;
+    dry = 0.0f;
+    dx = 0.0f;
+    dy = 0.0f;
+    dz = 0.0f;
 }
 
 mat4 FpsCameraController::getViewMatrix() const
@@ -281,10 +287,10 @@ public:
         moveTo(startPosition);
         lookAt(startLookAt);
     }
-    void onMove(const float2& vec) override {}
-    void onMoveY(float y) override {}
-    void onRotate(const float2& vec) override {}
-    void onZoom(const float2& vec) override {}
+    void onMove(const float2& vec) override { UNREF_PARAM(vec); }
+    void onMoveY(float y) override { UNREF_PARAM(y); }
+    void onRotate(const float2& vec) override { UNREF_PARAM(vec); }
+    void onZoom(const float2& vec) override { UNREF_PARAM(vec); }
 
     // We put viewRotation at first becuase viewPosition is 16 bytes aligned. We have vtable pointer 8 bytes + vec2(8 bytes). This avoids
     // unnecessary padding.
@@ -306,7 +312,7 @@ ICameraController* initGuiCameraController(const vec3& startPosition, const vec3
     return cc;
 }
 
-void destroyGuiCameraController(ICameraController* pCamera)
+void exitGuiCameraController(ICameraController* pCamera)
 {
     pCamera->~ICameraController();
     tf_free(pCamera);
@@ -322,8 +328,6 @@ CameraMatrix::CameraMatrix(const CameraMatrix& mat)
 #endif
 }
 
-mat4 CameraMatrix::getPrimaryMatrix() const { return mCamera; }
-
 void CameraMatrix::applyProjectionSampleOffset(float xOffset, float yOffset)
 {
     mLeftEye[2][0] += xOffset;
@@ -332,4 +336,62 @@ void CameraMatrix::applyProjectionSampleOffset(float xOffset, float yOffset)
     mRightEye[2][0] += xOffset;
     mRightEye[2][1] += yOffset;
 #endif
+}
+
+bool loadCameraPath(const char* pFileName, uint32_t& outNumCameraPoints, float3** pOutCameraPoints)
+{
+    FileStream fh = {};
+    if (!fsOpenStreamFromPath(RD_OTHER_FILES, pFileName, FM_READ, &fh))
+    {
+        return false;
+    }
+
+    // Read whole file..
+    ssize_t fhSize = fsGetStreamFileSize(&fh);
+    char*   pBuffer = (char*)tf_malloc(sizeof(char) * fhSize);
+    fsReadFromStream(&fh, pBuffer, sizeof(char) * fhSize);
+    fsCloseStream(&fh);
+
+    // Skip first line that contains a comment..
+    char* cBuffer = strchr(pBuffer, '\n');
+    if (cBuffer)
+        cBuffer += 1;
+    // Find number of points and skip the line..
+    outNumCameraPoints = cBuffer ? atoi(cBuffer) : 0;
+    if (outNumCameraPoints == 0)
+        return false;
+
+    float3* pCameraPoints = (float3*)tf_malloc(sizeof(float3) * outNumCameraPoints);
+
+    cBuffer = strchr(cBuffer, '\n');
+    if (cBuffer)
+        cBuffer += 1;
+
+    // Parse num 'pCameraPathPoints' lines in file..
+    for (uint32_t i = 0; i < outNumCameraPoints; ++i)
+    {
+        // Parse the position at index i: Each line has 3 floats...
+        for (uint32_t j = 0; j < 3; ++j)
+        {
+            if (cBuffer)
+            {
+                pCameraPoints[i][j] = (float)atof(cBuffer);
+                cBuffer = strchr(cBuffer, ',');
+                if (cBuffer)
+                    cBuffer += 1;
+            }
+        }
+        // skip line (newline character)..
+        if (!cBuffer || (pBuffer - cBuffer) + 1 == fhSize)
+        {
+            LOGF(eERROR, "Failed to parse cameraPath.txt.");
+            break;
+        }
+        cBuffer += 1;
+    }
+
+    tf_free(pBuffer);
+
+    *pOutCameraPoints = pCameraPoints;
+    return true;
 }

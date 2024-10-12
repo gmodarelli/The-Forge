@@ -79,7 +79,7 @@
 #define NDEBUG
 #endif
 
-#define UNREF_PARAM(x)         (x)
+#define UNREF_PARAM(x)         ((void)(x))
 #define ALIGNAS(x)             __declspec(align(x))
 #define DEFINE_ALIGNED(def, a) __declspec(align(a)) def
 #define FORGE_CALLCONV         __cdecl
@@ -132,7 +132,7 @@ typedef SSIZE_T ssize_t;
 #define ALIGNOF(x)   __alignof__(x)
 #define THREAD_LOCAL __thread
 
-#ifdef __clang__
+#if defined(__clang__) && !defined(__cplusplus)
 #define COMPILE_ASSERT(exp) _Static_assert(exp, #exp)
 #else
 #define COMPILE_ASSERT(exp) static_assert(exp, #exp)
@@ -181,6 +181,21 @@ COMPILE_ASSERT(sizeof(ssize_t) == sizeof(int64_t));
 #elif defined(__GNUC__) // clang & gcc
 #define FORGE_EXPORT __attribute__((visibility("default")))
 #define FORGE_IMPORT
+#endif
+
+#ifdef __cplusplus
+#ifndef MAKE_ENUM_FLAG
+#define MAKE_ENUM_FLAG(TYPE, ENUM_TYPE)                                                                                      \
+    inline FORGE_CONSTEXPR ENUM_TYPE operator|(ENUM_TYPE a, ENUM_TYPE b) { return ENUM_TYPE(((TYPE)a) | ((TYPE)b)); }        \
+    inline ENUM_TYPE&                operator|=(ENUM_TYPE& a, ENUM_TYPE b) { return (ENUM_TYPE&)(((TYPE&)a) |= ((TYPE)b)); } \
+    inline FORGE_CONSTEXPR ENUM_TYPE operator&(ENUM_TYPE a, ENUM_TYPE b) { return ENUM_TYPE(((TYPE)a) & ((TYPE)b)); }        \
+    inline ENUM_TYPE&                operator&=(ENUM_TYPE& a, ENUM_TYPE b) { return (ENUM_TYPE&)(((TYPE&)a) &= ((TYPE)b)); } \
+    inline FORGE_CONSTEXPR ENUM_TYPE operator~(ENUM_TYPE a) { return ENUM_TYPE(~((TYPE)a)); }                                \
+    inline FORGE_CONSTEXPR ENUM_TYPE operator^(ENUM_TYPE a, ENUM_TYPE b) { return ENUM_TYPE(((TYPE)a) ^ ((TYPE)b)); }        \
+    inline ENUM_TYPE&                operator^=(ENUM_TYPE& a, ENUM_TYPE b) { return (ENUM_TYPE&)(((TYPE&)a) ^= ((TYPE)b)); }
+#endif
+#else
+#define MAKE_ENUM_FLAG(TYPE, ENUM_TYPE)
 #endif
 
 //////////////////////////////////////////////
@@ -316,9 +331,6 @@ COMPILE_ASSERT(sizeof(ssize_t) == sizeof(int64_t));
 // #define ENABLE_PROFILER_WEBSERVER
 #endif
 
-// Enable output of a .MTuner file for the memory profiler https://github.com/RudjiGames/MTuner/releases
-// #define ENABLE_MTUNER
-
 // By default the UI uses 16bit indexes, enable define below to change it to 32bits
 // #define FORGE_UI_USE_32BIT_INDEXES
 #define FORGE_UI_MAX_VERTEXES (64 * 1024)
@@ -340,6 +352,10 @@ COMPILE_ASSERT(sizeof(ssize_t) == sizeof(int64_t));
 #define DEFAULT_AUTOMATION_FRAME_COUNT 240
 // Used for automated testing, emulates 60fps to ensure screenshots always look the same
 #define AUTOMATION_FIXED_FRAME_TIME    0.0167f
+#endif
+
+#if defined(TARGET_IOS) || (defined(ANDROID) && !defined(QUEST_VR)) || defined(NX64)
+#define ENABLE_FORGE_TOUCH_INPUT
 #endif
 
 //////////////////////////////////////////////
@@ -398,16 +414,5 @@ COMPILE_ASSERT(sizeof(ssize_t) == sizeof(int64_t));
 
 #if defined(_DEBUG) && defined(NDEBUG)
 #error "_DEBUG and NDEBUG are defined at the same time"
-#endif
-#endif
-
-//////////////////////////////////////////////
-//// ImGui Remote Control
-//////////////////////////////////////////////
-#if defined(FORGE_DEBUG)
-#if defined(ANDROID) || defined(_WIN32) || defined(PROSPERO) || defined(XBOX) || defined(__APPLE__) || defined(ORBIS)
-#if !defined(TIDES)
-#define ENABLE_FORGE_REMOTE_UI
-#endif
 #endif
 #endif

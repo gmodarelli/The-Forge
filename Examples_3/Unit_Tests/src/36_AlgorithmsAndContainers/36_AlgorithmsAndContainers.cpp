@@ -27,7 +27,6 @@
 // Interfaces
 #include "../../../../Common_3/Application/Interfaces/IApp.h"
 #include "../../../../Common_3/Application/Interfaces/IFont.h"
-#include "../../../../Common_3/Application/Interfaces/IInput.h"
 #include "../../../../Common_3/Application/Interfaces/IUI.h"
 #include "../../../../Common_3/Utilities/Interfaces/ILog.h"
 
@@ -63,6 +62,7 @@ public:
     {
         // FILE PATHS
         fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_SCRIPTS, "Scripts");
+        fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_OTHER_FILES, "");
 
         //////////////////////////////////////////////
         // Actual unit tests
@@ -114,11 +114,15 @@ public:
 
     void Exit() {}
 
-    bool Load(ReloadDesc* pReloadDesc) { return true; }
+    bool Load(ReloadDesc* pReloadDesc)
+    {
+        UNREF_PARAM(pReloadDesc);
+        return true;
+    }
 
-    void Unload(ReloadDesc* pReloadDesc) {}
+    void Unload(ReloadDesc* pReloadDesc) { UNREF_PARAM(pReloadDesc); }
 
-    void Update(float deltaTime) {}
+    void Update(float deltaTime) { UNREF_PARAM(deltaTime); }
 
     void Draw() {}
 

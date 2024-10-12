@@ -217,19 +217,19 @@ static bool bunyArLibComputeEntryName(char*** strings, const struct BunyArLibEnt
 
     if (strncmp(*outPath, "../", 3) == 0)
     {
-        char path[FS_MAX_PATH];
-        fsAppendPathComponent(fsGetResourceDirectory(entry->inputRd), entry->inputPath, path);
+        char buf[FS_MAX_PATH];
+        fsAppendPathComponent(fsGetResourceDirectory(entry->inputRd), entry->inputPath, buf);
 
-        LOGF(eERROR, "Entry name '%s' contains backlinks. Source path is '%s'", *outPath, path);
+        LOGF(eERROR, "Entry name '%s' contains backlinks. Source path is '%s'", *outPath, buf);
         return false;
     }
 
     if (length > BUNYAR_FILE_NAME_LENGTH_MAX)
     {
-        char path[FS_MAX_PATH];
-        fsAppendPathComponent(fsGetResourceDirectory(entry->inputRd), entry->inputPath, path);
+        char buf[FS_MAX_PATH];
+        fsAppendPathComponent(fsGetResourceDirectory(entry->inputRd), entry->inputPath, buf);
 
-        LOGF(eERROR, "Entry name '%s' is longer than limit of %i. Source path is '%s'", *outPath, BUNYAR_FILE_NAME_LENGTH_MAX, path);
+        LOGF(eERROR, "Entry name '%s' is longer than limit of %i. Source path is '%s'", *outPath, BUNYAR_FILE_NAME_LENGTH_MAX, buf);
         return false;
     }
 
@@ -1413,8 +1413,6 @@ static void fileAssemblyReadTask(void* data, uint64_t thid)
         }
     }
 
-    ASSERTFAIL("Logic flow issue");
-
     if (0)
     {
     COMPLETE:
@@ -1621,16 +1619,16 @@ static void destroyThreadSharedMemory(struct ThreadsSharedMemory* tsm)
     tf_free(tsm->globalAllocation);
     tf_free(tsm->unusedBlockIds);
 
-    destroyMutex(&tsm->mutexBlocks);
-    destroyConditionVariable(&tsm->conditionBlocks);
+    exitMutex(&tsm->mutexBlocks);
+    exitConditionVariable(&tsm->conditionBlocks);
 
     arrfree(tsm->packetIo.packetsQueue);
     arrfree(tsm->packetIo.packets);
-    destroyMutex(&tsm->packetIo.mutex);
-    destroyConditionVariable(&tsm->packetIo.condition);
+    exitMutex(&tsm->packetIo.mutex);
+    exitConditionVariable(&tsm->packetIo.condition);
 
-    destroyMutex(&tsm->managerMutex);
-    destroyConditionVariable(&tsm->managerCondition);
+    exitMutex(&tsm->managerMutex);
+    exitConditionVariable(&tsm->managerCondition);
 
     memset(tsm, 0, sizeof(*tsm));
 }

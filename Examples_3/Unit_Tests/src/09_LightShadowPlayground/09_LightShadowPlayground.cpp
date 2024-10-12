@@ -38,7 +38,7 @@
 #include "../../../../Common_3/Application/Interfaces/IApp.h"
 #include "../../../../Common_3/Application/Interfaces/ICameraController.h"
 #include "../../../../Common_3/Application/Interfaces/IFont.h"
-#include "../../../../Common_3/Application/Interfaces/IInput.h"
+#include "../../../../Common_3/OS/Interfaces/IInput.h"
 #include "../../../../Common_3/Application/Interfaces/IProfiler.h"
 #include "../../../../Common_3/Application/Interfaces/IScreenshot.h"
 #include "../../../../Common_3/Application/Interfaces/IUI.h"
@@ -54,11 +54,6 @@
 #include "../../../../Common_3/Utilities/Math/MathTypes.h"
 #include "../../../../Common_3/Utilities/RingBuffer.h"
 #include "../../../../Common_3/Utilities/Threading/ThreadSystem.h"
-
-#if defined(XBOX)
-#include "../../../../Xbox/Common_3/Graphics/Direct3D12/Direct3D12X.h"
-#include "../../../../Xbox/Common_3/Graphics/IESRAMManager.h"
-#endif
 
 // Math
 #include "../../../../Common_3/Utilities/Math/MathTypes.h"
@@ -115,225 +110,225 @@ struct ConfigSettings
 
 // kinda: 0.09f // thin: 0.15f // superthin: 0.5f // triplethin: 0.8f
 MeshInfo opaqueMeshInfos[] = {
-    { "twosided_superthin_innerfloor_01", MATERIAL_FLAG_TWO_SIDED, 0.5f },
-    { "twosided_triplethin_hugewall_02", MATERIAL_FLAG_TWO_SIDED, 0.8f },
-    { "twosided_triplethin_hugewall_01", MATERIAL_FLAG_TWO_SIDED, 0.8f },
-    { "balcony_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "outerfloor_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "curvepillar_05", MATERIAL_FLAG_NONE, 0.0f },
-    { "curvepillar_06", MATERIAL_FLAG_NONE, 0.0f },
-    { "curvepillar_07", MATERIAL_FLAG_NONE, 0.0f },
-    { "curvepillar_11", MATERIAL_FLAG_NONE, 0.0f },
-    { "curvepillar_10", MATERIAL_FLAG_NONE, 0.0f },
-    { "curvepillar_09", MATERIAL_FLAG_NONE, 0.0f },
-    { "indoortable_03", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "outdoortable_03", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_02", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_04", MATERIAL_FLAG_NONE, 0.0f },
-    { "outdoortable_07", MATERIAL_FLAG_NONE, 0.0f },
-    { "curvepillar_02", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_15", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_14", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_13", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_12", MATERIAL_FLAG_NONE, 0.0f },
-    { "outdoortable_08", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_10", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_06", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_05", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_09", MATERIAL_FLAG_NONE, 0.0f },
-    { "outertable_11", MATERIAL_FLAG_NONE, 0.0f },
-    { "uppertable_04", MATERIAL_FLAG_NONE, 0.0f },
-    { "uppertable_03", MATERIAL_FLAG_NONE, 0.0f },
-    { "uppertable_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "uppertable_02", MATERIAL_FLAG_NONE, 0.0f },
-    { "opendoor_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "opendoor_02", MATERIAL_FLAG_NONE, 0.0f },
-    { "indoortable_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "indoortable_05", MATERIAL_FLAG_NONE, 0.0f },
-    { "indoortable_04", MATERIAL_FLAG_NONE, 0.0f },
-    { "indoortable_02", MATERIAL_FLAG_NONE, 0.0f },
-    { "curvepillar_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "waterpool_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_04", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_05", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_06", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_10", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_09", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_08", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_07", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_02", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_12", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_03", MATERIAL_FLAG_NONE, 0.0f },
-    { "twosided_thin_leavesbasket_01", MATERIAL_FLAG_TWO_SIDED, 0.15f },
-    { "twosided_kinda_double_combinedoutdoorchairs_01", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "gargoyle_04", MATERIAL_FLAG_NONE, 0.0f },
-    { "gargoyle_05", MATERIAL_FLAG_NONE, 0.0f },
-    { "gargoyle_02", MATERIAL_FLAG_NONE, 0.0f },
-    { "gargoyle_06", MATERIAL_FLAG_NONE, 0.0f },
-    { "twosided_kinda_double_outdoorchairs_02", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_double_indoorchairs_02", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_thin_double_indoorchairs_03", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.15f },
-    { "twosided_thin_double_indoorchairs_04", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.15f },
-    { "twosided_kinda_double_indoorchairs_05", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_double_indoorchairs_06", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "double_upperchairs_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "longpillar_11", MATERIAL_FLAG_NONE, 0.0f },
-    { "twosided_thin_leavesbasket_02", MATERIAL_FLAG_TWO_SIDED, 0.15f },
-    { "twosided_kinda_double_outdoorchairs_01", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_double_outdoorchairs_04", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "double_upperchairs_02", MATERIAL_FLAG_NONE, 0.0f },
-    { "double_upperchairs_03", MATERIAL_FLAG_NONE, 0.0f },
-    { "double_upperchairs_04", MATERIAL_FLAG_NONE, 0.0f },
-    { "doorwall_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "doorwall_02", MATERIAL_FLAG_NONE, 0.0f },
-    { "underledge_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "underceil_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "underceil_02", MATERIAL_FLAG_NONE, 0.0f },
-    { "twosided_kinda_double_indoorchairs_07", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "hugewallfront_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "twosided_kinda_metalLedges_02", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "twosided_kinda_metalLedges_07", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "twosided_kinda_metalLedges_01", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "twosided_kinda_metalLedges_05", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "twosided_kinda_metalLedges_03", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "twosided_kinda_metalLedges_04", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "twosided_kinda_metalLedges_06", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "twosided_kinda_double_outdoorchairs_06", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_double_outdoorchairs_05", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_metalLedges_08", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "twosided_kinda_metalLedges_09", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "twosided_kinda_doorwall_03", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "twosided_kinda_doorwall_04", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "myinnerfloor_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "twosided_kinda_double_outdoorchairs_07", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_double_outdoorchairs_08", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "mywall_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "twosided_kinda_double_outdoorchairs_09", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_double_outdoorchairs_10", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_double_outdoorchairs_11", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_double_outdoorchairs_12", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_double_outdoorchairs_13", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_double_outdoorchairs_14", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_double_outdoorchairs_15", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
-    { "twosided_kinda_metalLedges_10", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "curvepillar_12", MATERIAL_FLAG_NONE, 0.0f },
-    { "curvepillar_08", MATERIAL_FLAG_NONE, 0.0f },
-    { "twosided_superthin_innerhall_01", MATERIAL_FLAG_TWO_SIDED, 0.5f },
-    { "doorwall_06", MATERIAL_FLAG_NONE, 0.0f },
-    { "doorwall_05", MATERIAL_FLAG_NONE, 0.0f },
-    { "double_doorwall_07", MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.0f },
-    { "twosided_kinda_basketonly_01", MATERIAL_FLAG_TWO_SIDED, 0.09f },
-    { "backmuros_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "shortceil_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "shortceil_02", MATERIAL_FLAG_NONE, 0.0f },
-    { "shortceil_03", MATERIAL_FLAG_NONE, 0.0f },
-    { "cap03", MATERIAL_FLAG_NONE, 0.0f },
-    { "cap01", MATERIAL_FLAG_NONE, 0.0f },
-    { "cap02", MATERIAL_FLAG_NONE, 0.0f },
-    { "cap04", MATERIAL_FLAG_NONE, 0.0f }
+    { "SDF/twosided_superthin_innerfloor_01", MATERIAL_FLAG_TWO_SIDED, 0.5f },
+    { "SDF/twosided_triplethin_hugewall_02", MATERIAL_FLAG_TWO_SIDED, 0.8f },
+    { "SDF/twosided_triplethin_hugewall_01", MATERIAL_FLAG_TWO_SIDED, 0.8f },
+    { "SDF/balcony_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outerfloor_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/curvepillar_05", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/curvepillar_06", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/curvepillar_07", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/curvepillar_11", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/curvepillar_10", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/curvepillar_09", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/indoortable_03", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outdoortable_03", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_04", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outdoortable_07", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/curvepillar_02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_15", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_14", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_13", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_12", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outdoortable_08", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_10", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_06", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_05", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_09", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/outertable_11", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/uppertable_04", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/uppertable_03", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/uppertable_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/uppertable_02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/opendoor_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/opendoor_02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/indoortable_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/indoortable_05", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/indoortable_04", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/indoortable_02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/curvepillar_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/waterpool_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_04", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_05", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_06", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_10", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_09", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_08", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_07", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_12", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_03", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/twosided_thin_leavesbasket_01", MATERIAL_FLAG_TWO_SIDED, 0.15f },
+    { "SDF/twosided_kinda_double_combinedoutdoorchairs_01", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/gargoyle_04", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/gargoyle_05", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/gargoyle_02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/gargoyle_06", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/twosided_kinda_double_outdoorchairs_02", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_double_indoorchairs_02", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_thin_double_indoorchairs_03", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.15f },
+    { "SDF/twosided_thin_double_indoorchairs_04", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.15f },
+    { "SDF/twosided_kinda_double_indoorchairs_05", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_double_indoorchairs_06", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/double_upperchairs_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/longpillar_11", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/twosided_thin_leavesbasket_02", MATERIAL_FLAG_TWO_SIDED, 0.15f },
+    { "SDF/twosided_kinda_double_outdoorchairs_01", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_double_outdoorchairs_04", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/double_upperchairs_02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/double_upperchairs_03", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/double_upperchairs_04", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/doorwall_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/doorwall_02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/underledge_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/underceil_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/underceil_02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/twosided_kinda_double_indoorchairs_07", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/hugewallfront_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/twosided_kinda_metalLedges_02", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/twosided_kinda_metalLedges_07", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/twosided_kinda_metalLedges_01", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/twosided_kinda_metalLedges_05", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/twosided_kinda_metalLedges_03", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/twosided_kinda_metalLedges_04", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/twosided_kinda_metalLedges_06", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/twosided_kinda_double_outdoorchairs_06", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_double_outdoorchairs_05", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_metalLedges_08", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/twosided_kinda_metalLedges_09", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/twosided_kinda_doorwall_03", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/twosided_kinda_doorwall_04", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/myinnerfloor_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/twosided_kinda_double_outdoorchairs_07", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_double_outdoorchairs_08", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/mywall_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/twosided_kinda_double_outdoorchairs_09", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_double_outdoorchairs_10", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_double_outdoorchairs_11", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_double_outdoorchairs_12", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_double_outdoorchairs_13", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_double_outdoorchairs_14", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_double_outdoorchairs_15", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.09f },
+    { "SDF/twosided_kinda_metalLedges_10", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/curvepillar_12", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/curvepillar_08", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/twosided_superthin_innerhall_01", MATERIAL_FLAG_TWO_SIDED, 0.5f },
+    { "SDF/doorwall_06", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/doorwall_05", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/double_doorwall_07", MATERIAL_FLAG_DOUBLE_VOXEL_SIZE, 0.0f },
+    { "SDF/twosided_kinda_basketonly_01", MATERIAL_FLAG_TWO_SIDED, 0.09f },
+    { "SDF/backmuros_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/shortceil_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/shortceil_02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/shortceil_03", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/cap03", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/cap01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/cap02", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/cap04", MATERIAL_FLAG_NONE, 0.0f }
 };
 
 MeshInfo flagsMeshInfos[] = {
-    { "gargoyle_08", MATERIAL_FLAG_NONE, 0.0f },
-    { "twosided_superthin_forgeflags_01", MATERIAL_FLAG_TWO_SIDED, 0.5f },
-    { "twosided_superthin_forgeflags_02", MATERIAL_FLAG_TWO_SIDED, 0.5f },
-    { "twosided_superthin_forgeflags_04", MATERIAL_FLAG_TWO_SIDED, 0.5f },
-    { "twosided_superthin_forgeflags_03", MATERIAL_FLAG_TWO_SIDED, 0.5f },
-    { "gargoyle_01", MATERIAL_FLAG_NONE, 0.0f },
-    { "gargoyle_07", MATERIAL_FLAG_NONE, 0.0f },
-    { "gargoyle_03", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/gargoyle_08", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/twosided_superthin_forgeflags_01", MATERIAL_FLAG_TWO_SIDED, 0.5f },
+    { "SDF/twosided_superthin_forgeflags_02", MATERIAL_FLAG_TWO_SIDED, 0.5f },
+    { "SDF/twosided_superthin_forgeflags_04", MATERIAL_FLAG_TWO_SIDED, 0.5f },
+    { "SDF/twosided_superthin_forgeflags_03", MATERIAL_FLAG_TWO_SIDED, 0.5f },
+    { "SDF/gargoyle_01", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/gargoyle_07", MATERIAL_FLAG_NONE, 0.0f },
+    { "SDF/gargoyle_03", MATERIAL_FLAG_NONE, 0.0f },
 };
 
 MeshInfo alphaTestedMeshInfos[] = {
     // group 0
-    { "twosided_thin_alphatested_smallLeaves04_beginstack0", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves04_beginstack0", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "flower0339_continuestack0", MATERIAL_FLAG_NONE, 0.0f },
     { "stem01_continuestack0", MATERIAL_FLAG_NONE, 0.0f },
     { "basket01_continuestack0", MATERIAL_FLAG_NONE, 0.0f },
     // group 1
-    { "twosided_thin_alphatested_smallLeaves04_beginstack1", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves04_beginstack1", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "stem_continuestack1", MATERIAL_FLAG_NONE, 0.0f },
     { "smallLeaves019_alphatested_continuestack1", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "smallLeaves0377_alphatested_continuestack1", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack1", MATERIAL_FLAG_NONE, 0.0f },
     { "rose00_alphatested_continuestack1", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     // group 2
-    { "twosided_thin_alphatested_smallLeaves00_beginstack2", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves00_beginstack2", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_smallLeaves023_continuestack2", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "stem02_continuestack2", MATERIAL_FLAG_NONE, 0.0f },
     { "alphatested_flower0304_continuestack2", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "stem03_continuestack2", MATERIAL_FLAG_NONE, 0.0f },
     { "basket02_continuestack2", MATERIAL_FLAG_NONE, 0.0f },
     // group 3
-    { "twosided_thin_alphatested_smallLeaves04_beginstack3", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
-    { "twosided_thin_alphatested_smallLeaves09_continuestack3", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves04_beginstack3", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves09_continuestack3", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket_continuestack3", MATERIAL_FLAG_NONE, 0.0f },
     // group 4
-    { "twosided_thin_alphatested_smallLeaves022_beginstack4", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves022_beginstack4", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket_continuestack4", MATERIAL_FLAG_NONE, 0.0f },
     // group 5
-    { "twosided_thin_alphatested_smallLeaves013_beginstack5", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves013_beginstack5", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_smallLeaves012_continuestack5", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves020_continuestack5", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
-    { "alphatested_twosided_thin_smallLeaves07_continuestack5", MATERIAL_FLAG_ALPHA_TESTED | MATERIAL_FLAG_TWO_SIDED, 0.15f },
-    { "alphatested_twosided_thin_smallLeaves05_continuestack5", MATERIAL_FLAG_ALPHA_TESTED | MATERIAL_FLAG_TWO_SIDED, 0.15f },
-    { "twosided_thin_alphatested_floor1_continuestack5", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "alphatested_SDF/twosided_thin_smallLeaves07_continuestack5", MATERIAL_FLAG_ALPHA_TESTED | MATERIAL_FLAG_TWO_SIDED, 0.15f },
+    { "alphatested_SDF/twosided_thin_smallLeaves05_continuestack5", MATERIAL_FLAG_ALPHA_TESTED | MATERIAL_FLAG_TWO_SIDED, 0.15f },
+    { "SDF/twosided_thin_alphatested_floor1_continuestack5", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket01_continuestack5", MATERIAL_FLAG_NONE, 0.0f },
     // group 6
-    { "twosided_thin_alphatested_smallLeaves023_beginstack6", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves023_beginstack6", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_smallLeaves0300_continuestack6", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves016_continuestack6", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_flower0341_continuestack6", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack6", MATERIAL_FLAG_NONE, 0.0f },
     // group 7
-    { "twosided_thin_alphatested_smallLeaves014_beginstack7", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves014_beginstack7", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_smallLeaves015_continuestack7", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack7", MATERIAL_FLAG_NONE, 0.0f },
     // group 8
-    { "twosided_thin_alphatested_smallLeaves027_beginstack8", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves027_beginstack8", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_flower0343_continuestack8", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves018_continuestack8", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack8", MATERIAL_FLAG_NONE, 0.0f },
     // group 9
-    { "twosided_thin_alphatested_smallLeaves0380_beginstack9", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves0380_beginstack9", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_flower0338_continuestack9", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "bakset01_continuestack9", MATERIAL_FLAG_NONE, 0.0f },
     // group 10
-    { "twosided_thin_alphatested_smallLeaves00_beginstack10", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves00_beginstack10", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_flower0304_continuestack10", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack10", MATERIAL_FLAG_NONE, 0.0f },
     // group 11
-    { "twosided_thin_double_alphatested__group146_beginstack11", MATERIAL_FLAG_ALL, 0.15f },
+    { "SDF/twosided_thin_double_alphatested__group146_beginstack11", MATERIAL_FLAG_ALL, 0.15f },
     { "alphatested_group147_continuestack11", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "branch_group145_continuestack11", MATERIAL_FLAG_NONE, 0.0f },
     // group 12
-    { "twosided_superthin_alphatested_double_treeLeaves04_beginstack12", MATERIAL_FLAG_ALL, 0.5f },
+    { "SDF/twosided_superthin_alphatested_double_treeLeaves04_beginstack12", MATERIAL_FLAG_ALL, 0.5f },
     { "alphatested_treeLeaves00_continuestack12", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_treeLeaves02_continuestack12", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_treeLeaves05_continuestack12", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     // group 13
-    { "twosided_superthin_alphatested_double_treeLeaves08_beginstack13", MATERIAL_FLAG_ALL, 0.5f },
+    { "SDF/twosided_superthin_alphatested_double_treeLeaves08_beginstack13", MATERIAL_FLAG_ALL, 0.5f },
     { "alphatested_treeLeaves05_continuestack13", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_treeLeaves07_continuestack13", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     // group 14
-    { "twosided_superthin_alphatested_double_treeLeaves03_beginstack14", MATERIAL_FLAG_ALL, 0.5f },
+    { "SDF/twosided_superthin_alphatested_double_treeLeaves03_beginstack14", MATERIAL_FLAG_ALL, 0.5f },
     { "alphatested_treeLeaves01_continuestack14", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_treeLeaves06_continuestack14", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     // group 15
-    { "twosided_thin_alphatested_smallLeaves02_beginstack15", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves02_beginstack15", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_smallLeaves08_continuestack15", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack15", MATERIAL_FLAG_NONE, 0.0f },
     // group 16
-    { "twosided_thin_double_alphatested_smallLeaves019_beginstack16", MATERIAL_FLAG_ALL, 0.15f },
+    { "SDF/twosided_thin_double_alphatested_smallLeaves019_beginstack16", MATERIAL_FLAG_ALL, 0.15f },
     { "alphatested_flower0343_continuestack16", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves018_continuestack16", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves0377_continuestack16", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_rose00_continuestack16", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack16", MATERIAL_FLAG_NONE, 0.0f },
     // group 17
-    { "twosided_thin_alphatested_smallLeaves0380_beginstack17", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves0380_beginstack17", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_flower0342_continuestack17", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves07_continuestack17", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves05_continuestack17", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
@@ -341,13 +336,13 @@ MeshInfo alphaTestedMeshInfos[] = {
     { "alphatested_flower0338_continuestack17", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack17", MATERIAL_FLAG_NONE, 0.0f },
     // group 18
-    { "twosided_thin_alphatested_smallLeaves06_beginstack18", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves06_beginstack18", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_smallLeaves0378_continuestack18", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_flower0344_continuestack18", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_flower0340_continuestack18", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack18", MATERIAL_FLAG_NONE, 0.0f },
     // group 19
-    { "twosided_thin_double_alphatested_smallLeaves00_beginstack19", MATERIAL_FLAG_ALL, 0.15f },
+    { "SDF/twosided_thin_double_alphatested_smallLeaves00_beginstack19", MATERIAL_FLAG_ALL, 0.15f },
     { "alphatested_smallLeaves016_continuestack19", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_flower0341_continuestack19", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves017_continuestack19", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
@@ -355,42 +350,42 @@ MeshInfo alphaTestedMeshInfos[] = {
     { "alphatested_flower0304_continuestack19", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack19", MATERIAL_FLAG_NONE, 0.0f },
     // group 20
-    { "twosided_thin_alphatested_smallLeaves024_beginstack20", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves024_beginstack20", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket01_continuestack20", MATERIAL_FLAG_NONE, 0.0f },
     // group 21
-    { "twosided_thin_alphatested_smallLeaves010_beginstack21", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves010_beginstack21", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket01_continuestack21", MATERIAL_FLAG_NONE, 0.0f },
     // group 22
-    { "twosided_thin_alphatested_smallLeaves01_beginstack22", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves01_beginstack22", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket01_continuestack22", MATERIAL_FLAG_NONE, 0.0f },
     // group 23
-    { "twosided_thin_alphatested_smallLeaves04_beginstack23", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves04_beginstack23", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket01_continuestack23", MATERIAL_FLAG_NONE, 0.0f },
     // group 24
-    { "twosided_thin_alphatested_smallLeaves024_beginstack24", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves024_beginstack24", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket01_continuestack24", MATERIAL_FLAG_NONE, 0.0f },
     // group 25
-    { "twosided_thin_alphatested_smallLeaves00_beginstack25", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves00_beginstack25", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_flower0304_continuestack25", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack25", MATERIAL_FLAG_NONE, 0.0f },
     // group 26
-    { "twosided_thin_alphatested_smallLeaves00_beginstack26", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves00_beginstack26", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_smallLeaves023_continuestack26", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_flower0304_continuestack26", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack26", MATERIAL_FLAG_NONE, 0.0f },
     // group 27
-    { "twosided_thin_double_alphatested_smallLeaves025_beginstack27", MATERIAL_FLAG_ALL, 0.15f },
+    { "SDF/twosided_thin_double_alphatested_smallLeaves025_beginstack27", MATERIAL_FLAG_ALL, 0.15f },
     { "alphatested_smallLeaves011_continuestack27", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves021_continuestack27", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves017_continuestack27", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves08_continuestack27", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack27", MATERIAL_FLAG_NONE, 0.0f },
     // group 28
-    { "twosided_thin_alphatested_smallLeaves0377_beginstack28", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves0377_beginstack28", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_rose00_continuestack28", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack28", MATERIAL_FLAG_NONE, 0.0f },
     // group 29
-    { "twosided_thin_double_alphatested_smallLeaves00_beginstack29", MATERIAL_FLAG_ALL, 0.15f },
+    { "SDF/twosided_thin_double_alphatested_smallLeaves00_beginstack29", MATERIAL_FLAG_ALL, 0.15f },
     { "alphatested_smallLeaves026_continuestack29", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_flower01_continuestack29", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "alphatested_smallLeaves09_continuestack29", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
@@ -399,27 +394,27 @@ MeshInfo alphaTestedMeshInfos[] = {
     { "alphatested_flower0304_continuestack29", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack29", MATERIAL_FLAG_NONE, 0.0f },
     // group 30
-    { "twosided_thin_alphatested_smallLeaves027_beginstack30", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves027_beginstack30", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "flower00_continuestack30", MATERIAL_FLAG_NONE, 0.0f },
     { "basket01_continuestack30", MATERIAL_FLAG_NONE, 0.0f },
     // group 31
-    { "twosided_thin_alphatested_smallLeaves013_beginstack31", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves013_beginstack31", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket01_continuestack31", MATERIAL_FLAG_NONE, 0.0f },
     // group 32
-    { "twosided_thin_alphatested_smallLeaves04_beginstack32", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves04_beginstack32", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket01_continuestack32", MATERIAL_FLAG_NONE, 0.0f },
     // group 33
-    { "twosided_thin_alphatested_smallLeaves00_beginstack33", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves00_beginstack33", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_flower0304_continuestack33", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack33", MATERIAL_FLAG_NONE, 0.0f },
     // group 34
-    { "twosided_thin_alphatested_smallLeaves0381_beginstack34", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves0381_beginstack34", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket01_continuestack34", MATERIAL_FLAG_NONE, 0.0f },
     // group 35
-    { "twosided_thin_alphatested_smallLeaves0379_beginstack35", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves0379_beginstack35", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "basket01_continuestack35", MATERIAL_FLAG_NONE, 0.0f },
     // group 36
-    { "twosided_thin_alphatested_smallLeaves021_beginstack36", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
+    { "SDF/twosided_thin_alphatested_smallLeaves021_beginstack36", MATERIAL_FLAG_TWO_SIDED | MATERIAL_FLAG_ALPHA_TESTED, 0.15f },
     { "alphatested_smallLeaves017_continuestack36", MATERIAL_FLAG_ALPHA_TESTED, 0.0f },
     { "basket01_continuestack36", MATERIAL_FLAG_NONE, 0.0f }
 };
@@ -544,30 +539,30 @@ uint32_t gASMMaxTilesPerPass = 4;
 
 typedef struct LightUniformBlock
 {
-    mat4 mLightViewProj;
-    vec4 mLightPosition;
-    vec4 mLightColor = { 1, 0, 0, 1 };
-    vec4 mLightUpVec;
-    vec4 mTanLightAngleAndThresholdValue;
-    vec3 mLightDir;
+    CameraMatrix mLightViewProj;
+    vec4         mLightPosition;
+    vec4         mLightColor = { 1, 0, 0, 1 };
+    vec4         mLightUpVec;
+    vec4         mTanLightAngleAndThresholdValue;
+    vec4         mLightDir;
 } LightUniformBlock;
 
 typedef struct CameraUniform
 {
-    mat4  mView;
-    mat4  mProject;
-    mat4  mViewProject;
-    mat4  mInvView;
-    mat4  mInvProj;
-    mat4  mInvViewProject;
-    vec4  mCameraPos;
-    float mNear;
-    float mFar;
-    float mFarNearDiff;
-    float mFarNear;
-    vec2  mTwoOverRes;
-    vec2  mWindowSize;
-    vec4  mDeviceZToWorldZ;
+    mat4         mView;
+    CameraMatrix mProject;
+    CameraMatrix mViewProject;
+    mat4         mInvView;
+    CameraMatrix mInvProj;
+    CameraMatrix mInvViewProject;
+    vec4         mCameraPos;
+    float        mNear;
+    float        mFar;
+    float        mFarNearDiff;
+    float        mFarNear;
+    vec2         mTwoOverRes;
+    vec2         mWindowSize;
+    vec4         mDeviceZToWorldZ;
 } CameraUniform;
 
 typedef struct ESMInputConstants
@@ -596,11 +591,10 @@ typedef struct SSSInputConstants
     float4   mScreenSize = float4(0.0f);
     float    mSurfaceThickness = 0.01f;
     float    mBilinearThreshold = 0.035f;
-    float    mShadowContrast = 1.0f;
+    float    mShadowContrast = 0.7f;
     uint32_t mIgnoreEdgePixels = 0;
     uint32_t mBilinearSamplingOffsetMode = 0;
     uint32_t mDebugOutputMode = 0;
-    uint32_t mWaveLaneCount = 0;
 } SSSInputConstants;
 
 struct MSMInputConstants
@@ -681,9 +675,9 @@ uint32_t gSDFNumObjects = 0;
 
 typedef struct UpdateSDFVolumeTextureAtlasConstants
 {
-    ivec3 mSourceAtlasVolumeMinCoord;
-    ivec3 mSourceDimensionSize;
-    ivec3 mSourceAtlasVolumeMaxCoord;
+    ivec4 mSourceAtlasVolumeMinCoord;
+    ivec4 mSourceDimensionSize;
+    ivec4 mSourceAtlasVolumeMaxCoord;
 } UpdateSDFVolumeTextureAtlasConstants;
 
 struct ASMCpuSettings
@@ -784,13 +778,6 @@ Shader*        pShaderTriangleFiltering = NULL;
 Pipeline*      pPipelineTriangleFiltering = NULL;
 RootSignature* pRootSignatureTriangleFiltering = NULL;
 DescriptorSet* pDescriptorSetTriangleFiltering[2] = { NULL };
-/************************************************************************/
-// Batch compaction pipeline
-/************************************************************************/
-Shader*        pShaderBatchCompaction = NULL;
-Pipeline*      pPipelineBatchCompaction = NULL;
-RootSignature* pRootSignatureBatchCompaction = NULL;
-DescriptorSet* pDescriptorSetBatchCompaction = NULL;
 
 /************************************************************************/
 // Gaussian Blur pipelines
@@ -850,104 +837,103 @@ Pipeline*      pPipelineASMFillIndirection = NULL;
 #if defined(ORBIS) || defined(PROSPERO)
 Shader* pShaderASMFillIndirectionFP16 = NULL;
 #endif
-RootSignature*    pRootSignatureASMFillIndirection = NULL;
-DescriptorSet*    pDescriptorSetASMFillIndirection[3] = { NULL };
+RootSignature* pRootSignatureASMFillIndirection = NULL;
+DescriptorSet* pDescriptorSetASMFillIndirection[3] = { NULL };
 /************************************************************************/
 // ASM fill lod clamp Pack
 /************************************************************************/
 // Reuse pShaderASMFillIndirection since they pretty much has the same shader
-Pipeline*         pPipelineASMFillLodClamp = NULL;
-RootSignature*    pRootSignatureASMFillLodClamp = NULL;
-DescriptorSet*    pDescriptorSetASMFillLodClamp = NULL;
+Pipeline*      pPipelineASMFillLodClamp = NULL;
+RootSignature* pRootSignatureASMFillLodClamp = NULL;
+DescriptorSet* pDescriptorSetASMFillLodClamp = NULL;
 /************************************************************************/
 // ASM Copy DEM Shader Pack
 /************************************************************************/
-Shader*           pShaderASMCopyDEM = NULL;
-Pipeline*         pPipelineASMCopyDEM = NULL;
-RootSignature*    pRootSignatureASMCopyDEM = NULL;
-DescriptorSet*    pDescriptorSetASMCopyDEM[2] = { NULL };
+Shader*        pShaderASMCopyDEM = NULL;
+Pipeline*      pPipelineASMCopyDEM = NULL;
+RootSignature* pRootSignatureASMCopyDEM = NULL;
+DescriptorSet* pDescriptorSetASMCopyDEM[2] = { NULL };
 /************************************************************************/
 // ASM generate DEM Shader Pack
 /************************************************************************/
-Shader*           pShaderASMGenerateDEM = NULL;
-Pipeline*         pPipelineASMDEMAtlasToColor = NULL;
-Pipeline*         pPipelineASMDEMColorToAtlas = NULL;
-RootSignature*    pRootSignatureASMDEMAtlasToColor = NULL;
-DescriptorSet*    pDescriptorSetASMDEMAtlasToColor[2] = { NULL };
-RootSignature*    pRootSignatureASMDEMColorToAtlas = NULL;
-DescriptorSet*    pDescriptorSetASMDEMColorToAtlas[2] = { NULL };
+Shader*        pShaderASMGenerateDEM = NULL;
+Pipeline*      pPipelineASMDEMAtlasToColor = NULL;
+Pipeline*      pPipelineASMDEMColorToAtlas = NULL;
+RootSignature* pRootSignatureASMDEMAtlasToColor = NULL;
+DescriptorSet* pDescriptorSetASMDEMAtlasToColor[2] = { NULL };
+RootSignature* pRootSignatureASMDEMColorToAtlas = NULL;
+DescriptorSet* pDescriptorSetASMDEMColorToAtlas[2] = { NULL };
 /************************************************************************/
 // VB pass pipeline
 /************************************************************************/
-Shader*           pShaderVBBufferPass[gNumGeomSets] = {};
-Pipeline*         pPipelineVBBufferPass[gNumGeomSets] = {};
-RootSignature*    pRootSignatureVBPass = NULL;
-DescriptorSet*    pDescriptorSetVBPass[3] = { NULL };
-CommandSignature* pCmdSignatureVBPass = NULL;
+Shader*        pShaderVBBufferPass[gNumGeomSets] = {};
+Pipeline*      pPipelineVBBufferPass[gNumGeomSets] = {};
+RootSignature* pRootSignatureVBPass = NULL;
+DescriptorSet* pDescriptorSetVBPass[3] = { NULL };
 /************************************************************************/
 // VB shade pipeline
 /************************************************************************/
-Shader*           pShaderVBShade[MSAA_LEVELS_COUNT] = { NULL };
-Pipeline*         pPipelineVBShadeSrgb = NULL;
-RootSignature*    pRootSignatureVBShade = NULL;
-DescriptorSet*    pDescriptorSetVBShade[2] = { NULL };
+Shader*        pShaderVBShade[MSAA_LEVELS_COUNT] = { NULL };
+Pipeline*      pPipelineVBShadeSrgb = NULL;
+RootSignature* pRootSignatureVBShade = NULL;
+DescriptorSet* pDescriptorSetVBShade[2] = { NULL };
 /************************************************************************/
 // SDF draw update volume texture atlas pipeline
 /************************************************************************/
-Shader*           pShaderUpdateSDFVolumeTextureAtlas = NULL;
-Pipeline*         pPipelineUpdateSDFVolumeTextureAtlas = NULL;
-RootSignature*    pRootSignatureUpdateSDFVolumeTextureAtlas = NULL;
-DescriptorSet*    pDescriptorSetUpdateSDFVolumeTextureAtlas[2] = { NULL };
+Shader*        pShaderUpdateSDFVolumeTextureAtlas = NULL;
+Pipeline*      pPipelineUpdateSDFVolumeTextureAtlas = NULL;
+RootSignature* pRootSignatureUpdateSDFVolumeTextureAtlas = NULL;
+DescriptorSet* pDescriptorSetUpdateSDFVolumeTextureAtlas[2] = { NULL };
 /************************************************************************/
 // SDF mesh visualization pipeline
 /************************************************************************/
-Shader*           pShaderSDFMeshVisualization[MSAA_LEVELS_COUNT] = { NULL };
-Pipeline*         pPipelineSDFMeshVisualization = NULL;
-RootSignature*    pRootSignatureSDFMeshVisualization = NULL;
-DescriptorSet*    pDescriptorSetSDFMeshVisualization[2] = { NULL };
+Shader*        pShaderSDFMeshVisualization[MSAA_LEVELS_COUNT] = { NULL };
+Pipeline*      pPipelineSDFMeshVisualization = NULL;
+RootSignature* pRootSignatureSDFMeshVisualization = NULL;
+DescriptorSet* pDescriptorSetSDFMeshVisualization[2] = { NULL };
 /************************************************************************/
 // SDF baked mesh shadow pipeline
 /************************************************************************/
-Shader*           pShaderSDFMeshShadow[MSAA_LEVELS_COUNT] = { NULL };
-Pipeline*         pPipelineSDFMeshShadow = NULL;
-RootSignature*    pRootSignatureSDFMeshShadow = NULL;
-DescriptorSet*    pDescriptorSetSDFMeshShadow[2] = { NULL };
+Shader*        pShaderSDFMeshShadow[MSAA_LEVELS_COUNT] = { NULL };
+Pipeline*      pPipelineSDFMeshShadow = NULL;
+RootSignature* pRootSignatureSDFMeshShadow = NULL;
+DescriptorSet* pDescriptorSetSDFMeshShadow[2] = { NULL };
 /************************************************************************/
 // SDF upsample shadow texture pipeline
 /************************************************************************/
-Shader*           pShaderUpsampleSDFShadow[MSAA_LEVELS_COUNT] = { NULL };
-Pipeline*         pPipelineUpsampleSDFShadow = NULL;
-RootSignature*    pRootSignatureUpsampleSDFShadow = NULL;
-DescriptorSet*    pDescriptorSetUpsampleSDFShadow[2] = { NULL };
+Shader*        pShaderUpsampleSDFShadow[MSAA_LEVELS_COUNT] = { NULL };
+Pipeline*      pPipelineUpsampleSDFShadow = NULL;
+RootSignature* pRootSignatureUpsampleSDFShadow = NULL;
+DescriptorSet* pDescriptorSetUpsampleSDFShadow[2] = { NULL };
 /************************************************************************/
 // Resolve pipeline
 /************************************************************************/
-Shader*           pShaderResolve[MSAA_LEVELS_COUNT] = { NULL };
-Pipeline*         pPipelineResolve = nullptr;
-RootSignature*    pRootSignatureResolve = nullptr;
-DescriptorSet*    pDescriptorSetResolve = { NULL };
+Shader*        pShaderResolve[MSAA_LEVELS_COUNT] = { NULL };
+Pipeline*      pPipelineResolve = nullptr;
+RootSignature* pRootSignatureResolve = nullptr;
+DescriptorSet* pDescriptorSetResolve = { NULL };
 /************************************************************************/
 // Present pipeline
 /************************************************************************/
-Shader*           pShaderPresentPass = NULL;
-Pipeline*         pPipelinePresentPass = NULL;
-RootSignature*    pRootSignaturePresentPass = NULL;
-DescriptorSet*    pDescriptorSetPresentPass = NULL;
+Shader*        pShaderPresentPass = NULL;
+Pipeline*      pPipelinePresentPass = NULL;
+RootSignature* pRootSignaturePresentPass = NULL;
+DescriptorSet* pDescriptorSetPresentPass = NULL;
 /************************************************************************/
 // Samplers
 /************************************************************************/
-Sampler*          pSamplerMiplessSampler = NULL;
-Sampler*          pSamplerTrilinearAniso = NULL;
-Sampler*          pSamplerMiplessNear = NULL;
-Sampler*          pSamplerMiplessLinear = NULL;
-Sampler*          pSamplerComparisonShadow = NULL;
-Sampler*          pSamplerMiplessClampToBorderNear = NULL;
-Sampler*          pSamplerLinearRepeat = NULL;
+Sampler*       pSamplerMiplessSampler = NULL;
+Sampler*       pSamplerTrilinearAniso = NULL;
+Sampler*       pSamplerMiplessNear = NULL;
+Sampler*       pSamplerMiplessLinear = NULL;
+Sampler*       pSamplerComparisonShadow = NULL;
+Sampler*       pSamplerMiplessClampToBorderNear = NULL;
+Sampler*       pSamplerLinearRepeat = NULL;
 /************************************************************************/
 // Constant buffers
 /************************************************************************/
-Buffer*           pBufferMeshTransforms[MESH_COUNT][gDataBufferCount] = { { NULL } };
-Buffer*           pBufferMeshShadowProjectionTransforms[MESH_COUNT][ASM_MAX_TILES_PER_PASS][gDataBufferCount] = { { { NULL } } };
+Buffer*        pBufferMeshTransforms[MESH_COUNT][gDataBufferCount] = { { NULL } };
+Buffer*        pBufferMeshShadowProjectionTransforms[MESH_COUNT][ASM_MAX_TILES_PER_PASS][gDataBufferCount] = { { { NULL } } };
 
 Buffer* pBufferLightUniform[gDataBufferCount] = { NULL };
 Buffer* pBufferESMUniform[gDataBufferCount] = { NULL };
@@ -1010,7 +996,7 @@ Texture** gSpecularMapsStorage = NULL;
 struct
 {
     uint32_t mFilterWidth = 2U;
-    float    mEsmControl = 100.f;
+    float    mEsmControl = 225.f;
 } gEsmCpuSettings;
 
 SSSInputConstants gSSSUniformData;
@@ -1066,7 +1052,7 @@ float             gGaussianBlurSigma[2] = { 1.0f, 1.0f };
 QuadDataUniform gQuadUniformData;
 MeshInfoStruct  gMeshInfoData[MESH_COUNT] = {};
 
-PerFrameVBConstants gVBConstants[gDataBufferCount] = {};
+PerFrameVBConstantsData gVBConstants[gDataBufferCount] = {};
 
 vec3 gObjectsCenter = { SAN_MIGUEL_OFFSETX, 0, 0 };
 
@@ -1092,6 +1078,7 @@ uint32_t     gSSSRootConstantIndex = 0;
 
 Renderer*         pRenderer = NULL;
 VisibilityBuffer* pVisibilityBuffer = NULL;
+Scene*            pScene = NULL;
 
 Queue*     pGraphicsQueue = NULL;
 GpuCmdRing gGraphicsCmdRing = {};
@@ -1535,6 +1522,7 @@ void CalculateBounds(BVHTree* bvhTree, int32_t begin, int32_t end, vec3& outMinB
 
 BVHNode* CreateBVHNodeSHA(BVHTree* bvhTree, int32_t begin, int32_t end, float parentSplitCost)
 {
+    UNREF_PARAM(parentSplitCost);
     int32_t count = end - begin + 1;
 
     vec3 minBounds;
@@ -1729,6 +1717,7 @@ struct SDFVolumeData
         mSDFVolumeSize(0), mLocalBoundingBox(), mDistMinMax(FLT_MAX, FLT_MIN), mIsTwoSided(false), mTwoSidedWorldSpaceBias(0.f),
         mSDFVolumeTextureNode(this)
     {
+        UNREF_PARAM(mainMesh);
     }
 
     SDFVolumeData():
@@ -1849,6 +1838,7 @@ struct CalculateMeshSDFTask
 
 void DoCalculateMeshSDFTask(void* dataPtr, uintptr_t index)
 {
+    UNREF_PARAM(index);
     CalculateMeshSDFTask* task = (CalculateMeshSDFTask*)(dataPtr);
 
     const AABB&  sdfVolumeBounds = *task->mSDFVolumeBounds;
@@ -2245,12 +2235,12 @@ float Get3DRefinementDistanceSq(const AABB& BBox, const vec2& refinementPos)
 
 struct ASMProjectionData
 {
-    mat4 mViewMat;
-    mat4 mInvViewMat;
-    mat4 mProjMat;
-    mat4 mInvProjMat;
-    mat4 mViewProjMat;
-    mat4 mInvViewProjMat;
+    mat4         mViewMat;
+    mat4         mInvViewMat;
+    CameraMatrix mProjMat;
+    CameraMatrix mInvProjMat;
+    CameraMatrix mViewProjMat;
+    CameraMatrix mInvViewProjMat;
 };
 
 class ConvexHull2D
@@ -2275,7 +2265,7 @@ public:
         vec2 vertices[numVertices];
         vertices[0] = vec2(projectedFrustumPos.getX(), projectedFrustumPos.getY());
 
-        mat4 projMat = projection.mProjMat;
+        mat4 projMat = projection.mProjMat.mCamera;
 
         float hz = Project(vec3(0, 0, frustumZMaxOverride), 1.f, projMat).getZ();
 
@@ -2286,7 +2276,7 @@ public:
             vec3(-1.0f, +1.0f, hz),
         };
 
-        mat4 tm = viewProj * projection.mInvViewProjMat;
+        mat4 tm = viewProj * projection.mInvViewProjMat.mCamera;
         for (uint32_t i = 1; i < numVertices; ++i)
         {
             vec3 indxProjectedFrustumPos = Project(frustumCorners[i - 1], 1.f, tm);
@@ -2495,6 +2485,7 @@ public:
 
     void Add(CItem* pItem, bool mayBeAlreadyInserted = false)
     {
+        UNREF_PARAM(mayBeAlreadyInserted);
         SHandleSetter& handle = static_cast<SHandleSetter&>((pItem->*GetHandle)());
         if (!handle.IsInserted())
         {
@@ -2504,6 +2495,7 @@ public:
     }
     void Remove(CItem* pItem, bool mayBeNotInserted = false)
     {
+        UNREF_PARAM(mayBeNotInserted);
         SHandleSetter& handle = static_cast<SHandleSetter&>((pItem->*GetHandle)());
         if (handle.IsInserted())
         {
@@ -2826,7 +2818,7 @@ public:
                 break;
             }
 
-#if defined(XBOX)
+#if defined(GFX_RESOURCE_INIT_NON_ZERO)
             // On Xbox the texture is initialized with garbage value, so texture that isn't cleared every frame
             // needs to be cleared at the begininng for xbox.
             if (mDEMFirstTimeRender)
@@ -2946,6 +2938,7 @@ public:
     void RenderIndirectModelSceneTile(const vec2& viewPortLoc, const vec2& viewPortSize, const ASMProjectionData& renderProjectionData,
                                       bool isLayer, ASMSShadowMapRenderContext& renderContext, uint32_t tileIndex, uint32_t geomSet)
     {
+        UNREF_PARAM(isLayer);
         Cmd* pCurCmd = renderContext.m_pRendererContext->m_pCmd;
 
         cmdSetViewport(pCurCmd, static_cast<float>(viewPortLoc.getX()), static_cast<float>(viewPortLoc.getY()),
@@ -2957,7 +2950,7 @@ public:
         for (int32_t i = 0; i < MESH_COUNT; ++i)
         {
             gMeshASMProjectionInfoUniformData[0][gFrameIndex].mWorldViewProjMat =
-                renderProjectionData.mViewProjMat * gMeshInfoData[i].mWorldMat;
+                renderProjectionData.mViewProjMat.mCamera * gMeshInfoData[i].mWorldMat;
             gMeshASMProjectionInfoUniformData[0][gFrameIndex].mViewID = VIEW_SHADOW + tileIndex;
         }
 
@@ -2973,17 +2966,14 @@ public:
         cmdBindIndexBuffer(pCurCmd, pVisibilityBuffer->ppFilteredIndexBuffer[VIEW_SHADOW + tileIndex], INDEX_TYPE_UINT32, 0);
 
         cmdBindPipeline(pCurCmd, pPipelines[geomSet]);
-        cmdBindVertexBuffer(pCurCmd, geomSet == GEOMSET_OPAQUE ? 1 : 2, &pGeom->pVertexBuffers[0], pGeom->mVertexStrides, NULL);
 
         cmdBindDescriptorSet(pCurCmd, 0, pDescriptorSetVBPass[0]);
         cmdBindDescriptorSet(pCurCmd, gFrameIndex, pDescriptorSetVBPass[1]);
         cmdBindDescriptorSet(pCurCmd, gFrameIndex + tileIndex * gDataBufferCount, pDescriptorSetASMDepthPass);
 
         uint64_t indirectBufferByteOffset = GET_INDIRECT_DRAW_ELEM_INDEX(VIEW_SHADOW + tileIndex, geomSet, 0) * sizeof(uint32_t);
-        uint64_t indirectBufferCounterByteOffset = indirectBufferByteOffset + DRAW_COUNTER_SLOT_OFFSET_IN_BYTES;
-        cmdExecuteIndirect(pCurCmd, pCmdSignatureVBPass, gPerFrameData[gFrameIndex].gDrawCount[geomSet],
-                           pVisibilityBuffer->ppFilteredIndirectDrawArgumentsBuffers[0], indirectBufferByteOffset,
-                           pVisibilityBuffer->ppFilteredIndirectDrawArgumentsBuffers[0], indirectBufferCounterByteOffset);
+        Buffer*  pIndirectDrawBuffer = pVisibilityBuffer->ppIndirectDrawArgBuffer[0];
+        cmdExecuteIndirect(pCurCmd, INDIRECT_DRAW_INDEX, 1, pIndirectDrawBuffer, indirectBufferByteOffset, NULL, 0);
     }
 
     bool NothingToRender() const { return m_renderBatch.empty(); }
@@ -3250,7 +3240,7 @@ public:
 
     ASMFrustum(const Config& cfg, bool useMRF, bool isPreRender):
         mIsPrerender(isPreRender), m_cfg(cfg), m_lodClampTexture(NULL), m_layerIndirectionTexture(NULL)
-#if defined(XBOX)
+#if defined(GFX_RESOURCE_INIT_NON_ZERO)
         ,
         mFirstTimeRender(true)
 #endif
@@ -3446,6 +3436,7 @@ public:
     const ASMProjectionData CalcCamera(const vec3& cameraPos, const AABB& BBoxLS, const vec2& viewportScaleFactor, bool reverseZ = true,
                                        bool customCamera = false) const
     {
+        UNREF_PARAM(customCamera);
         mat4              viewMat = mat4::lookAtRH(Point3(cameraPos), Point3(cameraPos + m_lightDir), vec3(0.f, 1.f, 0.f));
         ASMProjectionData renderProjection;
         renderProjection.mViewMat = viewMat;
@@ -3459,15 +3450,15 @@ public:
 
         if (reverseZ)
         {
-            renderProjection.mProjMat = mat4::orthographicLH(-hw, hw, -hh, hh, farPlane, 0);
+            renderProjection.mProjMat = CameraMatrix::orthographic(-hw, hw, -hh, hh, farPlane, 0);
         }
         else
         {
-            renderProjection.mProjMat = mat4::orthographicLH(-hw, hw, -hh, hh, 0, farPlane);
+            renderProjection.mProjMat = CameraMatrix::orthographic(-hw, hw, -hh, hh, 0, farPlane);
         }
 
         renderProjection.mInvViewMat = inverse(viewMat);
-        renderProjection.mInvProjMat = inverse(renderProjection.mProjMat);
+        renderProjection.mInvProjMat = CameraMatrix::inverse(renderProjection.mProjMat);
         renderProjection.mViewProjMat = renderProjection.mProjMat * viewMat;
         renderProjection.mInvViewProjMat = renderProjection.mInvViewMat * renderProjection.mInvProjMat;
 
@@ -3802,7 +3793,7 @@ private:
             m_indexViewMat = renderProjection.mViewMat;
 
             static const mat4 screenToTexCoordMatrix = mat4::translation(vec3(0.5f, 0.5f, 0.f)) * mat4::scale(vec3(0.5f, -0.5f, 1.f));
-            m_indexTexMat = screenToTexCoordMatrix * renderProjection.mViewProjMat;
+            m_indexTexMat = screenToTexCoordMatrix * renderProjection.mViewProjMat.mCamera;
         }
     }
     void FillIndirectionTextureData(bool processLayers)
@@ -3937,6 +3928,8 @@ private:
     void UpdateIndirectionTexture(RenderTarget* indirectionTexture, ASMSShadowMapRenderContext context, bool disableHierarchy,
                                   bool isPreRender)
     {
+        UNREF_PARAM(indirectionTexture);
+        UNREF_PARAM(isPreRender);
         ASMRendererContext* curRendererContext = context.m_pRendererContext;
 
         IndirectionRenderData* finalIndirectionRenderData =
@@ -3960,7 +3953,7 @@ private:
 
         BindRenderTargetsDesc bindRenderTargets = {};
         bindRenderTargets.mRenderTargetCount = 1;
-#if defined(XBOX)
+#if defined(GFX_RESOURCE_INIT_NON_ZERO)
         if (mFirstTimeRender)
         {
             bindRenderTargets.mRenderTargets[0].mLoadAction = LOAD_ACTION_CLEAR;
@@ -4034,7 +4027,7 @@ private:
     }
 
 private:
-#if defined(XBOX)
+#if defined(GFX_RESOURCE_INIT_NON_ZERO)
     bool mFirstTimeRender;
 #endif
 };
@@ -4042,6 +4035,7 @@ private:
 void ASMTileCache::RenderTiles(uint32_t numTiles, ASMTileCacheEntry** tiles, RenderTarget* workBufferDepth, RenderTarget* workBufferColor,
                                ASMSShadowMapRenderContext& context, bool allowDEM)
 {
+    UNREF_PARAM(workBufferColor);
     if (!numTiles)
         return;
 
@@ -4148,7 +4142,7 @@ void ASMTileCache::RenderTiles(uint32_t numTiles, ASMTileCacheEntry** tiles, Ren
             BindRenderTargetsDesc copyDepthQuadBindDesc = {};
             copyDepthQuadBindDesc.mRenderTargetCount = 1;
             copyDepthQuadBindDesc.mRenderTargets[0] = { pRenderTargetASMDepthAtlas, LOAD_ACTION_LOAD };
-#if defined(XBOX)
+#if defined(GFX_RESOURCE_INIT_NON_ZERO)
             if (mDepthFirstTimeRender)
             {
                 copyDepthQuadBindDesc.mRenderTargets[0].mLoadAction = LOAD_ACTION_CLEAR;
@@ -4299,14 +4293,14 @@ public:
         return m_cache->PrepareRenderTilesBatch(context);
     }
 
-    void Render(RenderTarget* pRenderTargetDepth, RenderTarget* pRenderTargetColor, ASMRendererContext& renderContext,
+    void Render(RenderTarget* pDepthTarget, RenderTarget* pRenderTargetColor, ASMRendererContext& renderContext,
                 ASMProjectionData* projectionRender)
     {
         ASMSShadowMapRenderContext context = { &renderContext, projectionRender };
 
         if (!m_cache->NothingToRender())
         {
-            m_cache->RenderTilesBatch(pRenderTargetDepth, pRenderTargetColor, context);
+            m_cache->RenderTilesBatch(pDepthTarget, pRenderTargetColor, context);
         }
 
         m_cache->CreateDEM(pRenderTargetColor, context, false);
@@ -4332,6 +4326,8 @@ public:
               const vec3& halfwayLightDir, uint32_t currentTime, uint32_t dt, bool disableWarping, bool forceUpdate,
               uint32_t updateDeltaTime)
     {
+        UNREF_PARAM(currentTime);
+        UNREF_PARAM(updateDeltaTime);
         // mTickData = tickData;
 
         vec3 sunDir = lightDir;
@@ -4590,6 +4586,7 @@ ASM* pASM;
 
 void SetupASMDebugTextures(void* pUserData)
 {
+    UNREF_PARAM(pUserData);
     if (!gASMCpuSettings.mShowDebugTextures)
     {
         if (pUIASMDebugTexturesWindow)
@@ -4607,7 +4604,7 @@ void SetupASMDebugTextures(void* pUserData)
 
             UIComponentDesc guiDesc = {};
             guiDesc.mStartPosition.setY(screenSize.getY() - texSize.getY() - 50.f);
-            uiCreateComponent("ASM Debug Textures Info", &guiDesc, &pUIASMDebugTexturesWindow);
+            uiAddComponent("ASM Debug Textures Info", &guiDesc, &pUIASMDebugTexturesWindow);
 
             static const Texture* textures[3];
             textures[0] = pRenderTargetASMDepthAtlas->pTexture;
@@ -4618,7 +4615,7 @@ void SetupASMDebugTextures(void* pUserData)
             widget.pTextures = textures;
             widget.mTexturesCount = sizeof(textures) / sizeof(textures[0]);
             widget.mTextureDisplaySize = texSize;
-            luaRegisterWidget(uiCreateComponentWidget(pUIASMDebugTexturesWindow, "Debug RTs", &widget, WIDGET_TYPE_DEBUG_TEXTURES));
+            luaRegisterWidget(uiAddComponentWidget(pUIASMDebugTexturesWindow, "Debug RTs", &widget, WIDGET_TYPE_DEBUG_TEXTURES));
         }
 
         uiSetComponentActive(pUIASMDebugTexturesWindow, true);
@@ -4667,11 +4664,18 @@ SliderFloat3Widget* GuiController::mLightPosWidget = NULL;
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-const char* gTestScripts[] = { "Test_ESM.lua", "Test_ASM.lua",    "Test_SDF.lua",    "Test_VSM.lua",
-                               "Test_MSM.lua", "Test_MSAA_0.lua", "Test_MSAA_2.lua", "Test_MSAA_4.lua" };
+const char* gTestScripts[] = { "09_LightShadowPlayground/Test_ESM.lua",
+                               "09_LightShadowPlayground/Test_ASM.lua",
+                               "09_LightShadowPlayground/Test_SDF.lua",
+                               "09_LightShadowPlayground/Test_VSM.lua",
+                               "09_LightShadowPlayground/Test_MSM.lua",
+                               "Test_MSAA_0.lua",
+                               "Test_MSAA_2.lua",
+                               "Test_MSAA_4.lua" };
 uint32_t    gCurrentScriptIndex = 0;
 void        RunScript(void* pUserData)
 {
+    UNREF_PARAM(pUserData);
     LuaScriptDesc runDesc = {};
     runDesc.pScriptFileName = gTestScripts[gCurrentScriptIndex];
     luaQueueScriptToRun(&runDesc);
@@ -4695,10 +4699,15 @@ public:
         uint32_t startIdx = 0;
     } sdfLoadData[NUM_SDF_MESHES];
 
-    static void refreshASM(void* pUserData) { pASM->Reset(); }
+    static void refreshASM(void* pUserData)
+    {
+        UNREF_PARAM(pUserData);
+        pASM->Reset();
+    }
 
     static void resetLightDir(void* pUserData)
     {
+        UNREF_PARAM(pUserData);
         asmCurrentTime = 0.f;
         refreshASM(pUserData);
     }
@@ -4711,7 +4720,8 @@ public:
 
     void loadSDFMeshes()
     {
-        static const char* sdfModels[3] = { "SanMiguel_Opaque.bin", "SanMiguel_AlphaTested.bin", "SanMiguel_Flags.bin" };
+        static const char* sdfModels[3] = { "SanMiguel_3/SanMiguel_Opaque.bin", "SanMiguel_3/SanMiguel_AlphaTested.bin",
+                                            "SanMiguel_3/SanMiguel_Flags.bin" };
 
         SDFMeshes[0].pSubMeshesInfo = opaqueMeshInfos;
         SDFMeshes[0].numSubMeshesGroups = sizeof(opaqueMeshInfos) / sizeof(MeshInfo);
@@ -4826,7 +4836,7 @@ public:
         fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_TEXTURES, "Textures");
         fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_FONTS, "Fonts");
         fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_MESHES, "Meshes");
-        fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_OTHER_FILES, "SDF");
+        fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_OTHER_FILES, "");
         fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_SCRIPTS, "Scripts");
         fsSetPathForResourceDir(pSystemFileIO, RM_DEBUG, RD_SCREENSHOTS, "Screenshots");
         fsSetPathForResourceDir(pSystemFileIO, RM_DEBUG, RD_DEBUG, "Debug");
@@ -4844,24 +4854,31 @@ public:
         RendererDesc settings;
         memset(&settings, 0, sizeof(settings));
         settings.pExtendedSettings = &extendedSettings;
+        initGPUConfiguration(settings.pExtendedSettings);
         initRenderer(GetName(), &settings, &pRenderer);
-
+        // check for init success
+        if (!pRenderer)
+        {
+            ShowUnsupportedMessage("Failed To Initialize renderer!");
+            return false;
+        }
+        setupGPUConfigurationPlatformParameters(pRenderer, settings.pExtendedSettings);
         if (!gGpuSettings.mBindlessSupported)
         {
             ShowUnsupportedMessage("Visibility Buffer does not run on this device. GPU does not support enough bindless texture entries");
             return false;
         }
 
-        if (!pRenderer->pGpu->mSettings.mPrimitiveIdSupported)
+        if (!pRenderer->pGpu->mPrimitiveIdSupported)
         {
             ShowUnsupportedMessage("Visibility Buffer does not run on this device. PrimitiveID is not supported");
             return false;
         }
 
         // On Mac with AMD Gpu, doesn't allow ReadWrite on texture formats with 2 component then use float4 format
-        gFloat2RWTextureSupported = (pRenderer->pGpu->mCapBits.mFormatCaps[TinyImageFormat_R16G16_UNORM] & FORMAT_CAP_READ_WRITE) &&
-                                    (pRenderer->pGpu->mCapBits.mFormatCaps[TinyImageFormat_R16G16_SNORM] & FORMAT_CAP_READ_WRITE) &&
-                                    (pRenderer->pGpu->mCapBits.mFormatCaps[TinyImageFormat_R32G32_SFLOAT] & FORMAT_CAP_READ_WRITE);
+        gFloat2RWTextureSupported = (pRenderer->pGpu->mFormatCaps[TinyImageFormat_R16G16_UNORM] & FORMAT_CAP_READ_WRITE) &&
+                                    (pRenderer->pGpu->mFormatCaps[TinyImageFormat_R16G16_SNORM] & FORMAT_CAP_READ_WRITE) &&
+                                    (pRenderer->pGpu->mFormatCaps[TinyImageFormat_R32G32_SFLOAT] & FORMAT_CAP_READ_WRITE);
 
         gAppSettings.mMsaaLevel = (SampleCount)min(1u, gGpuSettings.mMSAASampleCount);
         gAppSettings.mMsaaIndex = (uint32_t)log2((uint32_t)gAppSettings.mMsaaLevel);
@@ -4870,7 +4887,7 @@ public:
         QueueDesc queueDesc = {};
         queueDesc.mType = QUEUE_TYPE_GRAPHICS;
         queueDesc.mFlag = QUEUE_FLAG_INIT_MICROPROFILE;
-        addQueue(pRenderer, &queueDesc, &pGraphicsQueue);
+        initQueue(pRenderer, &queueDesc, &pGraphicsQueue);
 
         // Create the command pool and the command lists used to store GPU commands.
         // One Cmd list per back buffer image is stored for triple buffering.
@@ -4879,9 +4896,9 @@ public:
         cmdRingDesc.mPoolCount = gDataBufferCount;
         cmdRingDesc.mCmdPerPoolCount = 1;
         cmdRingDesc.mAddSyncPrimitives = true;
-        addGpuCmdRing(pRenderer, &cmdRingDesc, &gGraphicsCmdRing);
+        initGpuCmdRing(pRenderer, &cmdRingDesc, &gGraphicsCmdRing);
 
-        addSemaphore(pRenderer, &pImageAcquiredSemaphore);
+        initSemaphore(pRenderer, &pImageAcquiredSemaphore);
 
         initResourceLoaderInterface(pRenderer);
 
@@ -4900,10 +4917,6 @@ public:
         uiRenderDesc.pRenderer = pRenderer;
         initUserInterface(&uiRenderDesc);
 
-        UIComponentDesc guiDesc = {};
-        guiDesc.mStartPosition = vec2(mSettings.mWidth * 0.01f, mSettings.mHeight * 0.4f);
-        uiCreateComponent(GetName(), &guiDesc, &pGuiWindow);
-
         const uint32_t numScripts = sizeof(gTestScripts) / sizeof(gTestScripts[0]);
         LuaScriptDesc  scriptDescs[numScripts] = {};
         for (uint32_t i = 0; i < numScripts; ++i)
@@ -4915,18 +4928,9 @@ public:
         }
         luaDefineScripts(scriptDescs, numScripts);
 
-        InputSystemDesc inputDesc = {};
-        inputDesc.pRenderer = pRenderer;
-        inputDesc.pWindow = pWindow;
-        inputDesc.pJoystickTexture = "circlepad.tex";
-        if (!initInputSystem(&inputDesc))
-            return false;
-
         // Initialize micro profiler and its UI.
         ProfilerDesc profiler = {};
         profiler.pRenderer = pRenderer;
-        profiler.mWidthUI = mSettings.mWidth;
-        profiler.mHeightUI = mSettings.mHeight;
         initProfiler(&profiler);
 
         /************************************************************************/
@@ -4950,7 +4954,7 @@ public:
         BufferLoadDesc vbConstantUBDesc = {};
         vbConstantUBDesc.mDesc.mDescriptors = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         vbConstantUBDesc.mDesc.mMemoryUsage = RESOURCE_MEMORY_USAGE_CPU_TO_GPU;
-        vbConstantUBDesc.mDesc.mSize = sizeof(PerFrameVBConstants);
+        vbConstantUBDesc.mDesc.mSize = sizeof(PerFrameVBConstantsData);
         vbConstantUBDesc.mDesc.mFlags = BUFFER_CREATION_FLAG_PERSISTENT_MAP_BIT;
         vbConstantUBDesc.mDesc.pName = "PerFrameVBConstants Buffer Desc";
         vbConstantUBDesc.pData = NULL;
@@ -5196,7 +5200,7 @@ public:
         // Add GPU profiler
         /************************************************************************/
         for (uint32_t i = 0; i < SHADOW_TYPE_COUNT; ++i)
-            gCurrentGpuProfileTokens[i] = addGpuProfiler(pRenderer, pGraphicsQueue, "Graphics");
+            gCurrentGpuProfileTokens[i] = initGpuProfiler(pRenderer, pGraphicsQueue, "Graphics");
         gCurrentGpuProfileToken = gCurrentShadowType;
         /************************************************************************/
         // Add samplers
@@ -5277,7 +5281,7 @@ public:
         SyncToken        sceneToken = {};
         GeometryLoadDesc sceneLoadDesc = {};
         sceneLoadDesc.mFlags = GEOMETRY_LOAD_FLAG_SHADOWED; // To compute CPU clusters
-        Scene* pScene = loadSanMiguel(&sceneLoadDesc, sceneToken, false);
+        pScene = initSanMiguel(&sceneLoadDesc, sceneToken, false);
         waitForToken(&sceneToken);
 
         threadSystemWaitIdle(gThreadSystem);
@@ -5314,21 +5318,9 @@ public:
             descSpec.ppTexture = &gSpecularMapsStorage[i];
             addResource(&descSpec, NULL);
         }
-        // Cluster creation
-        /************************************************************************/
 
-        VisibilityBufferDesc vbDesc = {};
-        vbDesc.mNumFrames = gDataBufferCount;
-        vbDesc.mNumBuffers = 1; // We don't use Async Compute for triangle filtering, 1 buffer is enough
-        vbDesc.mNumGeometrySets = NUM_GEOMETRY_SETS;
-        vbDesc.mNumViews = NUM_CULLING_VIEWPORTS;
-        vbDesc.mMaxDrawsIndirect = MAX_DRAWS_INDIRECT;
-        vbDesc.mIndirectElementCount = INDIRECT_DRAW_ARGUMENTS_STRUCT_NUM_ELEMENTS;
-        vbDesc.mDrawArgCount = gMeshCount;
-        vbDesc.mIndexCount = pGeom->mIndexCount;
-        vbDesc.mComputeThreads = VB_COMPUTE_THEADS;
-        vbDesc.mMaxPrimitivesPerDrawIndirect = MAX_PRIMITIVES_PER_DRAW_INDIRECT;
-        initVisibilityBuffer(pRenderer, &vbDesc, &pVisibilityBuffer);
+        /************************************************************************/
+        uint32_t visibilityBufferFilteredIndexCount[NUM_GEOMETRY_SETS] = {};
 
         MeshConstants* meshConstants = (MeshConstants*)tf_malloc(gMeshCount * sizeof(MeshConstants));
         // Calculate mesh constants and filter containers
@@ -5336,7 +5328,7 @@ public:
         {
             MaterialFlags materialFlag = pScene->materialFlags[i];
             uint32_t      geomSet = materialFlag & MATERIAL_FLAG_ALPHA_TESTED ? GEOMSET_ALPHA_CUTOUT : GEOMSET_OPAQUE;
-
+            visibilityBufferFilteredIndexCount[geomSet] += (pScene->geom->pDrawArgs + i)->mIndexCount;
             pVBMeshInstances[i].mGeometrySet = geomSet;
             pVBMeshInstances[i].mMeshIndex = i;
             pVBMeshInstances[i].mTriangleCount = (pScene->geom->pDrawArgs + i)->mIndexCount / 3;
@@ -5350,6 +5342,15 @@ public:
 
         removeResource(pScene->geomData);
         pScene->geomData = NULL;
+
+        VisibilityBufferDesc vbDesc = {};
+        vbDesc.mNumFrames = gDataBufferCount;
+        vbDesc.mNumBuffers = 1; // We don't use Async Compute for triangle filtering, 1 buffer is enough
+        vbDesc.mNumGeometrySets = NUM_GEOMETRY_SETS;
+        vbDesc.pMaxIndexCountPerGeomSet = visibilityBufferFilteredIndexCount;
+        vbDesc.mNumViews = NUM_CULLING_VIEWPORTS;
+        vbDesc.mComputeThreads = VB_COMPUTE_THREADS;
+        initVisibilityBuffer(pRenderer, &vbDesc, &pVisibilityBuffer);
 
         BufferLoadDesc meshConstantDesc = {};
         meshConstantDesc.mDesc.mDescriptors = DESCRIPTOR_TYPE_BUFFER;
@@ -5447,74 +5448,6 @@ public:
         sdfVolumeTextureAtlasLoadDesc.pDesc = &sdfVolumeTextureAtlasDesc;
         sdfVolumeTextureAtlasLoadDesc.ppTexture = &pTextureSDFVolumeAtlas;
         addResource(&sdfVolumeTextureAtlasLoadDesc, NULL);
-        /*************************************************/
-        //					UI
-        /*************************************************/
-
-        calculateCurSDFMeshesProgress();
-        sSDFProgressMaxValue = LightShadowPlayground::getMaxSDFMeshesProgress();
-
-        UIComponentDesc guiDesc2 = {};
-        guiDesc2.mStartPosition = vec2(mSettings.mWidth * 0.15f, mSettings.mHeight * 0.4f);
-        uiCreateComponent("Generating SDF", &guiDesc2, &pLoadingGui);
-        ProgressBarWidget ProgressBar;
-        ProgressBar.pData = &sSDFProgressValue;
-        ProgressBar.mMaxProgress = sSDFProgressMaxValue;
-        luaRegisterWidget(
-            uiCreateComponentWidget(pLoadingGui, "               [ProgressBar]               ", &ProgressBar, WIDGET_TYPE_PROGRESS_BAR));
-
-        UIComponentDesc guiDesc3 = {};
-        guiDesc3.mStartPosition = vec2(mSettings.mWidth * 0.75f, mSettings.mHeight * 0.6f);
-        uiCreateComponent("Screen Space Shadows", &guiDesc3, &pSSSGui);
-
-        // Screen Space Shadows Controls UI
-        {
-            CheckboxWidget SSSEnabled = {};
-            SSSEnabled.pData = (bool*)&gSSSEnabled;
-
-            SliderFloatWidget surfaceThicknessControl = {};
-            surfaceThicknessControl.pData = &gSSSUniformData.mSurfaceThickness;
-            surfaceThicknessControl.mMin = 0.0f;
-            surfaceThicknessControl.mMax = 0.3f;
-            surfaceThicknessControl.mStep = 0.0001f;
-
-            SliderFloatWidget bilinearThresholdControl = {};
-            bilinearThresholdControl.pData = &gSSSUniformData.mBilinearThreshold;
-            bilinearThresholdControl.mMin = 0.0f;
-            bilinearThresholdControl.mMax = 0.5f;
-            bilinearThresholdControl.mStep = 0.001f;
-
-            SliderFloatWidget shadowContrastControl = {};
-            shadowContrastControl.pData = &gSSSUniformData.mShadowContrast;
-            shadowContrastControl.mMin = 0.0f;
-            shadowContrastControl.mMax = 16.0f;
-            shadowContrastControl.mStep = 0.1f;
-
-            CheckboxWidget IgnoreEdgePixels = {};
-            IgnoreEdgePixels.pData = (bool*)&gSSSUniformData.mIgnoreEdgePixels;
-
-            CheckboxWidget BilinearSamplingOffsetMode = {};
-            BilinearSamplingOffsetMode.pData = (bool*)&gSSSUniformData.mBilinearSamplingOffsetMode;
-
-            DropdownWidget debugOutputControl = {};
-            debugOutputControl.pData = &gSSSUniformData.mDebugOutputMode;
-            static const char* debugOutputNames[] = { "None", "Edge Mask", "Thread Index", "Wave Index" };
-            debugOutputControl.pNames = debugOutputNames;
-            debugOutputControl.mCount = 4;
-
-            luaRegisterWidget(uiCreateComponentWidget(pSSSGui, "Enable Screen Space Shadows", &SSSEnabled, WIDGET_TYPE_CHECKBOX));
-            luaRegisterWidget(uiCreateComponentWidget(pSSSGui, "Surface Thickness", &surfaceThicknessControl, WIDGET_TYPE_SLIDER_FLOAT));
-            luaRegisterWidget(uiCreateComponentWidget(pSSSGui, "Bilinear Threshold", &bilinearThresholdControl, WIDGET_TYPE_SLIDER_FLOAT));
-            luaRegisterWidget(uiCreateComponentWidget(pSSSGui, "Shadow Contrast", &shadowContrastControl, WIDGET_TYPE_SLIDER_FLOAT));
-            luaRegisterWidget(uiCreateComponentWidget(pSSSGui, "Ignore Edge Pixels", &IgnoreEdgePixels, WIDGET_TYPE_CHECKBOX));
-            luaRegisterWidget(
-                uiCreateComponentWidget(pSSSGui, "Bilinear Sampling Offset Mode", &BilinearSamplingOffsetMode, WIDGET_TYPE_CHECKBOX));
-            luaRegisterWidget(uiCreateComponentWidget(pSSSGui, "Debug Ouput Mode", &debugOutputControl, WIDGET_TYPE_DROPDOWN));
-        }
-
-        GuiController::addGui();
-
-        unloadSanMiguel(pScene);
 
         CameraMotionParameters cmp{ 146.0f, 300.0f, 140.0f };
         vec3                   camPos = vec3(120.f + SAN_MIGUEL_OFFSETX, 98.f, 14.f);
@@ -5524,98 +5457,12 @@ public:
         pCameraController = initFpsCameraController(camPos, lookAt);
         pCameraController->setMotionParameters(cmp);
 
-        // App Actions
-        InputActionDesc actionDesc = { DefaultInputActions::DUMP_PROFILE_DATA,
-                                       [](InputActionContext* ctx)
-                                       {
-                                           dumpProfileData(((Renderer*)ctx->pUserData)->pName);
-                                           return true;
-                                       },
-                                       pRenderer };
-        addInputAction(&actionDesc);
-        actionDesc = { DefaultInputActions::TOGGLE_FULLSCREEN,
-                       [](InputActionContext* ctx)
-                       {
-                           WindowDesc* winDesc = ((IApp*)ctx->pUserData)->pWindow;
-                           if (winDesc->fullScreen)
-                               winDesc->borderlessWindow
-                                   ? setBorderless(winDesc, getRectWidth(&winDesc->clientRect), getRectHeight(&winDesc->clientRect))
-                                   : setWindowed(winDesc, getRectWidth(&winDesc->clientRect), getRectHeight(&winDesc->clientRect));
-                           else
-                               setFullscreen(winDesc);
-                           return true;
-                       },
-                       this };
-        addInputAction(&actionDesc);
-        actionDesc = { DefaultInputActions::EXIT, [](InputActionContext* ctx)
-                       {
-                           requestShutdown();
-                           return true;
-                       } };
-        addInputAction(&actionDesc);
-        InputActionCallback onUIInput = [](InputActionContext* ctx)
-        {
-            if (ctx->mActionId > UISystemInputActions::UI_ACTION_START_ID_)
-            {
-                uiOnInput(ctx->mActionId, ctx->mBool, ctx->pPosition, &ctx->mFloat2);
-            }
-            return true;
-        };
-
-        typedef bool (*CameraInputHandler)(InputActionContext * ctx, DefaultInputActions::DefaultInputAction action);
-        static CameraInputHandler onCameraInput = [](InputActionContext* ctx, DefaultInputActions::DefaultInputAction action)
-        {
-            if (*(ctx->pCaptured))
-            {
-                float2 delta = uiIsFocused() ? float2(0.f, 0.f) : ctx->mFloat2;
-                switch (action)
-                {
-                case DefaultInputActions::ROTATE_CAMERA:
-                    pCameraController->onRotate(delta);
-                    break;
-                case DefaultInputActions::TRANSLATE_CAMERA:
-                    pCameraController->onMove(delta);
-                    break;
-                case DefaultInputActions::TRANSLATE_CAMERA_VERTICAL:
-                    pCameraController->onMoveY(delta[0]);
-                    break;
-                default:
-                    break;
-                }
-            }
-            return true;
-        };
-        actionDesc = { DefaultInputActions::CAPTURE_INPUT,
-                       [](InputActionContext* ctx)
-                       {
-                           setEnableCaptureInput(!uiIsFocused() && INPUT_ACTION_PHASE_CANCELED != ctx->mPhase);
-                           return true;
-                       },
-                       NULL };
-        addInputAction(&actionDesc);
-        actionDesc = { DefaultInputActions::ROTATE_CAMERA,
-                       [](InputActionContext* ctx) { return onCameraInput(ctx, DefaultInputActions::ROTATE_CAMERA); }, NULL };
-        addInputAction(&actionDesc);
-        actionDesc = { DefaultInputActions::TRANSLATE_CAMERA,
-                       [](InputActionContext* ctx) { return onCameraInput(ctx, DefaultInputActions::TRANSLATE_CAMERA); }, NULL };
-        addInputAction(&actionDesc);
-        actionDesc = { DefaultInputActions::TRANSLATE_CAMERA_VERTICAL,
-                       [](InputActionContext* ctx) { return onCameraInput(ctx, DefaultInputActions::TRANSLATE_CAMERA_VERTICAL); }, NULL };
-        addInputAction(&actionDesc);
-        actionDesc = { DefaultInputActions::RESET_CAMERA, [](InputActionContext* ctx)
-                       {
-                           if (!uiWantTextInput())
-                               pCameraController->resetView();
-                           return true;
-                       } };
-        addInputAction(&actionDesc);
-        GlobalInputActionDesc globalInputActionDesc = { GlobalInputActionDesc::ANY_BUTTON_ACTION, onUIInput, this };
-        setGlobalInputAction(&globalInputActionDesc);
+        AddCustomInputBindings();
 
         waitForAllResourceLoads();
 
         tf_free(meshConstants);
-
+        initScreenshotInterface(pRenderer, pGraphicsQueue);
         gFrameIndex = 0;
 
         return true;
@@ -5625,7 +5472,7 @@ public:
     {
         SyncToken       token = {};
         TextureLoadDesc skyboxTriDesc = {};
-        skyboxTriDesc.pFileName = "daytime_cube.tex";
+        skyboxTriDesc.pFileName = "SanMiguel_3/daytime_cube.tex";
         skyboxTriDesc.ppTexture = &pTextureSkybox;
         addResource(&skyboxTriDesc, &token);
 
@@ -5740,15 +5587,13 @@ public:
 
     void Exit() override
     {
+        exitScreenshotInterface();
         threadSystemWaitIdle(gThreadSystem);
 
-        exitInputSystem();
         threadSystemExit(&gThreadSystem, &gThreadSystemExitDescDefault);
 
         exitCameraController(pCameraController);
         exitCameraController(pLightView);
-
-        GuiController::removeGui();
 
         for (uint32_t i = 0; i < TF_ARRAY_COUNT(SDFMeshes); ++i)
         {
@@ -5758,7 +5603,7 @@ public:
         }
 
         for (uint32_t i = 0; i < SHADOW_TYPE_COUNT; ++i)
-            removeGpuProfiler(gCurrentGpuProfileTokens[i]);
+            exitGpuProfiler(gCurrentGpuProfileTokens[i]);
 
         exitProfiler();
 
@@ -5782,6 +5627,7 @@ public:
         tf_free(gDiffuseMapsStorage);
         tf_free(gNormalMapsStorage);
         tf_free(gSpecularMapsStorage);
+        exitSanMiguel(pScene);
 
         exitUserInterface();
 
@@ -5869,15 +5715,17 @@ public:
 
         removeResource(pTextureSkybox);
 
-        removeSemaphore(pRenderer, pImageAcquiredSemaphore);
-        removeGpuCmdRing(pRenderer, &gGraphicsCmdRing);
+        exitSemaphore(pRenderer, pImageAcquiredSemaphore);
+        exitGpuCmdRing(pRenderer, &gGraphicsCmdRing);
 
         exitVisibilityBuffer(pVisibilityBuffer);
 
         exitResourceLoaderInterface(pRenderer);
-        removeQueue(pRenderer, pGraphicsQueue);
+        exitQueue(pRenderer, pGraphicsQueue);
 
         exitRenderer(pRenderer);
+        exitGPUConfiguration();
+
         pRenderer = NULL;
     }
 
@@ -5903,6 +5751,75 @@ public:
 
         if (pReloadDesc->mType & (RELOAD_TYPE_RESIZE | RELOAD_TYPE_RENDERTARGET))
         {
+            loadProfilerUI(mSettings.mWidth, mSettings.mHeight);
+
+            UIComponentDesc guiDesc = {};
+            guiDesc.mStartPosition = vec2(mSettings.mWidth * 0.01f, mSettings.mHeight * 0.2f);
+            uiAddComponent(GetName(), &guiDesc, &pGuiWindow);
+
+            calculateCurSDFMeshesProgress();
+            sSDFProgressMaxValue = LightShadowPlayground::getMaxSDFMeshesProgress();
+
+            UIComponentDesc guiDesc2 = {};
+            guiDesc2.mStartPosition = vec2(mSettings.mWidth * 0.15f, mSettings.mHeight * 0.4f);
+            uiAddComponent("Generating SDF", &guiDesc2, &pLoadingGui);
+            ProgressBarWidget ProgressBar;
+            ProgressBar.pData = &sSDFProgressValue;
+            ProgressBar.mMaxProgress = sSDFProgressMaxValue;
+            luaRegisterWidget(
+                uiAddComponentWidget(pLoadingGui, "               [ProgressBar]               ", &ProgressBar, WIDGET_TYPE_PROGRESS_BAR));
+
+            UIComponentDesc guiDesc3 = {};
+            guiDesc3.mStartPosition = vec2(mSettings.mWidth * 0.01f, mSettings.mHeight * 0.6f);
+            uiAddComponent("Screen Space Shadows", &guiDesc3, &pSSSGui);
+
+            // Screen Space Shadows Controls UI
+            {
+                CheckboxWidget SSSEnabled = {};
+                SSSEnabled.pData = (bool*)&gSSSEnabled;
+
+                SliderFloatWidget surfaceThicknessControl = {};
+                surfaceThicknessControl.pData = &gSSSUniformData.mSurfaceThickness;
+                surfaceThicknessControl.mMin = 0.0f;
+                surfaceThicknessControl.mMax = 0.3f;
+                surfaceThicknessControl.mStep = 0.0001f;
+
+                SliderFloatWidget bilinearThresholdControl = {};
+                bilinearThresholdControl.pData = &gSSSUniformData.mBilinearThreshold;
+                bilinearThresholdControl.mMin = 0.0f;
+                bilinearThresholdControl.mMax = 0.5f;
+                bilinearThresholdControl.mStep = 0.001f;
+
+                SliderFloatWidget shadowContrastControl = {};
+                shadowContrastControl.pData = &gSSSUniformData.mShadowContrast;
+                shadowContrastControl.mMin = 0.0f;
+                shadowContrastControl.mMax = 16.0f;
+                shadowContrastControl.mStep = 0.1f;
+
+                CheckboxWidget IgnoreEdgePixels = {};
+                IgnoreEdgePixels.pData = (bool*)&gSSSUniformData.mIgnoreEdgePixels;
+
+                CheckboxWidget BilinearSamplingOffsetMode = {};
+                BilinearSamplingOffsetMode.pData = (bool*)&gSSSUniformData.mBilinearSamplingOffsetMode;
+
+                DropdownWidget debugOutputControl = {};
+                debugOutputControl.pData = &gSSSUniformData.mDebugOutputMode;
+                static const char* debugOutputNames[] = { "None", "Edge Mask", "Thread Index", "Wave Index" };
+                debugOutputControl.pNames = debugOutputNames;
+                debugOutputControl.mCount = 4;
+
+                luaRegisterWidget(uiAddComponentWidget(pSSSGui, "Enable Screen Space Shadows", &SSSEnabled, WIDGET_TYPE_CHECKBOX));
+                luaRegisterWidget(uiAddComponentWidget(pSSSGui, "Surface Thickness", &surfaceThicknessControl, WIDGET_TYPE_SLIDER_FLOAT));
+                luaRegisterWidget(uiAddComponentWidget(pSSSGui, "Bilinear Threshold", &bilinearThresholdControl, WIDGET_TYPE_SLIDER_FLOAT));
+                luaRegisterWidget(uiAddComponentWidget(pSSSGui, "Shadow Contrast", &shadowContrastControl, WIDGET_TYPE_SLIDER_FLOAT));
+                luaRegisterWidget(uiAddComponentWidget(pSSSGui, "Ignore Edge Pixels", &IgnoreEdgePixels, WIDGET_TYPE_CHECKBOX));
+                luaRegisterWidget(
+                    uiAddComponentWidget(pSSSGui, "Bilinear Sampling Offset Mode", &BilinearSamplingOffsetMode, WIDGET_TYPE_CHECKBOX));
+                luaRegisterWidget(uiAddComponentWidget(pSSSGui, "Debug Ouput Mode", &debugOutputControl, WIDGET_TYPE_DROPDOWN));
+            }
+
+            GuiController::addGui();
+
             if (pReloadDesc->mType & RELOAD_TYPE_RENDERTARGET)
             {
                 if (gAppSettings.mMsaaIndex != gAppSettings.mMsaaIndexRequested)
@@ -5947,8 +5864,6 @@ public:
         fontLoad.mLoadType = pReloadDesc->mType;
         loadFontSystem(&fontLoad);
 
-        initScreenshotInterface(pRenderer, pGraphicsQueue);
-
         return true;
     }
 
@@ -5971,12 +5886,17 @@ public:
 
             if (pUIASMDebugTexturesWindow)
             {
-                uiDestroyComponent(pUIASMDebugTexturesWindow);
+                uiRemoveComponent(pUIASMDebugTexturesWindow);
                 pUIASMDebugTexturesWindow = NULL;
             }
-#if defined(XBOX)
-            esramResetAllocations(pRenderer->mDx.pESRAMManager);
-#endif
+
+            GuiController::removeGui();
+            uiRemoveComponent(pGuiWindow);
+            uiRemoveComponent(pSSSGui);
+            uiRemoveComponent(pLoadingGui);
+            unloadProfilerUI();
+
+            ESRAM_RESET_ALLOCS(pRenderer);
         }
 
         if (pReloadDesc->mType & RELOAD_TYPE_SHADER)
@@ -5990,8 +5910,6 @@ public:
         {
             sShouldExitSDFGeneration = true;
         }
-
-        exitScreenshotInterface();
     }
 
     void UpdateQuadData() { gQuadUniformData.mModelMat = mat4::translation(vec3(-0.5, -0.5, 0.0)) * mat4::scale(vec3(0.25f)); }
@@ -6076,7 +5994,32 @@ public:
 
     void Update(float deltaTime) override
     {
-        updateInputSystem(deltaTime, mSettings.mWidth, mSettings.mHeight);
+        if (!uiIsFocused())
+        {
+            pCameraController->onMove({ inputGetValue(0, CUSTOM_MOVE_X), inputGetValue(0, CUSTOM_MOVE_Y) });
+            pCameraController->onRotate({ inputGetValue(0, CUSTOM_LOOK_X), inputGetValue(0, CUSTOM_LOOK_Y) });
+            pCameraController->onMoveY(inputGetValue(0, CUSTOM_MOVE_UP));
+            if (inputGetValue(0, CUSTOM_RESET_VIEW))
+            {
+                pCameraController->resetView();
+            }
+            if (inputGetValue(0, CUSTOM_TOGGLE_FULLSCREEN))
+            {
+                toggleFullscreen(pWindow);
+            }
+            if (inputGetValue(0, CUSTOM_TOGGLE_UI))
+            {
+                uiToggleActive();
+            }
+            if (inputGetValue(0, CUSTOM_DUMP_PROFILE))
+            {
+                dumpProfileData(GetName());
+            }
+            if (inputGetValue(0, CUSTOM_EXIT))
+            {
+                requestShutdown();
+            }
+        }
 
         if (gASMCpuSettings.mSunCanMove && gCurrentShadowType == SHADOW_TYPE_ASM)
         {
@@ -6238,22 +6181,16 @@ public:
         Pipeline* pPipelines[] = { pPipelineDepthPass, pPipelineAlphaDepthPass };
         COMPILE_ASSERT(TF_ARRAY_COUNT(pPipelines) == NUM_GEOMETRY_SETS);
 
-        Buffer* pVertexBuffersPosTex[] = { pGeom->pVertexBuffers[0], pGeom->pVertexBuffers[1] };
-
         for (uint32_t i = 0; i < NUM_GEOMETRY_SETS; ++i)
         {
             cmdBindPipeline(cmd, pPipelines[i]);
-            cmdBindVertexBuffer(cmd, i == GEOMSET_OPAQUE ? 1 : 2, pVertexBuffersPosTex, pGeom->mVertexStrides, NULL);
-
             cmdBindDescriptorSet(cmd, 0, pDescriptorSetVBPass[0]);
             cmdBindDescriptorSet(cmd, gFrameIndex, pDescriptorSetVBPass[1]);
             cmdBindDescriptorSet(cmd, gFrameIndex * 2 + 1, pDescriptorSetVBPass[2]);
 
             uint64_t indirectBufferByteOffset = GET_INDIRECT_DRAW_ELEM_INDEX(VIEW_SHADOW, i, 0) * sizeof(uint32_t);
-            uint64_t indirectBufferCounterByteOffset = indirectBufferByteOffset + DRAW_COUNTER_SLOT_OFFSET_IN_BYTES;
-            cmdExecuteIndirect(cmd, pCmdSignatureVBPass, gPerFrameData[gFrameIndex].gDrawCount[i],
-                               pVisibilityBuffer->ppFilteredIndirectDrawArgumentsBuffers[0], indirectBufferByteOffset,
-                               pVisibilityBuffer->ppFilteredIndirectDrawArgumentsBuffers[0], indirectBufferCounterByteOffset);
+            Buffer*  pIndirectDrawBuffer = pVisibilityBuffer->ppIndirectDrawArgBuffer[0];
+            cmdExecuteIndirect(cmd, INDIRECT_DRAW_INDEX, 1, pIndirectDrawBuffer, indirectBufferByteOffset, NULL, 0);
         }
 
         cmdBindRenderTargets(cmd, NULL);
@@ -6335,8 +6272,8 @@ public:
         DispatchParams dispatchList[8] = {};
         int            dispatchCount = 0;
 
-        vec3 lightDir = normalize(-gLightUniformData.mLightDir);
-        mat4 viewProject = gCameraUniformData.mViewProject;
+        vec3 lightDir = normalize(-gLightUniformData.mLightDir.getXYZ());
+        mat4 viewProject = gCameraUniformData.mViewProject.mCamera;
 
         vec4      lightProjection = viewProject * vec4(lightDir, 0.0f);
         const int waveSize = 64;
@@ -6548,10 +6485,10 @@ public:
         memcpy(updateDesc.pMappedData, node->mSDFVolumeData->mSDFVolumeList, arrlen(node->mSDFVolumeData->mSDFVolumeList) * sizeof(float));
         endUpdateResource(&updateDesc);
 
-        gUpdateSDFVolumeTextureAtlasConstants.mSourceAtlasVolumeMinCoord = node->mAtlasAllocationCoord;
-        gUpdateSDFVolumeTextureAtlasConstants.mSourceDimensionSize = node->mSDFVolumeData->mSDFVolumeSize;
+        gUpdateSDFVolumeTextureAtlasConstants.mSourceAtlasVolumeMinCoord = ivec4(node->mAtlasAllocationCoord.get128());
+        gUpdateSDFVolumeTextureAtlasConstants.mSourceDimensionSize = ivec4(node->mSDFVolumeData->mSDFVolumeSize.get128());
         gUpdateSDFVolumeTextureAtlasConstants.mSourceAtlasVolumeMaxCoord =
-            node->mAtlasAllocationCoord + (node->mSDFVolumeData->mSDFVolumeSize - ivec3(1));
+            ivec4((node->mAtlasAllocationCoord + (node->mSDFVolumeData->mSDFVolumeSize - ivec3(1))).get128());
 
         BufferUpdateDesc meshSDFConstantUpdate = { pBufferUpdateSDFVolumeTextureAtlasConstants[gFrameIndex] };
 
@@ -6655,21 +6592,17 @@ public:
 
         for (uint32_t i = 0; i < NUM_GEOMETRY_SETS; ++i)
         {
-            Buffer* pVertexBuffersPosTex[] = { pGeom->pVertexBuffers[0], pGeom->pVertexBuffers[1] };
-
             cmdBeginGpuTimestampQuery(cmd, gCurrentGpuProfileToken, profileNames[i]);
             cmdBindPipeline(cmd, pPipelineVBBufferPass[i]);
 
             cmdBindDescriptorSet(cmd, 0, pDescriptorSetVBPass[0]);
             cmdBindDescriptorSet(cmd, gFrameIndex, pDescriptorSetVBPass[1]);
             cmdBindDescriptorSet(cmd, gFrameIndex * 2 + 0, pDescriptorSetVBPass[2]);
-            cmdBindVertexBuffer(cmd, i == GEOMSET_OPAQUE ? 1 : 2, pVertexBuffersPosTex, pGeom->mVertexStrides, NULL);
 
             uint64_t indirectBufferByteOffset = GET_INDIRECT_DRAW_ELEM_INDEX(VIEW_CAMERA, i, 0) * sizeof(uint32_t);
-            uint64_t indirectBufferCounterByteOffset = indirectBufferByteOffset + DRAW_COUNTER_SLOT_OFFSET_IN_BYTES;
-            Buffer*  pIndirectDrawBuffer = pVisibilityBuffer->ppFilteredIndirectDrawArgumentsBuffers[0];
-            cmdExecuteIndirect(cmd, pCmdSignatureVBPass, gPerFrameData[gFrameIndex].gDrawCount[i], pIndirectDrawBuffer,
-                               indirectBufferByteOffset, pIndirectDrawBuffer, indirectBufferCounterByteOffset);
+            Buffer*  pIndirectDrawBuffer = pVisibilityBuffer->ppIndirectDrawArgBuffer[0];
+            cmdExecuteIndirect(cmd, INDIRECT_DRAW_INDEX, 1, pIndirectDrawBuffer, indirectBufferByteOffset, NULL, 0);
+
             cmdEndGpuTimestampQuery(cmd, gCurrentGpuProfileToken);
         }
         cmdEndGpuTimestampQuery(cmd, gCurrentGpuProfileToken);
@@ -6760,7 +6693,7 @@ public:
         mainViewProjection.mViewMat = gCameraUniformData.mView;
         mainViewProjection.mProjMat = gCameraUniformData.mProject;
         mainViewProjection.mInvViewMat = inverse(mainViewProjection.mViewMat);
-        mainViewProjection.mInvProjMat = inverse(mainViewProjection.mProjMat);
+        mainViewProjection.mInvProjMat = CameraMatrix::inverse(mainViewProjection.mProjMat);
         mainViewProjection.mViewProjMat = mainViewProjection.mProjMat * mainViewProjection.mViewMat;
         mainViewProjection.mInvViewProjMat = mainViewProjection.mInvViewMat * mainViewProjection.mInvProjMat;
 
@@ -6773,7 +6706,7 @@ public:
             for (size_t i = 0; i < size; i++)
             {
                 gPerFrameData[gFrameIndex].gEyeObjectSpace[VIEW_SHADOW + i] =
-                    (renderBatchProjection[i]->mInvViewProjMat * vec4(0.f, 0.f, 0.f, 1.f)).getXYZ();
+                    (renderBatchProjection[i]->mInvViewProjMat.mCamera * vec4(0.f, 0.f, 0.f, 1.f)).getXYZ();
 
                 gVBConstants[gFrameIndex].transform[VIEW_SHADOW + i].mvp =
                     renderBatchProjection[i]->mViewProjMat * gMeshInfoData[0].mWorldMat;
@@ -6793,7 +6726,7 @@ public:
         mainViewProjection.mViewMat = gCameraUniformData.mView;
         mainViewProjection.mProjMat = gCameraUniformData.mProject;
         mainViewProjection.mInvViewMat = inverse(mainViewProjection.mViewMat);
-        mainViewProjection.mInvProjMat = inverse(mainViewProjection.mProjMat);
+        mainViewProjection.mInvProjMat = CameraMatrix::inverse(mainViewProjection.mProjMat);
         mainViewProjection.mViewProjMat = mainViewProjection.mProjMat * mainViewProjection.mViewMat;
         mainViewProjection.mInvViewProjMat = mainViewProjection.mInvViewMat * mainViewProjection.mInvProjMat;
 
@@ -6838,23 +6771,23 @@ public:
         constexpr float horizontal_fov = PI / 2.0f;
         constexpr float nearValue = 0.1f;
         constexpr float farValue = 1000.f;
-        mat4            projMat = CameraMatrix::perspectiveReverseZ(horizontal_fov, aspectInverse, nearValue, farValue).getPrimaryMatrix();
+        CameraMatrix    projMat = CameraMatrix::perspectiveReverseZ(horizontal_fov, aspectInverse, nearValue, farValue);
 
         gCameraUniformData.mView = viewMat;
         gCameraUniformData.mProject = projMat;
         gCameraUniformData.mViewProject = projMat * viewMat;
-        gCameraUniformData.mInvProj = inverse(projMat);
+        gCameraUniformData.mInvProj = CameraMatrix::inverse(projMat);
         gCameraUniformData.mInvView = inverse(viewMat);
-        gCameraUniformData.mInvViewProject = inverse(gCameraUniformData.mViewProject);
+        gCameraUniformData.mInvViewProject = CameraMatrix::inverse(gCameraUniformData.mViewProject);
         gCameraUniformData.mNear = nearValue;
         gCameraUniformData.mFarNearDiff = farValue - nearValue; // if OpenGL convention was used this would be 2x the value
         gCameraUniformData.mFarNear = nearValue * farValue;
         gCameraUniformData.mCameraPos = vec4(pCameraController->getViewPosition(), 1.f);
 
-        gCameraUniformData.mTwoOverRes = vec2(1.5f / width, 1.5f / height);
+        gCameraUniformData.mTwoOverRes = { 2.0f / float(width), 2.0f / float(height) };
 
-        float depthMul = projMat[2][2];
-        float depthAdd = projMat[3][2];
+        float depthMul = projMat.mCamera[2][2];
+        float depthAdd = projMat.mCamera[3][2];
 
         if (depthAdd == 0.f)
         {
@@ -6862,7 +6795,7 @@ public:
             depthAdd = 0.00000001f;
         }
 
-        if (projMat[3][3] < 1.0f)
+        if (projMat.mCamera[3][3] < 1.0f)
         {
             float subtractValue = depthMul / depthAdd;
             subtractValue -= 0.00000001f;
@@ -6886,15 +6819,15 @@ public:
         mat4 rotation = mat4::rotationXY(gLightCpuSettings.mSunControl.x, gLightCpuSettings.mSunControl.y);
         mat4 translation = mat4::translation(-vec3(lightSourcePos));
 
-        vec3 newLightDir = vec4(inverse(rotation) * vec4(0, 0, 1, 0)).getXYZ();
-        mat4 lightProjMat = mat4::orthographicLH(-140, 140, -210, 90, -220, 100);
-        mat4 lightView = rotation * translation;
+        vec3         newLightDir = vec4(inverse(rotation) * vec4(0, 0, 1, 0)).getXYZ();
+        CameraMatrix lightProjMat = CameraMatrix::orthographicReverseZ(-140, 140, -210, 90, -220, 100);
+        mat4         lightView = rotation * translation;
 
         gLightUniformData.mLightPosition = vec4(0.f);
         gLightUniformData.mLightViewProj = lightProjMat * lightView;
         gLightUniformData.mLightColor = vec4(1, 1, 1, 1);
         gLightUniformData.mLightUpVec = transpose(lightView)[1];
-        gLightUniformData.mLightDir = newLightDir;
+        gLightUniformData.mLightDir = vec4(newLightDir, 0.0f);
 
         const float lightSourceAngle = clamp(gLightCpuSettings.mSourceAngle, 0.001f, 4.0f) * PI / 180.0f;
         gLightUniformData.mTanLightAngleAndThresholdValue =
@@ -6907,7 +6840,7 @@ public:
             mat4 offsetTranslationMat = mat4::translation(f3Tov3(gMeshInfoData[i].mOffsetTranslation));
             gMeshInfoData[i].mWorldMat = gMeshInfoData[i].mTranslationMat * gMeshInfoData[i].mScaleMat * offsetTranslationMat;
 
-            gMeshInfoUniformData[i][gFrameIndex].mWorldViewProjMat = gCameraUniformData.mViewProject * gMeshInfoData[i].mWorldMat;
+            gMeshInfoUniformData[i][gFrameIndex].mWorldViewProjMat = gCameraUniformData.mViewProject.mCamera * gMeshInfoData[i].mWorldMat;
 
             if (gCurrentShadowType == SHADOW_TYPE_ASM)
             {
@@ -6917,7 +6850,7 @@ public:
                      gCurrentShadowType == SHADOW_TYPE_MSM)
             {
                 gMeshASMProjectionInfoUniformData[i][gFrameIndex].mWorldViewProjMat =
-                    gLightUniformData.mLightViewProj * gMeshInfoData[i].mWorldMat;
+                    gLightUniformData.mLightViewProj.mCamera * gMeshInfoData[i].mWorldMat;
                 gMeshASMProjectionInfoUniformData[i][gFrameIndex].mViewID = VIEW_SHADOW;
             }
         }
@@ -6933,7 +6866,7 @@ public:
 
     void Draw() override
     {
-        if (pSwapChain->mEnableVsync != mSettings.mVSyncEnabled)
+        if ((bool)pSwapChain->mEnableVsync != mSettings.mVSyncEnabled)
         {
             waitQueueIdle(pGraphicsQueue);
             ::toggleVSync(pRenderer, &pSwapChain);
@@ -6960,7 +6893,7 @@ public:
         else if (gCurrentShadowType == SHADOW_TYPE_ESM || gCurrentShadowType == SHADOW_TYPE_VSM || gCurrentShadowType == SHADOW_TYPE_MSM)
         {
             gPerFrameData[gFrameIndex].gEyeObjectSpace[VIEW_SHADOW] =
-                (inverse(gLightUniformData.mLightViewProj) * vec4(0.f, 0.f, 0.f, 1.f)).getXYZ();
+                (CameraMatrix::inverse(gLightUniformData.mLightViewProj).mCamera * vec4(0.f, 0.f, 0.f, 1.f)).getXYZ();
 
             gVBConstants[gFrameIndex].transform[VIEW_SHADOW].mvp = gLightUniformData.mLightViewProj * gMeshInfoData[0].mWorldMat;
             gVBConstants[gFrameIndex].cullingViewports[VIEW_SHADOW].sampleCount = 1;
@@ -7053,12 +6986,10 @@ public:
                 TriangleFilteringPassDesc triangleFilteringDesc = {};
                 triangleFilteringDesc.pPipelineClearBuffers = pPipelineClearBuffers;
                 triangleFilteringDesc.pPipelineTriangleFiltering = pPipelineTriangleFiltering;
-                triangleFilteringDesc.pPipelineBatchCompaction = pPipelineBatchCompaction;
 
                 triangleFilteringDesc.pDescriptorSetClearBuffers = pDescriptorSetClearBuffers;
                 triangleFilteringDesc.pDescriptorSetTriangleFiltering = pDescriptorSetTriangleFiltering[0];
                 triangleFilteringDesc.pDescriptorSetTriangleFilteringPerFrame = pDescriptorSetTriangleFiltering[1];
-                triangleFilteringDesc.pDescriptorSetBatchCompaction = pDescriptorSetBatchCompaction;
 
                 triangleFilteringDesc.mFrameIndex = gFrameIndex;
                 triangleFilteringDesc.mBuffersIndex = 0; // We don't use Async Compute for triangle filtering, we just have 1 buffer
@@ -7069,16 +7000,18 @@ public:
             {
                 const uint32_t numBarriers = NUM_CULLING_VIEWPORTS + 2;
                 BufferBarrier  barriers2[numBarriers] = {};
-                barriers2[0] = { pVisibilityBuffer->ppFilteredIndirectDrawArgumentsBuffers[0], RESOURCE_STATE_UNORDERED_ACCESS,
-                                 RESOURCE_STATE_INDIRECT_ARGUMENT | RESOURCE_STATE_SHADER_RESOURCE };
+                uint32_t       barrierCount2 = 0;
+                barriers2[barrierCount2++] = { pVisibilityBuffer->ppIndirectDrawArgBuffer[0], RESOURCE_STATE_UNORDERED_ACCESS,
+                                               RESOURCE_STATE_INDIRECT_ARGUMENT | RESOURCE_STATE_SHADER_RESOURCE };
+                barriers2[barrierCount2++] = { pVisibilityBuffer->ppIndirectDataBuffer[gFrameIndex], RESOURCE_STATE_UNORDERED_ACCESS,
+                                               RESOURCE_STATE_SHADER_RESOURCE };
                 for (uint32_t i = 0; i < NUM_CULLING_VIEWPORTS; ++i)
                 {
-                    barriers2[i + 1] = { pVisibilityBuffer->ppFilteredIndexBuffer[i], RESOURCE_STATE_UNORDERED_ACCESS,
-                                         RESOURCE_STATE_INDEX_BUFFER | RESOURCE_STATE_SHADER_RESOURCE };
+                    barriers2[barrierCount2++] = { pVisibilityBuffer->ppFilteredIndexBuffer[i], RESOURCE_STATE_UNORDERED_ACCESS,
+                                                   RESOURCE_STATE_INDEX_BUFFER | RESOURCE_STATE_SHADER_RESOURCE };
                 }
-                barriers2[numBarriers - 1] = { pVisibilityBuffer->ppIndirectDataIndexBuffer[0], RESOURCE_STATE_UNORDERED_ACCESS,
-                                               RESOURCE_STATE_SHADER_RESOURCE };
-                cmdResourceBarrier(cmd, numBarriers, barriers2, 0, NULL, 0, NULL);
+
+                cmdResourceBarrier(cmd, barrierCount2, barriers2, 0, NULL, 0, NULL);
             }
             RenderTargetBarrier barriers[19] = {};
             uint32_t            barrierCount = 0;
@@ -7257,15 +7190,19 @@ public:
                 const uint32_t      numBarriers = NUM_CULLING_VIEWPORTS + 2;
                 RenderTargetBarrier barrierPresent = { pRenderTarget, RESOURCE_STATE_RENDER_TARGET, RESOURCE_STATE_PRESENT };
                 BufferBarrier       barriers2[numBarriers] = {};
-                barriers2[0] = { pVisibilityBuffer->ppFilteredIndirectDrawArgumentsBuffers[0],
-                                 RESOURCE_STATE_INDIRECT_ARGUMENT | RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_UNORDERED_ACCESS };
+                uint32_t            barrierCount2 = 0;
+                barriers2[barrierCount2++] = { pVisibilityBuffer->ppIndirectDrawArgBuffer[0],
+                                               RESOURCE_STATE_INDIRECT_ARGUMENT | RESOURCE_STATE_SHADER_RESOURCE,
+                                               RESOURCE_STATE_UNORDERED_ACCESS };
+                barriers2[barrierCount2++] = { pVisibilityBuffer->ppIndirectDataBuffer[gFrameIndex], RESOURCE_STATE_SHADER_RESOURCE,
+                                               RESOURCE_STATE_UNORDERED_ACCESS };
                 for (uint32_t i = 0; i < NUM_CULLING_VIEWPORTS; ++i)
                 {
-                    barriers2[i + 1] = { pVisibilityBuffer->ppFilteredIndexBuffer[i],
-                                         RESOURCE_STATE_INDEX_BUFFER | RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_UNORDERED_ACCESS };
+                    barriers2[barrierCount2++] = { pVisibilityBuffer->ppFilteredIndexBuffer[i],
+                                                   RESOURCE_STATE_INDEX_BUFFER | RESOURCE_STATE_SHADER_RESOURCE,
+                                                   RESOURCE_STATE_UNORDERED_ACCESS };
                 }
-                barriers2[numBarriers - 1] = { pVisibilityBuffer->ppIndirectDataIndexBuffer[0], RESOURCE_STATE_SHADER_RESOURCE,
-                                               RESOURCE_STATE_UNORDERED_ACCESS };
+
                 cmdResourceBarrier(cmd, numBarriers, barriers2, 0, NULL, 1, &barrierPresent);
             }
             cmdEndGpuFrameProfile(cmd, gCurrentGpuProfileToken);
@@ -7288,7 +7225,7 @@ public:
             submitDesc.pSignalFence = elem.pFence;
             queueSubmit(pGraphicsQueue, &submitDesc);
             QueuePresentDesc presentDesc = {};
-            presentDesc.mIndex = swapchainImageIndex;
+            presentDesc.mIndex = (uint8_t)swapchainImageIndex;
             presentDesc.mWaitSemaphoreCount = 1;
             presentDesc.ppWaitSemaphores = &elem.pSemaphore;
             presentDesc.pSwapChain = pSwapChain;
@@ -7349,6 +7286,7 @@ public:
 
     void presentImage(Cmd* cmd, Texture* pSrc, uint32_t index, RenderTarget* pDstCol)
     {
+        UNREF_PARAM(pSrc);
         cmdBeginGpuTimestampQuery(cmd, gCurrentGpuProfileToken, "Present Image");
 
         BindRenderTargetsDesc bindRenderTargets = {};
@@ -7440,10 +7378,10 @@ public:
         /************************************************************************/
         RenderTargetDesc shadowRTDesc = {};
         shadowRTDesc.mArraySize = 1;
-        shadowRTDesc.mClearValue.depth = lessEqualDepthStencilClear.depth;
+        shadowRTDesc.mClearValue.depth = depthStencilClear.depth;
         shadowRTDesc.mDepth = 1;
         shadowRTDesc.mDescriptors = DESCRIPTOR_TYPE_TEXTURE;
-        shadowRTDesc.mFormat = pRenderer->pGpu->mCapBits.mFormatCaps[TinyImageFormat_D32_SFLOAT] & FORMAT_CAP_LINEAR_FILTER
+        shadowRTDesc.mFormat = pRenderer->pGpu->mFormatCaps[TinyImageFormat_D32_SFLOAT] & FORMAT_CAP_LINEAR_FILTER
                                    ? TinyImageFormat_D32_SFLOAT
                                    : TinyImageFormat_D24_UNORM_S8_UINT;
         shadowRTDesc.mStartState = RESOURCE_STATE_SHADER_RESOURCE;
@@ -7457,10 +7395,9 @@ public:
         /************************************************************************/
         // VSM Render Target
         /************************************************************************/
-        TinyImageFormat vsmFloat4RTFormat =
-            pRenderer->pGpu->mCapBits.mFormatCaps[TinyImageFormat_R16G16B16A16_UNORM] & FORMAT_CAP_READ_WRITE
-                ? TinyImageFormat_R16G16B16A16_UNORM
-                : TinyImageFormat_R32G32B32A32_SFLOAT;
+        TinyImageFormat vsmFloat4RTFormat = pRenderer->pGpu->mFormatCaps[TinyImageFormat_R16G16B16A16_UNORM] & FORMAT_CAP_READ_WRITE
+                                                ? TinyImageFormat_R16G16B16A16_UNORM
+                                                : TinyImageFormat_R32G32B32A32_SFLOAT;
 
         RenderTargetDesc VSMRTDesc = {};
         VSMRTDesc.mArraySize = 1;
@@ -7485,7 +7422,7 @@ public:
         MSMRTDesc.mArraySize = 1;
         MSMRTDesc.mClearValue.depth = lessEqualDepthStencilClear.depth;
         MSMRTDesc.mDepth = 1;
-        MSMRTDesc.mFormat = pRenderer->pGpu->mCapBits.mFormatCaps[TinyImageFormat_R16G16B16A16_UNORM] & FORMAT_CAP_READ_WRITE
+        MSMRTDesc.mFormat = pRenderer->pGpu->mFormatCaps[TinyImageFormat_R16G16B16A16_UNORM] & FORMAT_CAP_READ_WRITE
                                 ? TinyImageFormat_R16G16B16A16_UNORM
                                 : TinyImageFormat_R32G32B32A32_SFLOAT;
         MSMRTDesc.mStartState = RESOURCE_STATE_SHADER_RESOURCE;
@@ -7548,10 +7485,9 @@ public:
         sdfMeshVisualizationRTDesc.mDescriptors = DESCRIPTOR_TYPE_TEXTURE | DESCRIPTOR_TYPE_RW_TEXTURE;
         sdfMeshVisualizationRTDesc.mClearValue = colorClearBlack;
         sdfMeshVisualizationRTDesc.mDepth = 1;
-        sdfMeshVisualizationRTDesc.mFormat =
-            pRenderer->pGpu->mCapBits.mFormatCaps[TinyImageFormat_R32G32B32A32_SFLOAT] & FORMAT_CAP_LINEAR_FILTER
-                ? TinyImageFormat_R32G32B32A32_SFLOAT
-                : TinyImageFormat_R16G16B16A16_SFLOAT;
+        sdfMeshVisualizationRTDesc.mFormat = pRenderer->pGpu->mFormatCaps[TinyImageFormat_R32G32B32A32_SFLOAT] & FORMAT_CAP_LINEAR_FILTER
+                                                 ? TinyImageFormat_R32G32B32A32_SFLOAT
+                                                 : TinyImageFormat_R16G16B16A16_SFLOAT;
         sdfMeshVisualizationRTDesc.mStartState = RESOURCE_STATE_SHADER_RESOURCE;
         sdfMeshVisualizationRTDesc.mWidth = mSettings.mWidth / SDF_SHADOW_DOWNSAMPLE_VALUE;
         sdfMeshVisualizationRTDesc.mHeight = mSettings.mHeight / SDF_SHADOW_DOWNSAMPLE_VALUE;
@@ -7566,7 +7502,7 @@ public:
         sdfMeshShadowRTDesc.mDescriptors = DESCRIPTOR_TYPE_TEXTURE | DESCRIPTOR_TYPE_RW_TEXTURE;
         sdfMeshShadowRTDesc.mClearValue = colorClearBlack;
         sdfMeshShadowRTDesc.mDepth = 1;
-        sdfMeshShadowRTDesc.mFormat = pRenderer->pGpu->mCapBits.mFormatCaps[TinyImageFormat_R32G32_SFLOAT] & FORMAT_CAP_LINEAR_FILTER
+        sdfMeshShadowRTDesc.mFormat = pRenderer->pGpu->mFormatCaps[TinyImageFormat_R32G32_SFLOAT] & FORMAT_CAP_LINEAR_FILTER
                                           ? TinyImageFormat_R32G32_SFLOAT
                                           : TinyImageFormat_R16G16_SFLOAT;
         sdfMeshShadowRTDesc.mStartState = RESOURCE_STATE_SHADER_RESOURCE;
@@ -7626,7 +7562,7 @@ public:
         ASMColorPassRT.mArraySize = 1;
         ASMColorPassRT.mClearValue = colorClearWhite;
         ASMColorPassRT.mDepth = 1;
-        ASMColorPassRT.mFormat = pRenderer->pGpu->mCapBits.mFormatCaps[TinyImageFormat_R32_SFLOAT] & FORMAT_CAP_LINEAR_FILTER
+        ASMColorPassRT.mFormat = pRenderer->pGpu->mFormatCaps[TinyImageFormat_R32_SFLOAT] & FORMAT_CAP_LINEAR_FILTER
                                      ? TinyImageFormat_R32_SFLOAT
                                      : TinyImageFormat_R16_SFLOAT;
         ASMColorPassRT.mStartState = RESOURCE_STATE_SHADER_RESOURCE;
@@ -7699,7 +7635,7 @@ public:
         DEMAtlasRTDesc.mArraySize = 1;
         DEMAtlasRTDesc.mClearValue = colorClearBlack;
         DEMAtlasRTDesc.mDepth = 1;
-        DEMAtlasRTDesc.mFormat = pRenderer->pGpu->mCapBits.mFormatCaps[TinyImageFormat_R32_SFLOAT] & FORMAT_CAP_LINEAR_FILTER
+        DEMAtlasRTDesc.mFormat = pRenderer->pGpu->mFormatCaps[TinyImageFormat_R32_SFLOAT] & FORMAT_CAP_LINEAR_FILTER
                                      ? TinyImageFormat_R32_SFLOAT
                                      : TinyImageFormat_R16_SFLOAT;
         DEMAtlasRTDesc.mStartState = RESOURCE_STATE_SHADER_RESOURCE;
@@ -7765,9 +7701,6 @@ public:
         addDescriptorSet(pRenderer, &setDesc, &pDescriptorSetTriangleFiltering[0]);
         setDesc = { pRootSignatureTriangleFiltering, DESCRIPTOR_UPDATE_FREQ_PER_FRAME, gDataBufferCount };
         addDescriptorSet(pRenderer, &setDesc, &pDescriptorSetTriangleFiltering[1]);
-        // Batch compaction
-        setDesc = { pRootSignatureBatchCompaction, DESCRIPTOR_UPDATE_FREQ_NONE, gDataBufferCount };
-        addDescriptorSet(pRenderer, &setDesc, &pDescriptorSetBatchCompaction);
 
         // Gaussian blur
         setDesc = { pRootSignatureBlurCompute, DESCRIPTOR_UPDATE_FREQ_NONE, 2 };
@@ -7864,7 +7797,6 @@ public:
         removeDescriptorSet(pRenderer, pDescriptorSetClearBuffers);
         removeDescriptorSet(pRenderer, pDescriptorSetTriangleFiltering[0]);
         removeDescriptorSet(pRenderer, pDescriptorSetTriangleFiltering[1]);
-        removeDescriptorSet(pRenderer, pDescriptorSetBatchCompaction);
         removeDescriptorSet(pRenderer, pDescriptorSetVBShade[0]);
         removeDescriptorSet(pRenderer, pDescriptorSetVBShade[1]);
         removeDescriptorSet(pRenderer, pDescriptorSetResolve);
@@ -7906,36 +7838,40 @@ public:
         // Clear Buffers
         {
             DescriptorData clearParams[2] = {};
-            clearParams[0].pName = "indirectDrawArgsBuffer";
-            clearParams[0].ppBuffers = &pVisibilityBuffer->ppFilteredIndirectDrawArgumentsBuffers[0];
-            clearParams[1].pName = "uncompactedDrawArgsRW";
-            clearParams[1].ppBuffers = &pVisibilityBuffer->ppUncompactedDrawArgumentsBuffer[0];
+            clearParams[0].pName = "indirectDrawArgs";
+            clearParams[0].ppBuffers = &pVisibilityBuffer->ppIndirectDrawArgBuffer[0];
+            clearParams[1].pName = "VBConstantBuffer";
+            clearParams[1].ppBuffers = &pVisibilityBuffer->pVBConstantBuffer;
             updateDescriptorSet(pRenderer, 0, pDescriptorSetClearBuffers, 2, clearParams);
         }
         // Triangle Filtering
         {
-            DescriptorData filterParams[3] = {};
+            DescriptorData filterParams[4] = {};
             filterParams[0].pName = "vertexPositionBuffer";
             filterParams[0].ppBuffers = &pGeom->pVertexBuffers[0];
             filterParams[1].pName = "indexDataBuffer";
             filterParams[1].ppBuffers = &pGeom->pIndexBuffer;
             filterParams[2].pName = "meshConstantsBuffer";
             filterParams[2].ppBuffers = &pBufferMeshConstants;
-            updateDescriptorSet(pRenderer, 0, pDescriptorSetTriangleFiltering[0], 3, filterParams);
+            filterParams[3].pName = "VBConstantBuffer";
+            filterParams[3].ppBuffers = &pVisibilityBuffer->pVBConstantBuffer;
+            updateDescriptorSet(pRenderer, 0, pDescriptorSetTriangleFiltering[0], 4, filterParams);
 
             for (uint32_t i = 0; i < gDataBufferCount; ++i)
             {
-                DescriptorData filterParams[4] = {};
-                filterParams[0].pName = "filteredIndicesBuffer";
-                filterParams[0].mCount = NUM_CULLING_VIEWPORTS;
-                filterParams[0].ppBuffers = &pVisibilityBuffer->ppFilteredIndexBuffer[0];
-                filterParams[1].pName = "uncompactedDrawArgsRW";
-                filterParams[1].ppBuffers = &pVisibilityBuffer->ppUncompactedDrawArgumentsBuffer[0];
-                filterParams[2].pName = "PerFrameVBConstants";
-                filterParams[2].ppBuffers = &pBufferVBConstants[i];
-                filterParams[3].pName = "filterDispatchGroupDataBuffer";
-                filterParams[3].ppBuffers = &pVisibilityBuffer->ppFilterDispatchGroupDataBuffer[i];
-                updateDescriptorSet(pRenderer, i, pDescriptorSetTriangleFiltering[1], 4, filterParams);
+                DescriptorData filterParamsIdx[5] = {};
+                filterParamsIdx[0].pName = "filteredIndicesBuffer";
+                filterParamsIdx[0].mCount = NUM_CULLING_VIEWPORTS;
+                filterParamsIdx[0].ppBuffers = &pVisibilityBuffer->ppFilteredIndexBuffer[0];
+                filterParamsIdx[1].pName = "indirectDataBuffer";
+                filterParamsIdx[1].ppBuffers = &pVisibilityBuffer->ppIndirectDataBuffer[i];
+                filterParamsIdx[2].pName = "PerFrameVBConstants";
+                filterParamsIdx[2].ppBuffers = &pBufferVBConstants[i];
+                filterParamsIdx[3].pName = "filterDispatchGroupDataBuffer";
+                filterParamsIdx[3].ppBuffers = &pVisibilityBuffer->ppFilterDispatchGroupDataBuffer[i];
+                filterParamsIdx[4].pName = "indirectDrawArgs";
+                filterParamsIdx[4].ppBuffers = &pVisibilityBuffer->ppIndirectDrawArgBuffer[0];
+                updateDescriptorSet(pRenderer, i, pDescriptorSetTriangleFiltering[1], 5, filterParamsIdx);
             }
         }
         // Gaussian Blur
@@ -7952,29 +7888,6 @@ public:
             textures[0] = pRenderTargetMSM[0]->pTexture;
             textures[1] = pRenderTargetMSM[1]->pTexture;
             updateDescriptorSet(pRenderer, 0, pDescriptorSetBlurMSMCompute, 2, BlurDescParams);
-        }
-        // Batch Compaction
-        {
-            uint32_t       paramsCount = 3;
-            DescriptorData compactParams[4] = {};
-            compactParams[0].pName = "indirectDrawArgsBuffer";
-            compactParams[0].mBindICB = true;
-            compactParams[0].pICBName = "icb";
-            compactParams[0].ppBuffers = &pVisibilityBuffer->ppFilteredIndirectDrawArgumentsBuffers[0];
-            compactParams[1].pName = "uncompactedDrawArgs";
-            compactParams[1].ppBuffers = &pVisibilityBuffer->ppUncompactedDrawArgumentsBuffer[0];
-            compactParams[2].pName = "indirectMaterialBuffer";
-            compactParams[2].ppBuffers = &pVisibilityBuffer->ppIndirectDataIndexBuffer[0];
-            if (pRenderer->pGpu->mSettings.mIndirectCommandBuffer)
-            {
-                // Required to generate ICB (to bind index buffer)
-                compactParams[3].pName = "filteredIndicesBuffer";
-                compactParams[3].mCount = NUM_CULLING_VIEWPORTS;
-                compactParams[3].ppBuffers = &pVisibilityBuffer->ppFilteredIndexBuffer[0];
-                paramsCount++;
-            }
-
-            updateDescriptorSet(pRenderer, 0, pDescriptorSetBatchCompaction, paramsCount, compactParams);
         }
         // VB Shade
         {
@@ -7997,7 +7910,7 @@ public:
                                              prerenderIndirectionTexMips[1]->pTexture, prerenderIndirectionTexMips[2]->pTexture,
                                              prerenderIndirectionTexMips[3]->pTexture, prerenderIndirectionTexMips[4]->pTexture };
 
-            DescriptorData vbShadeParams[18] = {};
+            DescriptorData vbShadeParams[19] = {};
             vbShadeParams[0].pName = "vbPassTexture";
             vbShadeParams[0].ppTextures = &pRenderTargetVBPass->pTexture;
             vbShadeParams[1].pName = "diffuseMaps";
@@ -8034,10 +7947,8 @@ public:
             vbShadeParams[14].ppTextures = &msmShadowMap;
             vbShadeParams[15].pName = "SDFShadowTexture";
             vbShadeParams[15].ppTextures = &sdfShadowTexture;
-            updateDescriptorSet(pRenderer, 0, pDescriptorSetVBShade[0], 16, vbShadeParams);
             vbShadeParams[16].pName = "SDFShadowTexture";
             vbShadeParams[16].ppTextures = &sdfShadowTexture;
-
             vbShadeParams[17].pName = "ScreenSpaceShadowTexture";
             if (gSupportTextureAtomics)
             {
@@ -8047,42 +7958,36 @@ public:
             {
                 vbShadeParams[17].ppBuffers = &pBufferSSS;
             }
-            updateDescriptorSet(pRenderer, 0, pDescriptorSetVBShade[0], 18, vbShadeParams);
-
-            DescriptorDataRange dataRange = {};
-            dataRange.mOffset = GET_INDIRECT_DRAW_ELEM_INDEX(VIEW_CAMERA, 0, 0) * sizeof(uint32_t);
-            dataRange.mSize = MAX_DRAWS_INDIRECT_ELEMENTS * NUM_GEOMETRY_SETS * sizeof(uint32_t);
-            dataRange.mStructStride = sizeof(uint32_t);
+            vbShadeParams[18].pName = "VBConstantBuffer";
+            vbShadeParams[18].ppBuffers = &pVisibilityBuffer->pVBConstantBuffer;
+            updateDescriptorSet(pRenderer, 0, pDescriptorSetVBShade[0], 19, vbShadeParams);
 
             for (uint32_t i = 0; i < gDataBufferCount; ++i)
             {
-                DescriptorData vbShadeParams[16] = {};
-                vbShadeParams[0].pName = "objectUniformBlock";
-                vbShadeParams[0].ppBuffers = &pBufferMeshTransforms[0][i];
-                vbShadeParams[1].pName = "indirectMaterialBuffer";
-                vbShadeParams[1].ppBuffers = &pVisibilityBuffer->ppIndirectDataIndexBuffer[0];
-                vbShadeParams[2].pName = "filteredIndexBuffer";
-                vbShadeParams[2].ppBuffers = &pVisibilityBuffer->ppFilteredIndexBuffer[VIEW_CAMERA];
-                vbShadeParams[3].pName = "cameraUniformBlock";
-                vbShadeParams[3].ppBuffers = &pBufferCameraUniform[i];
-                vbShadeParams[4].pName = "lightUniformBlock";
-                vbShadeParams[4].ppBuffers = &pBufferLightUniform[i];
-                vbShadeParams[5].pName = "ASMUniformBlock";
-                vbShadeParams[5].ppBuffers = &pBufferASMDataUniform[i];
-                vbShadeParams[6].pName = "renderSettingUniformBlock";
-                vbShadeParams[6].ppBuffers = &pBufferRenderSettings[i];
-                vbShadeParams[7].pName = "ESMInputConstants";
-                vbShadeParams[7].ppBuffers = &pBufferESMUniform[i];
-                vbShadeParams[8].pName = "VSMInputConstants";
-                vbShadeParams[8].ppBuffers = &pBufferVSMUniform[i];
-                vbShadeParams[9].pName = "MSMInputConstants";
-                vbShadeParams[9].ppBuffers = &pBufferMSMUniform[i];
-                vbShadeParams[10].pName = "indirectDrawArgs";
-                vbShadeParams[10].pRanges = &dataRange;
-                vbShadeParams[10].ppBuffers = &pVisibilityBuffer->ppFilteredIndirectDrawArgumentsBuffers[0];
-                vbShadeParams[11].pName = "SSSEnabled";
-                vbShadeParams[11].ppBuffers = &pBufferSSSEnabled[i];
-                updateDescriptorSet(pRenderer, i, pDescriptorSetVBShade[1], 12, vbShadeParams);
+                DescriptorData vbShadeParamsObj[11] = {};
+                vbShadeParamsObj[0].pName = "objectUniformBlock";
+                vbShadeParamsObj[0].ppBuffers = &pBufferMeshTransforms[0][i];
+                vbShadeParamsObj[1].pName = "indirectDataBuffer";
+                vbShadeParamsObj[1].ppBuffers = &pVisibilityBuffer->ppIndirectDataBuffer[i];
+                vbShadeParamsObj[2].pName = "filteredIndexBuffer";
+                vbShadeParamsObj[2].ppBuffers = &pVisibilityBuffer->ppFilteredIndexBuffer[VIEW_CAMERA];
+                vbShadeParamsObj[3].pName = "cameraUniformBlock";
+                vbShadeParamsObj[3].ppBuffers = &pBufferCameraUniform[i];
+                vbShadeParamsObj[4].pName = "lightUniformBlock";
+                vbShadeParamsObj[4].ppBuffers = &pBufferLightUniform[i];
+                vbShadeParamsObj[5].pName = "ASMUniformBlock";
+                vbShadeParamsObj[5].ppBuffers = &pBufferASMDataUniform[i];
+                vbShadeParamsObj[6].pName = "renderSettingUniformBlock";
+                vbShadeParamsObj[6].ppBuffers = &pBufferRenderSettings[i];
+                vbShadeParamsObj[7].pName = "ESMInputConstants";
+                vbShadeParamsObj[7].ppBuffers = &pBufferESMUniform[i];
+                vbShadeParamsObj[8].pName = "VSMInputConstants";
+                vbShadeParamsObj[8].ppBuffers = &pBufferVSMUniform[i];
+                vbShadeParamsObj[9].pName = "MSMInputConstants";
+                vbShadeParamsObj[9].ppBuffers = &pBufferMSMUniform[i];
+                vbShadeParamsObj[10].pName = "SSSEnabled";
+                vbShadeParamsObj[10].ppBuffers = &pBufferSSSEnabled[i];
+                updateDescriptorSet(pRenderer, i, pDescriptorSetVBShade[1], 11, vbShadeParamsObj);
             }
         }
         // Resolve
@@ -8129,16 +8034,20 @@ public:
         }
         // ASM Depth, VB Pass
         {
-            DescriptorData depthPassParams[1] = {};
+            DescriptorData depthPassParams[3] = {};
             depthPassParams[0].pName = "diffuseMaps";
             depthPassParams[0].mCount = gMaterialCount;
             depthPassParams[0].ppTextures = gDiffuseMapsStorage;
-            updateDescriptorSet(pRenderer, 0, pDescriptorSetVBPass[0], 1, depthPassParams);
+            depthPassParams[1].pName = "vertexPositionBuffer";
+            depthPassParams[1].ppBuffers = &pGeom->pVertexBuffers[0];
+            depthPassParams[2].pName = "vertexTexCoordBuffer";
+            depthPassParams[2].ppBuffers = &pGeom->pVertexBuffers[1];
+            updateDescriptorSet(pRenderer, 0, pDescriptorSetVBPass[0], 3, depthPassParams);
             for (uint32_t i = 0; i < gDataBufferCount; ++i)
             {
                 DescriptorData objectParams[1] = {};
-                objectParams[0].pName = "indirectMaterialBuffer";
-                objectParams[0].ppBuffers = &pVisibilityBuffer->ppIndirectDataIndexBuffer[0];
+                objectParams[0].pName = "indirectDataBuffer";
+                objectParams[0].ppBuffers = &pVisibilityBuffer->ppIndirectDataBuffer[i];
                 updateDescriptorSet(pRenderer, i, pDescriptorSetVBPass[1], 1, objectParams);
 
                 objectParams[0].pName = "objectUniformBlock";
@@ -8216,7 +8125,7 @@ public:
             {
                 params[0].pName = "SDFVolumeDataBuffer";
                 params[0].ppBuffers = &pBufferSDFVolumeData[i];
-                params[1].pName = "UpdateSDFVolumeTextureAtlasCB";
+                params[1].pName = "updateSDFVolumeAtlas";
                 params[1].ppBuffers = &pBufferUpdateSDFVolumeTextureAtlasConstants[i];
                 updateDescriptorSet(pRenderer, i, pDescriptorSetUpdateSDFVolumeTextureAtlas[1], 2, params);
             }
@@ -8315,7 +8224,7 @@ public:
 
             for (uint32_t i = 0; i < gDataBufferCount; i++)
             {
-                params[2].pName = "SSSUniformData";
+                params[2].pName = "SSSUniform";
                 params[2].ppBuffers = &pBufferSSSUniform[i];
                 params[2].mCount = 1;
 
@@ -8442,9 +8351,6 @@ public:
         addRootSignature(pRenderer, &BlurRootDesc, &pRootSignatureBlurCompute);
         gBlurConstantsIndex = getDescriptorIndexFromName(pRootSignatureBlurCompute, "BlurRootConstants");
 
-        RootSignatureDesc batchCompactionRootDesc = { &pShaderBatchCompaction, 1 };
-        addRootSignature(pRenderer, &batchCompactionRootDesc, &pRootSignatureBatchCompaction);
-
         RootSignatureDesc updateSDFVolumeTextureAtlasRootDesc = { &pShaderUpdateSDFVolumeTextureAtlas, 1 };
 
         const char*       visualizeSDFMeshSamplerNames[] = { "clampToEdgeTrillinearSampler", "clampToEdgeNearSampler" };
@@ -8496,18 +8402,6 @@ public:
 
         addRootSignature(pRenderer, &SSSRootDesc, &pRootSignatureSSS);
         gSSSRootConstantIndex = getDescriptorIndexFromName(pRootSignatureSSS, "DispatchRootConstants");
-        uint32_t                   indirectArgCount = 0;
-        IndirectArgumentDescriptor indirectArgs[2] = {};
-        if (pRenderer->pGpu->mSettings.mIndirectRootConstant)
-        {
-            indirectArgs[0].mType = INDIRECT_CONSTANT;
-            indirectArgs[0].mIndex = getDescriptorIndexFromName(pRootSignatureVBPass, "indirectRootConstant");
-            indirectArgs[0].mByteSize = sizeof(uint32_t);
-            ++indirectArgCount;
-        }
-        indirectArgs[indirectArgCount++].mType = INDIRECT_DRAW_INDEX;
-        CommandSignatureDesc vbPassDesc = { pRootSignatureVBPass, indirectArgs, indirectArgCount };
-        addIndirectCommandSignature(pRenderer, &vbPassDesc, &pCmdSignatureVBPass);
     }
 
     void removeRootSignatures()
@@ -8528,7 +8422,6 @@ public:
 
         removeRootSignature(pRenderer, pRootSignatureClearBuffers);
         removeRootSignature(pRenderer, pRootSignatureTriangleFiltering);
-        removeRootSignature(pRenderer, pRootSignatureBatchCompaction);
 
         removeRootSignature(pRenderer, pRootSignatureUpdateSDFVolumeTextureAtlas);
         removeRootSignature(pRenderer, pRootSignatureSDFMeshVisualization);
@@ -8539,114 +8432,101 @@ public:
 
         removeRootSignature(pRenderer, pRootSignatureVBShade);
         removeRootSignature(pRenderer, pRootSignatureSSS);
-        removeIndirectCommandSignature(pRenderer, pCmdSignatureVBPass);
     }
 
     void addShaders()
     {
         ShaderLoadDesc skyboxShaderDesc = {};
-        skyboxShaderDesc.mStages[0].pFileName = "skybox.vert";
-        skyboxShaderDesc.mStages[1].pFileName = "skybox.frag";
+        skyboxShaderDesc.mVert.pFileName = "skybox.vert";
+        skyboxShaderDesc.mFrag.pFileName = "skybox.frag";
 
         addShader(pRenderer, &skyboxShaderDesc, &pShaderSkybox);
 
         ShaderLoadDesc indirectDepthPassShaderDesc = {};
-        indirectDepthPassShaderDesc.mStages[0].pFileName = "meshDepthPass.vert";
+        indirectDepthPassShaderDesc.mVert.pFileName = "meshDepthPass.vert";
 
         ShaderLoadDesc indirectAlphaDepthPassShaderDesc = {};
-        indirectAlphaDepthPassShaderDesc.mStages[0].pFileName = "meshDepthPassAlpha.vert";
-        indirectAlphaDepthPassShaderDesc.mStages[1].pFileName = "meshDepthPassAlpha.frag";
+        indirectAlphaDepthPassShaderDesc.mVert.pFileName = "meshDepthPassAlpha.vert";
+        indirectAlphaDepthPassShaderDesc.mFrag.pFileName = "meshDepthPassAlpha.frag";
 
         ShaderLoadDesc indirectVSMDepthPassShaderDesc = {};
-        indirectVSMDepthPassShaderDesc.mStages[0].pFileName = "meshDepthPass.vert";
-        indirectVSMDepthPassShaderDesc.mStages[1].pFileName =
+        indirectVSMDepthPassShaderDesc.mVert.pFileName = "meshDepthPass.vert";
+        indirectVSMDepthPassShaderDesc.mFrag.pFileName =
             gFloat2RWTextureSupported ? "meshVSMDepthPass.frag" : "meshVSMDepthPass_F4_VSM.frag";
 
         ShaderLoadDesc indirectMSMDepthPassShaderDesc = {};
-        indirectMSMDepthPassShaderDesc.mStages[0].pFileName = "meshDepthPass.vert";
-        indirectMSMDepthPassShaderDesc.mStages[1].pFileName = "meshMSMDepthPass.frag";
+        indirectMSMDepthPassShaderDesc.mVert.pFileName = "meshDepthPass.vert";
+        indirectMSMDepthPassShaderDesc.mFrag.pFileName = "meshMSMDepthPass.frag";
 
         ShaderLoadDesc indirectVSMAlphaDepthPassShaderDesc = {};
-        indirectVSMAlphaDepthPassShaderDesc.mStages[0].pFileName = "meshDepthPassAlpha.vert";
-        indirectVSMAlphaDepthPassShaderDesc.mStages[1].pFileName =
+        indirectVSMAlphaDepthPassShaderDesc.mVert.pFileName = "meshDepthPassAlpha.vert";
+        indirectVSMAlphaDepthPassShaderDesc.mFrag.pFileName =
             gFloat2RWTextureSupported ? "meshVSMDepthPassAlpha.frag" : "meshVSMDepthPassAlpha_F4_VSM.frag";
 
         ShaderLoadDesc indirectMSMAlphaDepthPassShaderDesc = {};
-        indirectMSMAlphaDepthPassShaderDesc.mStages[0].pFileName = "meshDepthPassAlpha.vert";
-        indirectMSMAlphaDepthPassShaderDesc.mStages[1].pFileName = "meshMSMDepthPassAlpha.frag";
+        indirectMSMAlphaDepthPassShaderDesc.mVert.pFileName = "meshDepthPassAlpha.vert";
+        indirectMSMAlphaDepthPassShaderDesc.mFrag.pFileName = "meshMSMDepthPassAlpha.frag";
 
         ShaderLoadDesc ASMCopyDepthQuadsShaderDesc = {};
-        ASMCopyDepthQuadsShaderDesc.mStages[0].pFileName = "copyDepthQuads.vert";
-        ASMCopyDepthQuadsShaderDesc.mStages[1].pFileName = "copyDepthQuads.frag";
+        ASMCopyDepthQuadsShaderDesc.mVert.pFileName = "copyDepthQuads.vert";
+        ASMCopyDepthQuadsShaderDesc.mFrag.pFileName = "copyDepthQuads.frag";
 
         ShaderLoadDesc ASMFillIndirectionShaderDesc = {};
-        ASMFillIndirectionShaderDesc.mStages[0].pFileName = "fill_Indirection.vert";
-        ASMFillIndirectionShaderDesc.mStages[1].pFileName = "fill_Indirection.frag";
+        ASMFillIndirectionShaderDesc.mVert.pFileName = "fill_Indirection.vert";
+        ASMFillIndirectionShaderDesc.mFrag.pFileName = "fill_Indirection.frag";
 
         ShaderLoadDesc ASMCopyDEMQuadsShaderDesc = {};
-        ASMCopyDEMQuadsShaderDesc.mStages[0].pFileName = "copyDEMQuads.vert";
-        ASMCopyDEMQuadsShaderDesc.mStages[1].pFileName = "copyDEMQuads.frag";
+        ASMCopyDEMQuadsShaderDesc.mVert.pFileName = "copyDEMQuads.vert";
+        ASMCopyDEMQuadsShaderDesc.mFrag.pFileName = "copyDEMQuads.frag";
 
         addShader(pRenderer, &ASMCopyDEMQuadsShaderDesc, &pShaderASMCopyDEM);
 
         ShaderLoadDesc ASMGenerateDEMShaderDesc = {};
-        ASMGenerateDEMShaderDesc.mStages[0].pFileName = "generateAsmDEM.vert";
-        ASMGenerateDEMShaderDesc.mStages[1].pFileName = "generateAsmDEM.frag";
+        ASMGenerateDEMShaderDesc.mVert.pFileName = "generateAsmDEM.vert";
+        ASMGenerateDEMShaderDesc.mFrag.pFileName = "generateAsmDEM.frag";
         addShader(pRenderer, &ASMGenerateDEMShaderDesc, &pShaderASMGenerateDEM);
 
-#if defined(VULKAN)
-        // Some vulkan driver doesn't generate glPrimitiveID without a geometry pass (steam deck as 03/30/2023)
-        bool addGeometryPassThrough = gGpuSettings.mAddGeometryPassThrough && pRenderer->mRendererApi == RENDERER_API_VULKAN;
-#else
-        bool addGeometryPassThrough = false;
-#endif
-        // No SV_PrimitiveID in pixel shader on ORBIS. Only available in gs stage so we need
-#if defined(ORBIS) || defined(PROSPERO)
-        addGeometryPassThrough = true;
-#endif
-
         ShaderLoadDesc visibilityBufferPassShaderDesc = {};
-        visibilityBufferPassShaderDesc.mStages[0].pFileName = "visibilityBufferPass.vert";
-        visibilityBufferPassShaderDesc.mStages[1].pFileName = "visibilityBufferPass.frag";
+        visibilityBufferPassShaderDesc.mVert.pFileName = "visibilityBufferPass.vert";
+        visibilityBufferPassShaderDesc.mFrag.pFileName = "visibilityBufferPass.frag";
+
+        // Some vulkan driver doesn't generate glPrimitiveID without a geometry pass (steam deck as 03/30/2023)
+        bool addGeometryPassThrough = gGpuSettings.mAddGeometryPassThrough;
         if (addGeometryPassThrough)
         {
             // a passthrough gs
-            visibilityBufferPassShaderDesc.mStages[2].pFileName = "visibilityBufferPass.geom";
+            visibilityBufferPassShaderDesc.mGeom.pFileName = "visibilityBufferPass.geom";
         }
+
         addShader(pRenderer, &visibilityBufferPassShaderDesc, &pShaderVBBufferPass[GEOMSET_OPAQUE]);
 
         ShaderLoadDesc visibilityBufferPassAlphaShaderDesc = {};
-        visibilityBufferPassAlphaShaderDesc.mStages[0].pFileName = "visibilityBufferPassAlpha.vert";
-        visibilityBufferPassAlphaShaderDesc.mStages[1].pFileName = "visibilityBufferPassAlpha.frag";
+        visibilityBufferPassAlphaShaderDesc.mVert.pFileName = "visibilityBufferPassAlpha.vert";
+        visibilityBufferPassAlphaShaderDesc.mFrag.pFileName = "visibilityBufferPassAlpha.frag";
+
         if (addGeometryPassThrough)
         {
             // a passthrough gs
-            visibilityBufferPassAlphaShaderDesc.mStages[2].pFileName = "visibilityBufferPassAlpha.geom";
+            visibilityBufferPassAlphaShaderDesc.mGeom.pFileName = "visibilityBufferPassAlpha.geom";
         }
+
         addShader(pRenderer, &visibilityBufferPassAlphaShaderDesc, &pShaderVBBufferPass[GEOMSET_ALPHA_CUTOUT]);
 
         ShaderLoadDesc clearBuffersShaderDesc = {};
-        clearBuffersShaderDesc.mStages[0].pFileName =
-            pRenderer->pGpu->mSettings.mIndirectCommandBuffer ? "clearVisibilityBuffers_icb.comp" : "clearVisibilityBuffers.comp";
+        clearBuffersShaderDesc.mComp.pFileName = "clearVisibilityBuffers.comp";
         addShader(pRenderer, &clearBuffersShaderDesc, &pShaderClearBuffers);
 
         ShaderLoadDesc triangleFilteringShaderDesc = {};
-        triangleFilteringShaderDesc.mStages[0].pFileName =
-            pRenderer->pGpu->mSettings.mIndirectCommandBuffer ? "triangleFiltering_icb.comp" : "triangleFiltering.comp";
+        triangleFilteringShaderDesc.mComp.pFileName = "triangleFiltering.comp";
         addShader(pRenderer, &triangleFilteringShaderDesc, &pShaderTriangleFiltering);
 
         ShaderLoadDesc BlurCompShaderDesc = {};
 
-        BlurCompShaderDesc.mStages[0].pFileName = "gaussianBlur.comp";
+        BlurCompShaderDesc.mComp.pFileName = "gaussianBlur.comp";
         addShader(pRenderer, &BlurCompShaderDesc, &pShaderBlurComp);
 
-        ShaderLoadDesc batchCompactionShaderDesc = {};
-        batchCompactionShaderDesc.mStages[0].pFileName =
-            pRenderer->pGpu->mSettings.mIndirectCommandBuffer ? "batchCompaction_icb.comp" : "batchCompaction.comp";
-        addShader(pRenderer, &batchCompactionShaderDesc, &pShaderBatchCompaction);
-
         ShaderLoadDesc updateSDFVolumeTextureAtlasShaderDesc = {};
-        updateSDFVolumeTextureAtlasShaderDesc.mStages[0].pFileName = "updateRegion3DTexture.comp";
+        updateSDFVolumeTextureAtlasShaderDesc.mComp.pFileName = "updateRegion3DTexture.comp";
 
         addShader(pRenderer, &updateSDFVolumeTextureAtlasShaderDesc, &pShaderUpdateSDFVolumeTextureAtlas);
 
@@ -8686,48 +8566,61 @@ public:
             "resolve_SAMPLE_COUNT_4.frag",
         };
 
-        const char* ScreenSpaceShadows[] = { "screenSpaceShadows_SAMPLE_COUNT_1.comp", "screenSpaceShadows_SAMPLE_COUNT_2.comp",
-                                             "screenSpaceShadows_SAMPLE_COUNT_4.comp" };
+        WaveOpsSupportFlags waveFlags = pRenderer->pGpu->mWaveOpsSupportFlags;
+
+        const char* ScreenSpaceShadowsShaders[] = { "screenSpaceShadows_SAMPLE_COUNT_1.comp", "screenSpaceShadows_SAMPLE_COUNT_2.comp",
+                                                    "screenSpaceShadows_SAMPLE_COUNT_4.comp" };
+
+        const char* ScreenSpaceShadowsShadersWaveSupport[] = { "screenSpaceShadows_wave_SAMPLE_COUNT_1.comp",
+                                                               "screenSpaceShadows_wave_SAMPLE_COUNT_2.comp",
+                                                               "screenSpaceShadows_wave_SAMPLE_COUNT_4.comp" };
 
         for (uint32_t i = 0; i < MSAA_LEVELS_COUNT; ++i)
         {
             ShaderLoadDesc meshSDFVisualizationShaderDesc = {};
-            meshSDFVisualizationShaderDesc.mStages[0].pFileName = visualizeSDFMesh[i];
+            meshSDFVisualizationShaderDesc.mComp.pFileName = visualizeSDFMesh[i];
             addShader(pRenderer, &meshSDFVisualizationShaderDesc, &pShaderSDFMeshVisualization[i]);
 
             ShaderLoadDesc sdfShadowMeshShaderDesc = {};
-            sdfShadowMeshShaderDesc.mStages[0].pFileName = bakedSDFMeshShadow[i];
+            sdfShadowMeshShaderDesc.mComp.pFileName = bakedSDFMeshShadow[i];
             addShader(pRenderer, &sdfShadowMeshShaderDesc, &pShaderSDFMeshShadow[i]);
 
             ShaderLoadDesc upSampleSDFShadowShaderDesc = {};
-            upSampleSDFShadowShaderDesc.mStages[0].pFileName = "upsampleSDFShadow.vert";
-            upSampleSDFShadowShaderDesc.mStages[1].pFileName = upsampleSDFShadow[i];
+            upSampleSDFShadowShaderDesc.mVert.pFileName = "upsampleSDFShadow.vert";
+            upSampleSDFShadowShaderDesc.mFrag.pFileName = upsampleSDFShadow[i];
             addShader(pRenderer, &upSampleSDFShadowShaderDesc, &pShaderUpsampleSDFShadow[i]);
 
             ShaderLoadDesc visibilityBufferShadeShaderDesc = {};
-            visibilityBufferShadeShaderDesc.mStages[0].pFileName = "visibilityBufferShade.vert";
-            visibilityBufferShadeShaderDesc.mStages[1].pFileName =
+            visibilityBufferShadeShaderDesc.mVert.pFileName = "visibilityBufferShade.vert";
+            visibilityBufferShadeShaderDesc.mFrag.pFileName =
                 gFloat2RWTextureSupported ? visibilityBufferShade[i] : visibilityBufferShadeUseFloat4Vsm[i];
             addShader(pRenderer, &visibilityBufferShadeShaderDesc, &pShaderVBShade[i]);
 
             // Resolve shader
             ShaderLoadDesc resolvePass = {};
-            resolvePass.mStages[0].pFileName = "resolve.vert";
-            resolvePass.mStages[1].pFileName = resolve[i];
+            resolvePass.mVert.pFileName = "resolve.vert";
+            resolvePass.mFrag.pFileName = resolve[i];
             addShader(pRenderer, &resolvePass, &pShaderResolve[i]);
 
             ShaderLoadDesc screenSpaceShadowsShaderDesc = {};
-            screenSpaceShadowsShaderDesc.mStages[0].pFileName = ScreenSpaceShadows[i];
+            if ((waveFlags & WAVE_OPS_SUPPORT_FLAG_BASIC_BIT) && (waveFlags & WAVE_OPS_SUPPORT_FLAG_ARITHMETIC_BIT))
+            {
+                screenSpaceShadowsShaderDesc.mComp.pFileName = ScreenSpaceShadowsShadersWaveSupport[i];
+            }
+            else
+            {
+                screenSpaceShadowsShaderDesc.mComp.pFileName = ScreenSpaceShadowsShaders[i];
+            }
             addShader(pRenderer, &screenSpaceShadowsShaderDesc, &pShaderSSS[i]);
         }
 
         ShaderLoadDesc screenSpaceShadowsShaderDesc = {};
-        screenSpaceShadowsShaderDesc.mStages[0].pFileName = "clearScreenSpaceShadows.comp";
+        screenSpaceShadowsShaderDesc.mComp.pFileName = "clearScreenSpaceShadows.comp";
         addShader(pRenderer, &screenSpaceShadowsShaderDesc, &pShaderSSSClear);
 
         ShaderLoadDesc presentShaderDesc = {};
-        presentShaderDesc.mStages[0].pFileName = "display.vert";
-        presentShaderDesc.mStages[1].pFileName = "display.frag";
+        presentShaderDesc.mVert.pFileName = "display.vert";
+        presentShaderDesc.mFrag.pFileName = "display.frag";
         addShader(pRenderer, &presentShaderDesc, &pShaderPresentPass);
 
         /************************************************************************/
@@ -8745,7 +8638,7 @@ public:
         addShader(pRenderer, &ASMCopyDepthQuadsShaderDesc, &pShaderASMCopyDepthQuadPass);
         addShader(pRenderer, &ASMFillIndirectionShaderDesc, &pShaderASMFillIndirection);
 #if defined(ORBIS) || defined(PROSPERO)
-        ASMFillIndirectionShaderDesc.mStages[1].pFileName = "fill_Indirection_fp16.frag";
+        ASMFillIndirectionShaderDesc.mFrag.pFileName = "fill_Indirection_fp16.frag";
         addShader(pRenderer, &ASMFillIndirectionShaderDesc, &pShaderASMFillIndirectionFP16);
 #endif
     }
@@ -8780,7 +8673,6 @@ public:
 
         removeShader(pRenderer, pShaderClearBuffers);
         removeShader(pRenderer, pShaderTriangleFiltering);
-        removeShader(pRenderer, pShaderBatchCompaction);
 
         removeShader(pRenderer, pShaderUpdateSDFVolumeTextureAtlas);
         for (uint32_t i = 0; i < MSAA_LEVELS_COUNT; ++i)
@@ -8824,27 +8716,6 @@ public:
         /************************************************************************/
         // Setup vertex layout for all shaders
         /************************************************************************/
-        VertexLayout vertexLayoutPositionOnly = {};
-        vertexLayoutPositionOnly.mBindingCount = 1;
-        vertexLayoutPositionOnly.mAttribCount = 1;
-        vertexLayoutPositionOnly.mAttribs[0].mSemantic = SEMANTIC_POSITION;
-        vertexLayoutPositionOnly.mAttribs[0].mFormat = TinyImageFormat_R32G32B32_SFLOAT;
-        vertexLayoutPositionOnly.mAttribs[0].mBinding = 0;
-        vertexLayoutPositionOnly.mAttribs[0].mLocation = 0;
-        vertexLayoutPositionOnly.mAttribs[0].mOffset = 0;
-
-        VertexLayout vertexLayoutPosAndTex = {};
-        vertexLayoutPosAndTex.mBindingCount = 2;
-        vertexLayoutPosAndTex.mAttribCount = 2;
-        vertexLayoutPosAndTex.mAttribs[0].mSemantic = SEMANTIC_POSITION;
-        vertexLayoutPosAndTex.mAttribs[0].mFormat = TinyImageFormat_R32G32B32_SFLOAT;
-        vertexLayoutPosAndTex.mAttribs[0].mBinding = 0;
-        vertexLayoutPosAndTex.mAttribs[0].mLocation = 0;
-        vertexLayoutPosAndTex.mAttribs[1].mSemantic = SEMANTIC_TEXCOORD0;
-        vertexLayoutPosAndTex.mAttribs[1].mFormat = TinyImageFormat_R32_UINT;
-        vertexLayoutPosAndTex.mAttribs[1].mBinding = 1;
-        vertexLayoutPosAndTex.mAttribs[1].mLocation = 1;
-
         VertexLayout vertexLayoutQuad = {};
         vertexLayoutQuad.mBindingCount = 1;
         vertexLayoutQuad.mAttribCount = 2;
@@ -8864,15 +8735,6 @@ public:
         depthStateEnabledDesc.mDepthFunc = CMP_GEQUAL;
         depthStateEnabledDesc.mDepthWrite = true;
         depthStateEnabledDesc.mDepthTest = true;
-
-        DepthStateDesc depthStateLEQUALEnabledDesc = {};
-        depthStateLEQUALEnabledDesc.mDepthFunc = CMP_LEQUAL;
-        depthStateLEQUALEnabledDesc.mDepthWrite = true;
-        depthStateLEQUALEnabledDesc.mDepthTest = true;
-
-        RasterizerStateDesc rasterStateDesc = { CULL_MODE_FRONT, 0, 0.0f };
-        RasterizerStateDesc rasterStateMsDesc = { CULL_MODE_FRONT, 0, 0.0f, FILL_MODE_SOLID };
-        rasterStateMsDesc.mMultiSample = true;
 
         RasterizerStateDesc rasterStateCullNoneDesc = { CULL_MODE_NONE };
         RasterizerStateDesc rasterStateCullNoneMsDesc = { CULL_MODE_NONE, 0, 0, FILL_MODE_SOLID };
@@ -8920,21 +8782,14 @@ public:
         vbPassPipelineSettings.mSampleQuality = pRenderTargetVBPass->mSampleQuality;
         vbPassPipelineSettings.mDepthStencilFormat = pRenderTargetDepth->mFormat;
         vbPassPipelineSettings.pRootSignature = pRootSignatureVBPass;
-        vbPassPipelineSettings.pVertexLayout = &vertexLayoutPosAndTex;
-        vbPassPipelineSettings.mSupportIndirectCommandBuffer = true;
+        vbPassPipelineSettings.pVertexLayout = NULL;
+        vbPassPipelineSettings.pRasterizerState = gAppSettings.mMsaaLevel > 1 ? &rasterStateCullNoneMsDesc : &rasterStateCullNoneDesc;
 
         for (uint32_t i = 0; i < gNumGeomSets; ++i)
         {
-            vbPassPipelineSettings.pVertexLayout = (i == GEOMSET_ALPHA_CUTOUT) ? &vertexLayoutPosAndTex : &vertexLayoutPositionOnly;
-
-            if (gAppSettings.mMsaaLevel > 1)
-                vbPassPipelineSettings.pRasterizerState = i == GEOMSET_ALPHA_CUTOUT ? &rasterStateCullNoneMsDesc : &rasterStateMsDesc;
-            else
-                vbPassPipelineSettings.pRasterizerState = i == GEOMSET_ALPHA_CUTOUT ? &rasterStateCullNoneDesc : &rasterStateDesc;
-
             vbPassPipelineSettings.pShaderProgram = pShaderVBBufferPass[i];
 
-#if defined(XBOX)
+#if defined(GFX_EXTENDED_PSO_OPTIONS)
             ExtendedGraphicsPipelineDesc edescs[2] = {};
             edescs[0].type = EXTENDED_GRAPHICS_PIPELINE_TYPE_SHADER_LIMITS;
             initExtendedGraphicsShaderLimits(&edescs[0].shaderLimitsDesc);
@@ -8972,7 +8827,7 @@ public:
             vbShadePipelineSettings.pColorFormats = &pRenderTargetIntermediate->mFormat;
             vbShadePipelineSettings.mSampleQuality = pSwapChain->ppRenderTargets[0]->mSampleQuality;
         }
-#if defined(XBOX)
+#if defined(GFX_EXTENDED_PSO_OPTIONS)
         ExtendedGraphicsPipelineDesc edescs[2] = {};
         edescs[0].type = EXTENDED_GRAPHICS_PIPELINE_TYPE_SHADER_LIMITS;
         initExtendedGraphicsShaderLimits(&edescs[0].shaderLimitsDesc);
@@ -9002,12 +8857,6 @@ public:
         triangleFilteringPipelineSettings.pShaderProgram = pShaderTriangleFiltering;
         triangleFilteringPipelineSettings.pRootSignature = pRootSignatureTriangleFiltering;
         addPipeline(pRenderer, &desc, &pPipelineTriangleFiltering);
-
-        desc.mComputeDesc = {};
-        ComputePipelineDesc& batchCompactionPipelineSettings = desc.mComputeDesc;
-        batchCompactionPipelineSettings.pShaderProgram = pShaderBatchCompaction;
-        batchCompactionPipelineSettings.pRootSignature = pRootSignatureBatchCompaction;
-        addPipeline(pRenderer, &desc, &pPipelineBatchCompaction);
 
         desc.mComputeDesc = {};
         ComputePipelineDesc& BlurCompPipelineSettings = desc.mComputeDesc;
@@ -9098,77 +8947,64 @@ public:
         ASMIndirectDepthPassPipelineDesc.mSampleQuality = pRenderTargetASMDepthPass->mSampleQuality;
         ASMIndirectDepthPassPipelineDesc.pRootSignature = pRootSignatureVBPass;
         ASMIndirectDepthPassPipelineDesc.pShaderProgram = pShaderIndirectDepthPass;
-        ASMIndirectDepthPassPipelineDesc.pRasterizerState = &rasterStateDesc;
-        ASMIndirectDepthPassPipelineDesc.pVertexLayout = &vertexLayoutPositionOnly;
-        ASMIndirectDepthPassPipelineDesc.mSupportIndirectCommandBuffer = true;
+        ASMIndirectDepthPassPipelineDesc.pRasterizerState = &rasterStateCullNoneDesc;
+        ASMIndirectDepthPassPipelineDesc.pVertexLayout = NULL;
         addPipeline(pRenderer, &desc, &pPipelineIndirectDepthPass);
 
         ASMIndirectDepthPassPipelineDesc.pShaderProgram = pShaderIndirectAlphaDepthPass;
-        ASMIndirectDepthPassPipelineDesc.pVertexLayout = &vertexLayoutPosAndTex;
-        ASMIndirectDepthPassPipelineDesc.pRasterizerState = &rasterStateCullNoneDesc;
-
         addPipeline(pRenderer, &desc, &pPipelineIndirectAlphaDepthPass);
 
         desc.mGraphicsDesc = {};
         GraphicsPipelineDesc& indirectESMDepthPassPipelineDesc = desc.mGraphicsDesc;
         indirectESMDepthPassPipelineDesc.mPrimitiveTopo = PRIMITIVE_TOPO_TRI_LIST;
         indirectESMDepthPassPipelineDesc.mRenderTargetCount = 0;
-        indirectESMDepthPassPipelineDesc.pDepthState = &depthStateLEQUALEnabledDesc;
+        indirectESMDepthPassPipelineDesc.pDepthState = &depthStateEnabledDesc;
         indirectESMDepthPassPipelineDesc.mDepthStencilFormat = pRenderTargetShadowMap->mFormat;
         indirectESMDepthPassPipelineDesc.mSampleCount = pRenderTargetShadowMap->mSampleCount;
         indirectESMDepthPassPipelineDesc.mSampleQuality = pRenderTargetShadowMap->mSampleQuality;
         indirectESMDepthPassPipelineDesc.pRootSignature = pRootSignatureVBPass;
         indirectESMDepthPassPipelineDesc.pRasterizerState = &rasterStateCullNoneDesc;
-        indirectESMDepthPassPipelineDesc.pVertexLayout = &vertexLayoutPositionOnly;
+        indirectESMDepthPassPipelineDesc.pVertexLayout = NULL;
         indirectESMDepthPassPipelineDesc.pShaderProgram = pShaderIndirectDepthPass;
-        indirectESMDepthPassPipelineDesc.mSupportIndirectCommandBuffer = true;
         addPipeline(pRenderer, &desc, &pPipelineESMIndirectDepthPass);
 
         indirectESMDepthPassPipelineDesc.pShaderProgram = pShaderIndirectAlphaDepthPass;
-        indirectESMDepthPassPipelineDesc.pVertexLayout = &vertexLayoutPosAndTex;
-
         addPipeline(pRenderer, &desc, &pPipelineESMIndirectAlphaDepthPass);
 
         desc.mGraphicsDesc = {};
         GraphicsPipelineDesc& indirectVSMDepthPassPipelineDesc = desc.mGraphicsDesc;
         indirectVSMDepthPassPipelineDesc.mPrimitiveTopo = PRIMITIVE_TOPO_TRI_LIST;
         indirectVSMDepthPassPipelineDesc.mRenderTargetCount = 1;
-        indirectVSMDepthPassPipelineDesc.pDepthState = &depthStateLEQUALEnabledDesc;
+        indirectVSMDepthPassPipelineDesc.pDepthState = &depthStateEnabledDesc;
         indirectVSMDepthPassPipelineDesc.mDepthStencilFormat = pRenderTargetShadowMap->mFormat;
         indirectVSMDepthPassPipelineDesc.pColorFormats = &pRenderTargetVSM[0]->mFormat;
         indirectVSMDepthPassPipelineDesc.mSampleCount = pRenderTargetVSM[0]->mSampleCount;
         indirectVSMDepthPassPipelineDesc.mSampleQuality = pRenderTargetVSM[0]->mSampleQuality;
         indirectVSMDepthPassPipelineDesc.pRootSignature = pRootSignatureVBPass;
         indirectVSMDepthPassPipelineDesc.pRasterizerState = &rasterStateCullNoneDesc;
-        indirectVSMDepthPassPipelineDesc.pVertexLayout = &vertexLayoutPositionOnly;
+        indirectVSMDepthPassPipelineDesc.pVertexLayout = NULL;
         indirectVSMDepthPassPipelineDesc.pShaderProgram = pShaderIndirectVSMDepthPass;
-        indirectVSMDepthPassPipelineDesc.mSupportIndirectCommandBuffer = true;
         addPipeline(pRenderer, &desc, &pPipelineVSMIndirectDepthPass);
 
         indirectVSMDepthPassPipelineDesc.pShaderProgram = pShaderIndirectVSMAlphaDepthPass;
-        indirectVSMDepthPassPipelineDesc.pVertexLayout = &vertexLayoutPosAndTex;
-
         addPipeline(pRenderer, &desc, &pPipelineVSMIndirectAlphaDepthPass);
 
         desc.mGraphicsDesc = {};
         GraphicsPipelineDesc& indirectMSMDepthPassPipelineDesc = desc.mGraphicsDesc;
         indirectMSMDepthPassPipelineDesc.mPrimitiveTopo = PRIMITIVE_TOPO_TRI_LIST;
         indirectMSMDepthPassPipelineDesc.mRenderTargetCount = 1;
-        indirectMSMDepthPassPipelineDesc.pDepthState = &depthStateLEQUALEnabledDesc;
+        indirectMSMDepthPassPipelineDesc.pDepthState = &depthStateEnabledDesc;
         indirectMSMDepthPassPipelineDesc.mDepthStencilFormat = pRenderTargetShadowMap->mFormat;
         indirectMSMDepthPassPipelineDesc.pColorFormats = &pRenderTargetMSM[0]->mFormat;
         indirectMSMDepthPassPipelineDesc.mSampleCount = pRenderTargetMSM[0]->mSampleCount;
         indirectMSMDepthPassPipelineDesc.mSampleQuality = pRenderTargetMSM[0]->mSampleQuality;
         indirectMSMDepthPassPipelineDesc.pRootSignature = pRootSignatureVBPass;
         indirectMSMDepthPassPipelineDesc.pRasterizerState = &rasterStateCullNoneDesc;
-        indirectMSMDepthPassPipelineDesc.pVertexLayout = &vertexLayoutPositionOnly;
+        indirectMSMDepthPassPipelineDesc.pVertexLayout = NULL;
         indirectMSMDepthPassPipelineDesc.pShaderProgram = pShaderIndirectMSMDepthPass;
-        indirectMSMDepthPassPipelineDesc.mSupportIndirectCommandBuffer = true;
         addPipeline(pRenderer, &desc, &pPipelineMSMIndirectDepthPass);
 
         indirectMSMDepthPassPipelineDesc.pShaderProgram = pShaderIndirectMSMAlphaDepthPass;
-        indirectMSMDepthPassPipelineDesc.pVertexLayout = &vertexLayoutPosAndTex;
-
         addPipeline(pRenderer, &desc, &pPipelineMSMIndirectAlphaDepthPass);
 
         desc.mGraphicsDesc = {};
@@ -9303,7 +9139,6 @@ public:
         }
         removePipeline(pRenderer, pPipelineClearBuffers);
         removePipeline(pRenderer, pPipelineTriangleFiltering);
-        removePipeline(pRenderer, pPipelineBatchCompaction);
 
         removePipeline(pRenderer, pPipelineUpdateSDFVolumeTextureAtlas);
         removePipeline(pRenderer, pPipelineSDFMeshVisualization);
@@ -9316,7 +9151,7 @@ public:
 
 void GuiController::updateDynamicUI()
 {
-    if (gRenderSettings.mShadowType != GuiController::currentlyShadowType)
+    if ((int)gRenderSettings.mShadowType != GuiController::currentlyShadowType)
     {
         if (GuiController::currentlyShadowType == SHADOW_TYPE_ESM)
             uiHideDynamicWidgets(&GuiController::esmDynamicWidgets, pGuiWindow);
@@ -9376,7 +9211,7 @@ void GuiController::addGui()
     SliderFloatWidget esmControlUI;
     esmControlUI.pData = &gEsmCpuSettings.mEsmControl;
     esmControlUI.mMin = 1.f;
-    esmControlUI.mMax = 300.0f;
+    esmControlUI.mMax = 400.0f;
 
     SliderUintWidget BlurKernelSizeControlUI;
     BlurKernelSizeControlUI.pData = &gBlurConstantsData.mFilterRadius;
@@ -9416,13 +9251,13 @@ void GuiController::addGui()
 
     CheckboxWidget checkbox;
     checkbox.pData = &gAppSettings.mHoldFilteredTriangles;
-    luaRegisterWidget(uiCreateComponentWidget(pGuiWindow, "Hold triangles", &checkbox, WIDGET_TYPE_CHECKBOX));
+    luaRegisterWidget(uiAddComponentWidget(pGuiWindow, "Hold triangles", &checkbox, WIDGET_TYPE_CHECKBOX));
 
     DropdownWidget ddShadowType;
     ddShadowType.pData = &gRenderSettings.mShadowType;
     ddShadowType.pNames = shadowTypeNames;
     ddShadowType.mCount = shadowTypeCount;
-    luaRegisterWidget(uiCreateComponentWidget(pGuiWindow, "Shadow Type", &ddShadowType, WIDGET_TYPE_DROPDOWN));
+    luaRegisterWidget(uiAddComponentWidget(pGuiWindow, "Shadow Type", &ddShadowType, WIDGET_TYPE_DROPDOWN));
 
     // MSAA Settings
     {
@@ -9433,10 +9268,11 @@ void GuiController::addGui()
         ddMSAA.pData = &gAppSettings.mMsaaIndexRequested;
         ddMSAA.pNames = msaaSampleNames;
         ddMSAA.mCount = msaaSampleCount;
-        UIWidget* msaaWidget = uiCreateComponentWidget(pGuiWindow, "MSAA", &ddMSAA, WIDGET_TYPE_DROPDOWN);
+        UIWidget* msaaWidget = uiAddComponentWidget(pGuiWindow, "MSAA", &ddMSAA, WIDGET_TYPE_DROPDOWN);
         uiSetWidgetOnEditedCallback(msaaWidget, nullptr,
                                     [](void* pUserData)
                                     {
+                                        UNREF_PARAM(pUserData);
                                         ReloadDesc reloadDesc;
                                         reloadDesc.mType = RELOAD_TYPE_RENDERTARGET; /*TODO: new type */
                                         requestReload(&reloadDesc);
@@ -9445,58 +9281,57 @@ void GuiController::addGui()
     }
 
     {
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::esmDynamicWidgets, "Sun Control", &sunX, WIDGET_TYPE_SLIDER_FLOAT2));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::esmDynamicWidgets, "Sun Control", &sunX, WIDGET_TYPE_SLIDER_FLOAT2));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::esmDynamicWidgets, "ESM Control", &esmControlUI, WIDGET_TYPE_SLIDER_FLOAT));
+    }
+
+    {
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::vsmDynamicWidgets, "Sun Control", &sunX, WIDGET_TYPE_SLIDER_FLOAT2));
         luaRegisterWidget(
-            uiCreateDynamicWidgets(&GuiController::esmDynamicWidgets, "ESM Control", &esmControlUI, WIDGET_TYPE_SLIDER_FLOAT));
+            uiAddDynamicWidgets(&GuiController::vsmDynamicWidgets, "Min Variance", &vsmMinVarianceControlUI, WIDGET_TYPE_SLIDER_FLOAT));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::vsmDynamicWidgets, "VSM Bleeding Reduction", &vsmBleedingControlUI,
+                                              WIDGET_TYPE_SLIDER_FLOAT2));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::vsmDynamicWidgets, "Gaussian Blur Kernel Radius", &BlurKernelSizeControlUI,
+                                              WIDGET_TYPE_SLIDER_UINT));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::vsmDynamicWidgets, "Gaussian Blur Sigma", &GaussianBlurSigmaControlUI,
+                                              WIDGET_TYPE_SLIDER_FLOAT));
     }
 
     {
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::vsmDynamicWidgets, "Sun Control", &sunX, WIDGET_TYPE_SLIDER_FLOAT2));
-        luaRegisterWidget(
-            uiCreateDynamicWidgets(&GuiController::vsmDynamicWidgets, "Min Variance", &vsmMinVarianceControlUI, WIDGET_TYPE_SLIDER_FLOAT));
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::vsmDynamicWidgets, "VSM Bleeding Reduction", &vsmBleedingControlUI,
-                                                 WIDGET_TYPE_SLIDER_FLOAT2));
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::vsmDynamicWidgets, "Gaussian Blur Kernel Radius", &BlurKernelSizeControlUI,
-                                                 WIDGET_TYPE_SLIDER_UINT));
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::vsmDynamicWidgets, "Gaussian Blur Sigma", &GaussianBlurSigmaControlUI,
-                                                 WIDGET_TYPE_SLIDER_FLOAT));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::msmDynamicWidgets, "Sun Control", &sunX, WIDGET_TYPE_SLIDER_FLOAT2));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::msmDynamicWidgets, "Rounding Error Correction",
+                                              &msmRoundingErrorCorrectionControlUI, WIDGET_TYPE_SLIDER_FLOAT));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::msmDynamicWidgets, "MSM Bleeding Reduction",
+                                              &msmBleedingReductionFactorControlUI, WIDGET_TYPE_SLIDER_FLOAT));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::msmDynamicWidgets, "Gaussian Blur Kernel Radius", &BlurKernelSizeControlUI,
+                                              WIDGET_TYPE_SLIDER_UINT));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::msmDynamicWidgets, "Gaussian Blur Sigma", &GaussianBlurSigmaControlUI,
+                                              WIDGET_TYPE_SLIDER_FLOAT));
     }
 
     {
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::msmDynamicWidgets, "Sun Control", &sunX, WIDGET_TYPE_SLIDER_FLOAT2));
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::msmDynamicWidgets, "Rounding Error Correction",
-                                                 &msmRoundingErrorCorrectionControlUI, WIDGET_TYPE_SLIDER_FLOAT));
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::msmDynamicWidgets, "MSM Bleeding Reduction",
-                                                 &msmBleedingReductionFactorControlUI, WIDGET_TYPE_SLIDER_FLOAT));
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::msmDynamicWidgets, "Gaussian Blur Kernel Radius", &BlurKernelSizeControlUI,
-                                                 WIDGET_TYPE_SLIDER_UINT));
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::msmDynamicWidgets, "Gaussian Blur Sigma", &GaussianBlurSigmaControlUI,
-                                                 WIDGET_TYPE_SLIDER_FLOAT));
-    }
-
-    {
-        UIWidget* pSunControl = uiCreateDynamicWidgets(&GuiController::asmDynamicWidgets, "Sun Control", &sunX, WIDGET_TYPE_SLIDER_FLOAT2);
+        UIWidget* pSunControl = uiAddDynamicWidgets(&GuiController::asmDynamicWidgets, "Sun Control", &sunX, WIDGET_TYPE_SLIDER_FLOAT2);
         uiSetWidgetOnActiveCallback(pSunControl, nullptr, LightShadowPlayground::refreshASM);
         luaRegisterWidget(pSunControl);
 
         ButtonWidget button;
-        UIWidget* pRefreshCache = uiCreateDynamicWidgets(&GuiController::asmDynamicWidgets, "Refresh Cache", &button, WIDGET_TYPE_BUTTON);
+        UIWidget*    pRefreshCache = uiAddDynamicWidgets(&GuiController::asmDynamicWidgets, "Refresh Cache", &button, WIDGET_TYPE_BUTTON);
         uiSetWidgetOnEditedCallback(pRefreshCache, nullptr, LightShadowPlayground::refreshASM);
         luaRegisterWidget(pRefreshCache);
 
         checkbox.pData = &gASMCpuSettings.mSunCanMove;
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::asmDynamicWidgets, "Sun can move", &checkbox, WIDGET_TYPE_CHECKBOX));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::asmDynamicWidgets, "Sun can move", &checkbox, WIDGET_TYPE_CHECKBOX));
 
         checkbox.pData = &gASMCpuSettings.mEnableParallax;
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::asmDynamicWidgets, "Parallax corrected", &checkbox, WIDGET_TYPE_CHECKBOX));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::asmDynamicWidgets, "Parallax corrected", &checkbox, WIDGET_TYPE_CHECKBOX));
 
         SliderUintWidget maxTilesPerPass;
         maxTilesPerPass.mMin = 1;
         maxTilesPerPass.mMax = ASM_MAX_TILES_PER_PASS;
         maxTilesPerPass.mStep = 1;
         maxTilesPerPass.pData = &gASMMaxTilesPerPass;
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::asmDynamicWidgets, "Max tiles to render per frame", &maxTilesPerPass,
-                                                 WIDGET_TYPE_SLIDER_UINT));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::asmDynamicWidgets, "Max tiles to render per frame", &maxTilesPerPass,
+                                              WIDGET_TYPE_SLIDER_UINT));
 
         SliderFloatWidget lightUpdateAngle;
         lightUpdateAngle.mMin = 0.0f;
@@ -9504,11 +9339,11 @@ void GuiController::addGui()
         lightUpdateAngle.mStep = 0.01f;
         lightUpdateAngle.pData = &gLightDirUpdateAngle;
         luaRegisterWidget(
-            uiCreateDynamicWidgets(&GuiController::asmDynamicWidgets, "Light Update Angle", &lightUpdateAngle, WIDGET_TYPE_SLIDER_FLOAT));
+            uiAddDynamicWidgets(&GuiController::asmDynamicWidgets, "Light Update Angle", &lightUpdateAngle, WIDGET_TYPE_SLIDER_FLOAT));
 
         ButtonWidget button_reset;
         UIWidget*    pResetLightDir =
-            uiCreateDynamicWidgets(&GuiController::asmDynamicWidgets, "Reset Light Dir", &button_reset, WIDGET_TYPE_BUTTON);
+            uiAddDynamicWidgets(&GuiController::asmDynamicWidgets, "Reset Light Dir", &button_reset, WIDGET_TYPE_BUTTON);
         uiSetWidgetOnEditedCallback(pResetLightDir, nullptr, LightShadowPlayground::resetLightDir);
         luaRegisterWidget(pResetLightDir);
 
@@ -9516,62 +9351,61 @@ void GuiController::addGui()
         sliderFloat.pData = &gASMCpuSettings.mPenumbraSize;
         sliderFloat.mMin = 1.f;
         sliderFloat.mMax = 150.f;
-        luaRegisterWidget(
-            uiCreateDynamicWidgets(&GuiController::asmDynamicWidgets, "Penumbra Size", &sliderFloat, WIDGET_TYPE_SLIDER_FLOAT));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::asmDynamicWidgets, "Penumbra Size", &sliderFloat, WIDGET_TYPE_SLIDER_FLOAT));
 
         sliderFloat.pData = &gASMCpuSettings.mParallaxStepDistance;
         sliderFloat.mMin = 1.f;
         sliderFloat.mMax = 100.f;
         luaRegisterWidget(
-            uiCreateDynamicWidgets(&GuiController::asmDynamicWidgets, "Parallax Step Distance", &sliderFloat, WIDGET_TYPE_SLIDER_FLOAT));
+            uiAddDynamicWidgets(&GuiController::asmDynamicWidgets, "Parallax Step Distance", &sliderFloat, WIDGET_TYPE_SLIDER_FLOAT));
 
         sliderFloat.pData = &gASMCpuSettings.mParallaxStepBias;
         sliderFloat.mMin = 1.f;
         sliderFloat.mMax = 200.f;
         luaRegisterWidget(
-            uiCreateDynamicWidgets(&GuiController::asmDynamicWidgets, "Parallax Step Z Bias", &sliderFloat, WIDGET_TYPE_SLIDER_FLOAT));
+            uiAddDynamicWidgets(&GuiController::asmDynamicWidgets, "Parallax Step Z Bias", &sliderFloat, WIDGET_TYPE_SLIDER_FLOAT));
 
         checkbox.pData = &gASMCpuSettings.mShowDebugTextures;
         UIWidget* pDisplayASMDebug =
-            uiCreateDynamicWidgets(&GuiController::asmDynamicWidgets, "Display ASM Debug Textures", &checkbox, WIDGET_TYPE_CHECKBOX);
+            uiAddDynamicWidgets(&GuiController::asmDynamicWidgets, "Display ASM Debug Textures", &checkbox, WIDGET_TYPE_CHECKBOX);
         uiSetWidgetOnDeactivatedAfterEditCallback(pDisplayASMDebug, nullptr, SetupASMDebugTextures);
         luaRegisterWidget(pDisplayASMDebug);
     }
     {
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "Sun Control", &sunX, WIDGET_TYPE_SLIDER_FLOAT2));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "Sun Control", &sunX, WIDGET_TYPE_SLIDER_FLOAT2));
         SeparatorWidget separator;
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "", &separator, WIDGET_TYPE_SEPARATOR));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "", &separator, WIDGET_TYPE_SEPARATOR));
 
         ButtonWidget generateSDFButtonWidget;
-        UIWidget*    pGenerateSDF = uiCreateDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "Generate Missing SDF",
-                                                        &generateSDFButtonWidget, WIDGET_TYPE_BUTTON);
+        UIWidget*    pGenerateSDF = uiAddDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "Generate Missing SDF",
+                                                     &generateSDFButtonWidget, WIDGET_TYPE_BUTTON);
         uiSetWidgetOnEditedCallback(pGenerateSDF, nullptr, LightShadowPlayground::checkForMissingSDFDataAsync);
         luaRegisterWidget(pGenerateSDF);
 
         checkbox.pData = &gLightCpuSettings.mAutomaticSunMovement;
         luaRegisterWidget(
-            uiCreateDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "Automatic Sun Movement", &checkbox, WIDGET_TYPE_CHECKBOX));
+            uiAddDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "Automatic Sun Movement", &checkbox, WIDGET_TYPE_CHECKBOX));
 
         SliderFloatWidget sliderFloat;
         sliderFloat.pData = &gLightCpuSettings.mSourceAngle;
         sliderFloat.mMin = 0.001f;
         sliderFloat.mMax = 4.f;
         luaRegisterWidget(
-            uiCreateDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "Light Source Angle", &sliderFloat, WIDGET_TYPE_SLIDER_FLOAT));
+            uiAddDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "Light Source Angle", &sliderFloat, WIDGET_TYPE_SLIDER_FLOAT));
 
         checkbox.pData = &gBakedSDFMeshSettings.mDrawSDFMeshVisualization;
-        luaRegisterWidget(uiCreateDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "Display baked SDF mesh data on the screen",
-                                                 &checkbox, WIDGET_TYPE_CHECKBOX));
+        luaRegisterWidget(uiAddDynamicWidgets(&GuiController::bakedSDFDynamicWidgets, "Display baked SDF mesh data on the screen",
+                                              &checkbox, WIDGET_TYPE_CHECKBOX));
     }
 
     DropdownWidget ddTestScripts;
     ddTestScripts.pData = &gCurrentScriptIndex;
     ddTestScripts.pNames = gTestScripts;
     ddTestScripts.mCount = sizeof(gTestScripts) / sizeof(gTestScripts[0]);
-    luaRegisterWidget(uiCreateComponentWidget(pGuiWindow, "Test Scripts", &ddTestScripts, WIDGET_TYPE_DROPDOWN));
+    luaRegisterWidget(uiAddComponentWidget(pGuiWindow, "Test Scripts", &ddTestScripts, WIDGET_TYPE_DROPDOWN));
 
     ButtonWidget bRunScript;
-    UIWidget*    pRunScript = uiCreateComponentWidget(pGuiWindow, "Run", &bRunScript, WIDGET_TYPE_BUTTON);
+    UIWidget*    pRunScript = uiAddComponentWidget(pGuiWindow, "Run", &bRunScript, WIDGET_TYPE_BUTTON);
     uiSetWidgetOnEditedCallback(pRunScript, nullptr, RunScript);
     luaRegisterWidget(pRunScript);
 
@@ -9604,11 +9438,11 @@ void GuiController::addGui()
 
 void GuiController::removeGui()
 {
-    uiDestroyDynamicWidgets(&esmDynamicWidgets);
-    uiDestroyDynamicWidgets(&vsmDynamicWidgets);
-    uiDestroyDynamicWidgets(&msmDynamicWidgets);
-    uiDestroyDynamicWidgets(&sdfDynamicWidgets);
-    uiDestroyDynamicWidgets(&asmDynamicWidgets);
-    uiDestroyDynamicWidgets(&bakedSDFDynamicWidgets);
+    uiRemoveDynamicWidgets(&esmDynamicWidgets);
+    uiRemoveDynamicWidgets(&vsmDynamicWidgets);
+    uiRemoveDynamicWidgets(&msmDynamicWidgets);
+    uiRemoveDynamicWidgets(&sdfDynamicWidgets);
+    uiRemoveDynamicWidgets(&asmDynamicWidgets);
+    uiRemoveDynamicWidgets(&bakedSDFDynamicWidgets);
 }
 DEFINE_APPLICATION_MAIN(LightShadowPlayground)

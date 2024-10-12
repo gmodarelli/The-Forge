@@ -80,6 +80,7 @@ void drawFrame(float deltaTime);
 #include "../Config.h"
 
 #include "../../OS/Interfaces/IOperatingSystem.h"
+#include "../../OS/Interfaces/IInput.h"
 
 class FORGE_API IApp
 {
@@ -158,9 +159,49 @@ public:
         pUnsupportedReason = reason;
     }
 
+    // App input bindings
+    InputEnum CUSTOM_MOVE_X = {};
+    InputEnum CUSTOM_MOVE_Y = {};
+    InputEnum CUSTOM_MOVE_UP = {};
+    InputEnum CUSTOM_LOOK_X = {};
+    InputEnum CUSTOM_LOOK_Y = {};
+    InputEnum CUSTOM_RESET_VIEW = {};
+    InputEnum CUSTOM_TOGGLE_FULLSCREEN = {};
+    InputEnum CUSTOM_TOGGLE_UI = {};
+    InputEnum CUSTOM_DUMP_PROFILE = {};
+    InputEnum CUSTOM_EXIT = {};
+    InputEnum CUSTOM_TOGGLE_INTERFACE = {};
+    InputEnum CUSTOM_PT_X = {};
+    InputEnum CUSTOM_PT_Y = {};
+    InputEnum CUSTOM_PT_DOWN = {};
+
+    void AddCustomInputBindings()
+    {
+        CUSTOM_MOVE_X = inputGetCustomBindingEnum("move_x");
+        CUSTOM_MOVE_Y = inputGetCustomBindingEnum("move_y");
+        CUSTOM_MOVE_UP = inputGetCustomBindingEnum("move_up");
+        CUSTOM_LOOK_X = inputGetCustomBindingEnum("look_x");
+        CUSTOM_LOOK_Y = inputGetCustomBindingEnum("look_y");
+        CUSTOM_RESET_VIEW = inputGetCustomBindingEnum("reset_view");
+        CUSTOM_TOGGLE_FULLSCREEN = inputGetCustomBindingEnum("toggle_fs");
+        CUSTOM_TOGGLE_UI = inputGetCustomBindingEnum("toggle_ui");
+        CUSTOM_DUMP_PROFILE = inputGetCustomBindingEnum("dump_profile");
+        CUSTOM_EXIT = inputGetCustomBindingEnum("exit");
+        CUSTOM_TOGGLE_INTERFACE = inputGetCustomBindingEnum("toggle_interface");
+        CUSTOM_PT_X = inputGetCustomBindingEnum("pt_x");
+        CUSTOM_PT_Y = inputGetCustomBindingEnum("pt_y");
+        CUSTOM_PT_DOWN = inputGetCustomBindingEnum("pt_down");
+    }
+
     static int          argc;
     static const char** argv;
 };
+
+#if defined(TARGET_IOS)
+#define SetContentScaleFactor(F) (mSettings.mContentScaleFactor = (F))
+#else
+#define SetContentScaleFactor(F)
+#endif
 
 #if defined(XBOX)
 FORGE_API extern int DurangoMain(int argc, char** argv, IApp* app);
@@ -180,15 +221,20 @@ FORGE_API extern int DurangoMain(int argc, char** argv, IApp* app);
 FORGE_API extern int WindowsMain(int argc, char** argv, IApp* app);
 #define RUN_APPLICATION_MAIN(argc, argv, appInstance, customPtr) WindowsMain(argc, argv, &(appInstance))
 
-#define DEFINE_APPLICATION_MAIN(appClass)                     \
-    extern int WindowsMain(int argc, char** argv, IApp* app); \
-                                                              \
-    int main(int argc, char** argv)                           \
-    {                                                         \
-        IApp::argc = argc;                                    \
-        IApp::argv = (const char**)argv;                      \
-        static appClass app = {};                             \
-        return WindowsMain(argc, argv, &app);                 \
+#define DEFINE_APPLICATION_MAIN(appClass)                                                    \
+    int WindowsMain(int argc, char** argv, IApp* app);                                       \
+    extern "C"                                                                               \
+    {                                                                                        \
+        __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_AGILITY_SDK_VERSION; \
+        __declspec(dllexport) extern const char* D3D12SDKPath = u8"";                        \
+    }                                                                                        \
+                                                                                             \
+    int main(int argc, char** argv)                                                          \
+    {                                                                                        \
+        IApp::argc = argc;                                                                   \
+        IApp::argv = (const char**)argv;                                                     \
+        static appClass app = {};                                                            \
+        return WindowsMain(argc, argv, &app);                                                \
     }
 #elif defined(TARGET_IOS)
 FORGE_API extern int iOSMain(int argc, char** argv, IApp* app);

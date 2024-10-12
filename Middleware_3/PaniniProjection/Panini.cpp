@@ -131,13 +131,13 @@ bool Panini::Init(Renderer* renderer, PipelineCache* pCache)
 {
     pRenderer = renderer;
     pPipelineCache = pCache;
-    mIndex = -1;
+    mIndex = (uint32_t)-1;
 
     // SHADER
     //----------------------------------------------------------------------------------------------------------------
     ShaderLoadDesc paniniPass = {};
-    paniniPass.mStages[0].pFileName = "panini_projection.vert";
-    paniniPass.mStages[1].pFileName = "panini_projection.frag";
+    paniniPass.mVert.pFileName = "panini_projection.vert";
+    paniniPass.mFrag.pFileName = "panini_projection.frag";
     addShader(pRenderer, &paniniPass, &pShader);
 
     // SAMPLERS & STATES
@@ -182,6 +182,7 @@ void Panini::Exit()
 
 bool Panini::Load(RenderTarget** rts, uint32_t count)
 {
+    UNREF_PARAM(count);
     // Vertexlayout
     VertexLayout vertexLayoutPanini = {};
     vertexLayoutPanini.mBindingCount = 1;
@@ -225,6 +226,7 @@ void Panini::Unload()
 
 void Panini::Update(float deltaTime)
 {
+    UNREF_PARAM(deltaTime);
     if (mIndex >= mMaxDraws)
         mIndex = 0;
 }

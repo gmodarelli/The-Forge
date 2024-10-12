@@ -86,6 +86,7 @@ static void UpdateWindowDescFullScreenRect(WindowDesc* winDesc)
     MONITORINFOEX info;
     info.cbSize = sizeof(MONITORINFOEX);
     bool infoRead = GetMonitorInfo(currentMonitor, &info);
+    ASSERT(infoRead);
 
     winDesc->fullscreenRect.left = info.rcMonitor.left;
     winDesc->fullscreenRect.top = info.rcMonitor.top;
@@ -225,6 +226,7 @@ void adjustWindow(WindowDesc* winDesc)
         MONITORINFOEX info;
         info.cbSize = sizeof(MONITORINFOEX);
         bool infoRead = GetMonitorInfo(currentMonitor, &info);
+        ASSERT(infoRead);
 
         pWindowAppRef->mSettings.mWindowX = info.rcMonitor.left;
         pWindowAppRef->mSettings.mWindowY = info.rcMonitor.top;
@@ -257,6 +259,8 @@ void adjustWindow(WindowDesc* winDesc)
 
 static BOOL CALLBACK monitorCallback(HMONITOR pMonitor, HDC pDeviceContext, LPRECT pRect, LPARAM pParam)
 {
+    UNREF_PARAM(pDeviceContext);
+    UNREF_PARAM(pRect);
     MONITORINFOEXW info;
     info.cbSize = sizeof(info);
     GetMonitorInfoW(pMonitor, &info);
@@ -286,7 +290,6 @@ void collectMonitorInfo()
     adapter.cb = sizeof(adapter);
 
     int      found = 0;
-    int      size = 0;
     uint32_t monitorCount = 0;
 
     for (int adapterIndex = 0;; ++adapterIndex)
@@ -358,9 +361,9 @@ void collectMonitorInfo()
 
                 if ((adapter.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) && displayIndex == 0)
                 {
-                    MonitorDesc desc = gMonitors[0];
+                    MonitorDesc mDesc = gMonitors[0];
                     gMonitors[0] = gMonitors[found];
-                    gMonitors[found] = desc;
+                    gMonitors[found] = mDesc;
                 }
 
                 found++;
@@ -382,7 +385,8 @@ void collectMonitorInfo()
 
             MONITORINFOEXW info;
             info.cbSize = sizeof(MONITORINFOEXW);
-            bool        infoRead = GetMonitorInfoW(currentMonitor, &info);
+            bool infoRead = GetMonitorInfoW(currentMonitor, &info);
+            ASSERT(infoRead);
             MonitorDesc desc = {};
 
             wcsncpy_s(desc.adapterName, info.szDevice, elementsOf(info.szDevice));
@@ -439,6 +443,7 @@ void collectMonitorInfo()
             resolutions, arrlenu(resolutions), sizeof(Resolution),
             +[](const void* lhs, const void* rhs, void* pUser)
             {
+                UNREF_PARAM(pUser);
                 Resolution* pLhs = (Resolution*)lhs;
                 Resolution* pRhs = (Resolution*)rhs;
                 if (pLhs->mHeight == pRhs->mHeight)
@@ -700,7 +705,7 @@ void setWindowSize(WindowDesc* winDesc, unsigned width, unsigned height)
     setWindowRect(winDesc, &newWindowRect);
 }
 
-void toggleBorderless(WindowDesc* winDesc, unsigned clientWidth, unsigned clientHeight)
+static void ToggleBorderless(WindowDesc* winDesc, unsigned clientWidth, unsigned clientHeight)
 {
     if (!winDesc->fullScreen)
     {
@@ -731,7 +736,7 @@ void toggleBorderless(WindowDesc* winDesc, unsigned clientWidth, unsigned client
     }
 }
 
-void toggleFullscreen(WindowDesc* winDesc)
+void ToggleFullscreen(WindowDesc* winDesc)
 {
     winDesc->fullScreen = !winDesc->fullScreen;
     adjustWindow(winDesc);
@@ -755,15 +760,17 @@ void toggleFullscreen(WindowDesc* winDesc)
 
 void setWindowed(WindowDesc* winDesc, unsigned width, unsigned height)
 {
+    UNREF_PARAM(width);
+    UNREF_PARAM(height);
     winDesc->maximized = false;
 
     if (winDesc->fullScreen)
     {
-        toggleFullscreen(winDesc);
+        ToggleFullscreen(winDesc);
     }
     if (winDesc->borderlessWindow)
     {
-        toggleBorderless(winDesc, getRectWidth(&winDesc->clientRect), getRectHeight(&winDesc->clientRect));
+        ToggleBorderless(winDesc, getRectWidth(&winDesc->clientRect), getRectHeight(&winDesc->clientRect));
     }
     winDesc->mWindowMode = WindowMode::WM_WINDOWED;
 }
@@ -772,17 +779,30 @@ void setBorderless(WindowDesc* winDesc, unsigned width, unsigned height)
 {
     if (winDesc->fullScreen)
     {
-        toggleFullscreen(winDesc);
+        ToggleFullscreen(winDesc);
         if (!winDesc->borderlessWindow)
-            toggleBorderless(winDesc, width, height);
+            ToggleBorderless(winDesc, width, height);
         winDesc->mWindowMode = WindowMode::WM_BORDERLESS;
     }
     else if (!winDesc->borderlessWindow)
     {
         winDesc->mWindowMode = WindowMode::WM_BORDERLESS;
-        toggleBorderless(winDesc, width, height);
+        ToggleBorderless(winDesc, width, height);
         if (!winDesc->borderlessWindow)
             winDesc->mWindowMode = WindowMode::WM_WINDOWED;
+    }
+}
+
+void toggleFullscreen(WindowDesc* pWindow)
+{
+    if (pWindow->fullScreen)
+    {
+        pWindow->borderlessWindow ? setBorderless(pWindow, getRectWidth(&pWindow->clientRect), getRectHeight(&pWindow->clientRect))
+                                  : setWindowed(pWindow, getRectWidth(&pWindow->clientRect), getRectHeight(&pWindow->clientRect));
+    }
+    else
+    {
+        setFullscreen(pWindow);
     }
 }
 
@@ -790,7 +810,7 @@ void setFullscreen(WindowDesc* winDesc)
 {
     if (!winDesc->fullScreen)
     {
-        toggleFullscreen(winDesc);
+        ToggleFullscreen(winDesc);
         winDesc->mWindowMode = WindowMode::WM_FULLSCREEN;
     }
 }
@@ -1267,16 +1287,13 @@ LRESULT CALLBACK WinProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
     default:
     {
-        if (sCustomProc != nullptr)
-        {
-            MSG msg = {};
-            msg.hwnd = hwnd;
-            msg.lParam = lParam;
-            msg.message = message;
-            msg.wParam = wParam;
-
-            sCustomProc(gWindow, &msg);
-        }
+        MSG msg = {};
+        msg.hwnd = hwnd;
+        msg.lParam = lParam;
+        msg.message = message;
+        msg.wParam = wParam;
+        extern void platformInputEvent(const MSG* msg);
+        platformInputEvent(&msg);
 
         return DefWindowProcW(hwnd, message, wParam, lParam);
     }
@@ -1306,10 +1323,9 @@ void initWindowClass()
 
             if (errorMessageID != ERROR_CLASS_ALREADY_EXISTS)
             {
-                LPSTR  messageBuffer = NULL;
-                size_t size =
-                    FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-                                   errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+                LPSTR messageBuffer = NULL;
+                FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+                               errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
 
                 LOGF(eERROR, "%s", messageBuffer);
                 LocalFree(messageBuffer);

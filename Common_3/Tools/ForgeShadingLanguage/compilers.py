@@ -41,7 +41,6 @@ _config = {
     Platforms.PROSPERO:       ('SCE_PROSPERO_SDK_DIR', 'host_tools/bin/prospero-wave-psslc.exe'),
     Platforms.XBOX:           ('GXDKLATEST', 'bin/XboxOne/dxc.exe'),
     Platforms.SCARLETT:       ('GXDKLATEST', 'bin/Scarlett/dxc.exe'),
-    Platforms.ANDROID_GLES:   ('FSL_COMPILER_GLES', 'glslangValidator.exe'),
 }
 
 def get_available_compilers():
@@ -83,12 +82,17 @@ def get_compiler_from_env(varname, subpath = None, _assert=True):
 
 def util_shadertarget_dx(stage, features):
     level_dx = '_5_0' # dx11
+    dx_levels = {
+        Features.ATOMICS_64: '_6_6',
+        Features.DYNAMIC_RESOURCES: '_6_6',
+        Features.RAYTRACING: '_6_5',
+        Features.VRS: '_6_4',
+    }
     if features is not None:
         level_dx = '_5_1' # xbox/dx12 default
-        if Features.RAYTRACING in features:
-            level_dx = '_6_5'
-        elif Features.VRS in features:
-            level_dx = '_6_4'
+        for feature in features:
+            if feature in dx_levels:
+                level_dx = max(level_dx, dx_levels[feature])
     stage_dx = {
         Stages.VERT: 'vs',
         Stages.FRAG: 'ps',
@@ -103,7 +107,8 @@ def util_spirv_target(features):
     return 'spirv1.3' # vulkan1.1 default
 
 def util_shadertarget_metal(platform : Platforms, binary: ShaderBinary):
-    if Features.RAYTRACING in binary.features:
+    if Features.RAYTRACING in binary.features or \
+        Features.ATOMICS_64 in binary.features:
         return '2.4'
     if platform == Platforms.IOS:
         if WaveopsFlags.WAVE_OPS_ARITHMETIC_BIT in binary.waveops_flags or Features.PRIM_ID in binary.features:
@@ -135,6 +140,10 @@ def compile_binary(platform: Platforms, debug: bool, binary: ShaderBinary, src, 
         compiled_filepath = os.path.join(tempfile.gettempdir(), next(tempfile._get_candidate_names()))
         params = []
         stages = []
+
+        params += ['-D' + define for define in derivative ]
+        for ft in binary.features:
+            params += [ f'-DFT_{ft.name}']
 
         if debug:
             params += ['-D_DEBUG']
@@ -175,7 +184,7 @@ def compile_binary(platform: Platforms, debug: bool, binary: ShaderBinary, src, 
         elif platform == Platforms.ORBIS:
             compiled_filepath = dst + f'_{len(compiled_derivatives)}.bsh'
 
-            params = ['-DGNM']
+            params += ['-DGNM']
             if debug: params += ['-Od']
             else: params += ['-O4']
             
@@ -202,7 +211,7 @@ def compile_binary(platform: Platforms, debug: bool, binary: ShaderBinary, src, 
         elif platform == Platforms.PROSPERO:
             compiled_filepath = dst + f'_{len(compiled_derivatives)}.bsh'
 
-            params = ['-DGNM']
+            params += ['-DGNM']
             if debug:
                 params += ['-Od']
                 # This enables shader debugging at source level.
@@ -238,13 +247,6 @@ def compile_binary(platform: Platforms, debug: bool, binary: ShaderBinary, src, 
             params += ['/I', fsl_basepath]
             params += ['/Fo', compiled_filepath, src]
 
-        elif platform == Platforms.ANDROID_GLES:
-            compiled_filepath = dst + f'_{len(compiled_derivatives)}.glsl'
-
-            params = [src, '-I'+fsl_basepath]
-            params += ['-S', binary.stage.name.lower()]
-            shutil.copy(src, compiled_filepath)
-
         elif platform == Platforms.MACOS:
             compiled_filepath = dst + f'_{len(compiled_derivatives)}.air'
 
@@ -252,7 +254,7 @@ def compile_binary(platform: Platforms, debug: bool, binary: ShaderBinary, src, 
                 params += ['-I', fsl_basepath]
                 params += ['-dD', '-o', compiled_filepath, src]
             else:
-                params = '-sdk macosx metal '.split(' ')
+                params = '-sdk macosx metal '.split(' ') + params
                 params += ['-I', fsl_basepath]
                 params += ['-dD', src, '-o', compiled_filepath]
 
@@ -276,7 +278,7 @@ def compile_binary(platform: Platforms, debug: bool, binary: ShaderBinary, src, 
                 params += ['-I', fsl_basepath]
                 params += ['-dD', '-mios-version-min=8.0', '-o', compiled_filepath, src]
             else:
-                params = '-sdk iphoneos metal'.split(' ')
+                params = '-sdk iphoneos metal'.split(' ') + params
                 params += ['-mios-version-min=11.0']
                 params += ['-I', fsl_basepath]
                 params += ['-dD', src, '-o', compiled_filepath]
@@ -293,8 +295,6 @@ def compile_binary(platform: Platforms, debug: bool, binary: ShaderBinary, src, 
                 params += ['-gline-tables-only']
                 if int(vv) >= 16:
                     params += ['-frecord-sources']
-
-        params += ['-D' + define for define in derivative ]
 
         stages = [(bin, params)] + stages
 

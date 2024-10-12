@@ -45,10 +45,6 @@
 
 #include "../../Utilities/Math/ShaderUtilities.h" // Packing functions
 
-#if defined(GLES)
-#include "../../Graphics/OpenGLES/GLESContextCreator.h"
-#endif
-
 #include "TextureContainers.h"
 
 #include "../../Utilities/Interfaces/IMemory.h"
@@ -57,11 +53,9 @@
 #include "../../Utilities/ThirdParty/OpenSource/murmurhash3/MurmurHash3_32.h"
 #endif
 
-#define CGLTF_IMPLEMENTATION
-#include "ThirdParty/OpenSource/cgltf/cgltf.h"
-
+#if defined(ENABLE_FORGE_RELOAD_SHADER)
 #include "../../Tools/ReloadServer/ReloadClient.h"
-
+#endif
 // If facing strange gfx issues, corruption, GPU hangs, enable this for verbose logging of resource loading
 #define RESOURCE_LOADER_VERBOSE 0
 #if RESOURCE_LOADER_VERBOSE
@@ -69,13 +63,6 @@
 #else
 #define LOADER_LOGF(...)
 #endif
-
-extern "C"
-{
-    void fsGetParentPath(const char* path, char* output);
-    void fsGetPathExtension(const char* path, char* output);
-    bool fsMergeDirAndFileName(const char* dir, const char* path, char separator, size_t dstSize, char* dst);
-}
 
 #define MIP_REDUCE(s, mip) (max(1u, (uint32_t)((s) >> (mip))))
 
@@ -105,22 +92,17 @@ enum
     MAPPED_RANGE_FLAG_TEMP_BUFFER = (1 << 1),
 };
 
-DECLARE_RENDERER_FUNCTION(void, getBufferSizeAlign, Renderer* pRenderer, const BufferDesc* pDesc, ResourceSizeAlign* pOut);
-DECLARE_RENDERER_FUNCTION(void, getTextureSizeAlign, Renderer* pRenderer, const TextureDesc* pDesc, ResourceSizeAlign* pOut);
-DECLARE_RENDERER_FUNCTION(void, addBuffer, Renderer* pRenderer, const BufferDesc* pDesc, Buffer** pp_buffer)
-DECLARE_RENDERER_FUNCTION(void, removeBuffer, Renderer* pRenderer, Buffer* pBuffer)
-DECLARE_RENDERER_FUNCTION(void, mapBuffer, Renderer* pRenderer, Buffer* pBuffer, ReadRange* pRange)
-DECLARE_RENDERER_FUNCTION(void, unmapBuffer, Renderer* pRenderer, Buffer* pBuffer)
-DECLARE_RENDERER_FUNCTION(void, cmdUpdateBuffer, Cmd* pCmd, Buffer* pBuffer, uint64_t dstOffset, Buffer* pSrcBuffer, uint64_t srcOffset,
-                          uint64_t size)
-DECLARE_RENDERER_FUNCTION(void, cmdUpdateSubresource, Cmd* pCmd, Texture* pTexture, Buffer* pSrcBuffer,
-                          const struct SubresourceDataDesc* pSubresourceDesc)
-DECLARE_RENDERER_FUNCTION(void, cmdCopySubresource, Cmd* pCmd, Buffer* pDstBuffer, Texture* pTexture,
-                          const struct SubresourceDataDesc* pSubresourceDesc)
-DECLARE_RENDERER_FUNCTION(void, addTexture, Renderer* pRenderer, const TextureDesc* pDesc, Texture** ppTexture)
-DECLARE_RENDERER_FUNCTION(void, removeTexture, Renderer* pRenderer, Texture* pTexture)
-
-extern PlatformParameters gPlatformParameters;
+void getBufferSizeAlign(Renderer* pRenderer, const BufferDesc* pDesc, ResourceSizeAlign* pOut);
+void getTextureSizeAlign(Renderer* pRenderer, const TextureDesc* pDesc, ResourceSizeAlign* pOut);
+void addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** pp_buffer);
+void removeBuffer(Renderer* pRenderer, Buffer* pBuffer);
+void mapBuffer(Renderer* pRenderer, Buffer* pBuffer, ReadRange* pRange);
+void unmapBuffer(Renderer* pRenderer, Buffer* pBuffer);
+void cmdUpdateBuffer(Cmd* pCmd, Buffer* pBuffer, uint64_t dstOffset, Buffer* pSrcBuffer, uint64_t srcOffset, uint64_t size);
+void cmdUpdateSubresource(Cmd* pCmd, Texture* pTexture, Buffer* pSrcBuffer, const struct SubresourceDataDesc* pSubresourceDesc);
+void cmdCopySubresource(Cmd* pCmd, Buffer* pDstBuffer, Texture* pTexture, const struct SubresourceDataDesc* pSubresourceDesc);
+void addTexture(Renderer* pRenderer, const TextureDesc* pDesc, Texture** ppTexture);
+void removeTexture(Renderer* pRenderer, Texture* pTexture);
 
 struct ShaderByteCodeBuffer
 {
@@ -428,20 +410,8 @@ static void materialLoadBinaryShader(Renderer* pRenderer, const MaterialDesc* pM
 // Xbox, Orbis, Prospero, iOS have unified memory
 // so we dont need a command buffer to upload linear data
 // A simple memcpy suffices since the GPU memory is marked as CPU write combine
-#if !defined(GFX_DRIVER_MANAGED_VIDEO_MEMORY) || defined(NX64)
-static FORGE_CONSTEXPR const bool gUma = true;
-#elif defined(ANDROID)
-#if defined(USE_MULTIPLE_RENDER_APIS)
-// Cant determine at compile time since we can be running GLES or VK. Not using UMA path for non VK
+// Will be filled from Graphics Config
 static bool gUma = false;
-#elif defined(VULKAN)
-static FORGE_CONSTEXPR const bool gUma = true;
-#else
-static FORGE_CONSTEXPR const bool gUma = false;
-#endif
-#else
-static FORGE_CONSTEXPR const bool gUma = false;
-#endif
 
 bool isUma() { return gUma; }
 
@@ -452,55 +422,41 @@ bool isUma() { return gUma; }
 // Can only issue certain resource state barriers on particular queue type
 static inline FORGE_CONSTEXPR bool StrictQueueTypeBarriers()
 {
-#if defined(STRICT_QUEUE_TYPE_BARRIERS)
-    if (RENDERER_API_D3D12 == gPlatformParameters.mSelectedRendererApi)
-    {
-        return true;
-    }
-#endif
+#if defined(STRICT_QUEUE_TYPE_BARRIERS) && defined(DIRECT3D12)
+    return true;
+#else
     return false;
+#endif
 }
 
 // Need to issue barriers when doing texture copy operations
 static inline bool IssueTextureCopyBarriers()
 {
-#if defined(DIRECT3D12)
-    if (RENDERER_API_D3D12 == gPlatformParameters.mSelectedRendererApi)
-    {
-        return true;
-    }
-#endif
-#if defined(VULKAN)
-    if (RENDERER_API_VULKAN == gPlatformParameters.mSelectedRendererApi)
-    {
-        return true;
-    }
-#endif
+#if defined(DIRECT3D12) || defined(VULKAN)
+    return true;
+#else
     return false;
+#endif
 }
 
 // Need to issue barriers when doing buffer copy operations
 static inline FORGE_CONSTEXPR bool IssueBufferCopyBarriers() //-V524
 {
 #if defined(DIRECT3D12)
-    if (RENDERER_API_D3D12 == gPlatformParameters.mSelectedRendererApi)
-    {
-        return true;
-    }
-#endif
+    return true;
+#else
     return false;
+#endif
 }
 
 // All Vulkan resources are created in undefined state. Need to transition to desired layout manually unlike DX12 ResourceStartState
 static inline bool IssueExplicitInitialStateBarrier()
 {
 #if defined(VULKAN)
-    if (RENDERER_API_VULKAN == gPlatformParameters.mSelectedRendererApi)
-    {
-        return true;
-    }
-#endif
+    return true;
+#else
     return false;
+#endif
 }
 
 ResourceLoaderDesc          gDefaultResourceLoaderDesc = { 8ull * TF_MB, 2, false };
@@ -740,15 +696,12 @@ struct ResourceLoader
 
 static ResourceLoader* pResourceLoader = NULL;
 
-static uint32_t util_get_texture_row_alignment(Renderer* pRenderer)
-{
-    return max(1u, pRenderer->pGpu->mSettings.mUploadBufferTextureRowAlignment);
-}
+static uint32_t util_get_texture_row_alignment(Renderer* pRenderer) { return max(1u, pRenderer->pGpu->mUploadBufferTextureRowAlignment); }
 
 static uint32_t util_get_texture_subresource_alignment(Renderer* pRenderer, TinyImageFormat fmt = TinyImageFormat_UNDEFINED)
 {
     uint32_t blockSize = max(1u, TinyImageFormat_BitSizeOfBlock(fmt) >> 3);
-    uint32_t alignment = round_up(pRenderer->pGpu->mSettings.mUploadBufferTextureAlignment, blockSize);
+    uint32_t alignment = round_up(pRenderer->pGpu->mUploadBufferTextureAlignment, blockSize);
     return round_up(alignment, util_get_texture_row_alignment(pRenderer));
 }
 
@@ -819,49 +772,33 @@ static MappedMemoryRange allocateUploadMemory(Renderer* pRenderer, uint64_t memo
 {
     Buffer* buffer;
 #if defined(DIRECT3D11)
-    if (gPlatformParameters.mSelectedRendererApi == RENDERER_API_D3D11)
-    {
-        // There is no such thing as staging buffer in D3D11
-        // To keep code paths unified in update functions, we allocate space for a dummy buffer and the system memory for pCpuMappedAddress
-        buffer = (Buffer*)tf_memalign(alignof(Buffer), sizeof(Buffer) + (size_t)memoryRequirement);
-        *buffer = {};
-        buffer->pCpuMappedAddress = buffer + 1;
-        buffer->mSize = memoryRequirement;
-    }
-    else
+    // There is no such thing as staging buffer in D3D11
+    // To keep code paths unified in update functions, we allocate space for a dummy buffer and the system memory for pCpuMappedAddress
+    buffer = (Buffer*)tf_memalign(alignof(Buffer), sizeof(Buffer) + (size_t)memoryRequirement);
+    *buffer = {};
+    buffer->pCpuMappedAddress = buffer + 1;
+    buffer->mSize = memoryRequirement;
+#else
+
+    // LOGF(LogLevel::eINFO, "Allocating temporary staging buffer. Required allocation size of %llu is larger than the staging buffer
+    // capacity of %llu", memoryRequirement, size);
+    buffer = {};
+    BufferDesc bufferDesc = {};
+    bufferDesc.mSize = memoryRequirement;
+    bufferDesc.mAlignment = alignment;
+    bufferDesc.mMemoryUsage = RESOURCE_MEMORY_USAGE_CPU_ONLY;
+    bufferDesc.mFlags = BUFFER_CREATION_FLAG_PERSISTENT_MAP_BIT;
+    bufferDesc.mNodeIndex = pRenderer->mUnlinkedRendererIndex;
+    bufferDesc.pName = "temporary staging buffer";
+    addBuffer(pRenderer, &bufferDesc, &buffer);
 #endif
-#if defined(GLES)
-        if (gPlatformParameters.mSelectedRendererApi == RENDERER_API_GLES)
-    {
-        // There is no such thing as staging buffer in GLES
-        // To keep code paths unified in update functions, we allocate space for a dummy buffer and the system memory for pCpuMappedAddress
-        buffer = (Buffer*)tf_memalign(alignof(Buffer), sizeof(Buffer) + (size_t)memoryRequirement);
-        *buffer = {};
-        buffer->pCpuMappedAddress = buffer + 1;
-        buffer->mSize = memoryRequirement;
-    }
-    else
-#endif
-    {
-        // LOGF(LogLevel::eINFO, "Allocating temporary staging buffer. Required allocation size of %llu is larger than the staging buffer
-        // capacity of %llu", memoryRequirement, size);
-        buffer = {};
-        BufferDesc bufferDesc = {};
-        bufferDesc.mSize = memoryRequirement;
-        bufferDesc.mAlignment = alignment;
-        bufferDesc.mMemoryUsage = RESOURCE_MEMORY_USAGE_CPU_ONLY;
-        bufferDesc.mFlags = BUFFER_CREATION_FLAG_PERSISTENT_MAP_BIT;
-        bufferDesc.mNodeIndex = pRenderer->mUnlinkedRendererIndex;
-        bufferDesc.pName = "temporary staging buffer";
-        addBuffer(pRenderer, &bufferDesc, &buffer);
-    }
     return { (uint8_t*)buffer->pCpuMappedAddress, buffer, 0, memoryRequirement, MAPPED_RANGE_FLAG_TEMP_BUFFER };
 }
 
 static void setupCopyEngine(Renderer* pRenderer, CopyEngineDesc* pDesc, CopyEngine* pCopyEngine)
 {
     QueueDesc desc = { pDesc->mQueueType, QUEUE_FLAG_NONE, QUEUE_PRIORITY_NORMAL, pDesc->mNodeIndex, pDesc->pQueueName };
-    addQueue(pRenderer, &desc, &pCopyEngine->pQueue);
+    initQueue(pRenderer, &desc, &pCopyEngine->pQueue);
 
     const uint64_t maxBlockSize = 32;
     pDesc->mSize = max(pDesc->mSize, maxBlockSize);
@@ -872,14 +809,13 @@ static void setupCopyEngine(Renderer* pRenderer, CopyEngineDesc* pDesc, CopyEngi
         tf_placement_new<CopyResourceSet>(pCopyEngine->resourceSets + i);
 
         CopyResourceSet& resourceSet = pCopyEngine->resourceSets[i];
-#if defined(DIRECT3D11)
-        if (gPlatformParameters.mSelectedRendererApi != RENDERER_API_D3D11)
+#if !defined(DIRECT3D11)
+        initFence(pRenderer, &resourceSet.pFence);
 #endif
-            addFence(pRenderer, &resourceSet.pFence);
 
         CmdPoolDesc cmdPoolDesc = {};
         cmdPoolDesc.pQueue = pCopyEngine->pQueue;
-        addCmdPool(pRenderer, &cmdPoolDesc, &resourceSet.pCmdPool);
+        initCmdPool(pRenderer, &cmdPoolDesc, &resourceSet.pCmdPool);
 
         CmdDesc cmdDesc = {};
         cmdDesc.pPool = resourceSet.pCmdPool;
@@ -889,9 +825,9 @@ static void setupCopyEngine(Renderer* pRenderer, CopyEngineDesc* pDesc, CopyEngi
         snprintf(buffer, sizeof(buffer), "Node %u %s CopyEngine buffer %u Cmd", pDesc->mNodeIndex, engineName, i);
         cmdDesc.pName = buffer;
 #endif // ENABLE_GRAPHICS_DEBUG
-        addCmd(pRenderer, &cmdDesc, &resourceSet.pCmd);
+        initCmd(pRenderer, &cmdDesc, &resourceSet.pCmd);
 
-        addSemaphore(pRenderer, &resourceSet.pSemaphore);
+        initSemaphore(pRenderer, &resourceSet.pSemaphore);
 
         resourceSet.mBuffer = allocateUploadMemory(pRenderer, pDesc->mSize, util_get_texture_subresource_alignment(pRenderer)).pBuffer;
     }
@@ -910,29 +846,26 @@ static void cleanupCopyEngine(Renderer* pRenderer, CopyEngine* pCopyEngine)
         CopyResourceSet& resourceSet = pCopyEngine->resourceSets[i];
         removeBuffer(pRenderer, resourceSet.mBuffer);
 
-        removeSemaphore(pRenderer, resourceSet.pSemaphore);
+        exitSemaphore(pRenderer, resourceSet.pSemaphore);
 
-        removeCmd(pRenderer, resourceSet.pCmd);
-        removeCmdPool(pRenderer, resourceSet.pCmdPool);
-#if defined(DIRECT3D11)
-        if (gPlatformParameters.mSelectedRendererApi != RENDERER_API_D3D11)
+        exitCmd(pRenderer, resourceSet.pCmd);
+        exitCmdPool(pRenderer, resourceSet.pCmdPool);
+#if !defined(DIRECT3D11)
+        exitFence(pRenderer, resourceSet.pFence);
 #endif
-        {
-            removeFence(pRenderer, resourceSet.pFence);
-        }
 
-        for (ptrdiff_t i = 0; i < arrlen(resourceSet.mTempBuffers); ++i)
+        for (ptrdiff_t j = 0; j < arrlen(resourceSet.mTempBuffers); ++j)
         {
-            removeBuffer(pRenderer, resourceSet.mTempBuffers[i]);
+            removeBuffer(pRenderer, resourceSet.mTempBuffers[j]);
         }
         arrfree(resourceSet.mTempBuffers);
 
 #if defined(STRICT_QUEUE_TYPE_BARRIERS)
         if (StrictQueueTypeBarriers() && resourceSet.pPostCopyBarrierFence)
         {
-            removeFence(pRenderer, resourceSet.pPostCopyBarrierFence);
-            removeCmd(pRenderer, resourceSet.pPostCopyBarrierCmd);
-            removeCmdPool(pRenderer, resourceSet.pPostCopyBarrierCmdPool);
+            exitFence(pRenderer, resourceSet.pPostCopyBarrierFence);
+            exitCmd(pRenderer, resourceSet.pPostCopyBarrierCmd);
+            exitCmdPool(pRenderer, resourceSet.pPostCopyBarrierCmdPool);
         }
 #endif
     }
@@ -940,16 +873,13 @@ static void cleanupCopyEngine(Renderer* pRenderer, CopyEngine* pCopyEngine)
     tf_free(pCopyEngine->resourceSets);
     arrfree(pCopyEngine->mWaitSemaphores);
 
-    removeQueue(pRenderer, pCopyEngine->pQueue);
+    exitQueue(pRenderer, pCopyEngine->pQueue);
 }
 
 static void waitCopyEngineSet(Renderer* pRenderer, CopyEngine* pCopyEngine)
 {
 #if defined(DIRECT3D11)
-    if (RENDERER_API_D3D11 == gPlatformParameters.mSelectedRendererApi)
-    {
-        return;
-    }
+    return;
 #endif
 
     ASSERT(!pCopyEngine->isRecording);
@@ -1054,7 +984,7 @@ static void streamerFlush(CopyEngine* pCopyEngine)
         if (StrictQueueTypeBarriers() && resourceSet.mPostCopyBarrierRecording)
         {
             endCmd(resourceSet.pPostCopyBarrierCmd);
-            QueueSubmitDesc submitDesc = {};
+            submitDesc = {};
             submitDesc.mCmdCount = 1;
             submitDesc.ppCmds = &resourceSet.pPostCopyBarrierCmd;
             submitDesc.mWaitSemaphoreCount = 1;
@@ -1076,12 +1006,14 @@ static MappedMemoryRange allocateStagingMemory(CopyEngine* pCopyEngine, uint64_t
     acquireCmd(pCopyEngine);
 
     CopyResourceSet* pResourceSet = &pCopyEngine->resourceSets[pCopyEngine->activeSet];
+    Renderer*        pRenderer = pResourceLoader->ppRenderers[nodeIndex];
     uint64_t         size = (uint64_t)pResourceSet->mBuffer->mSize;
-    alignment = max((uint32_t)RESOURCE_BUFFER_ALIGNMENT, alignment);
+    alignment = max((uint32_t)pRenderer->pGpu->mUploadBufferAlignment, alignment);
     memoryRequirement = round_up_64(memoryRequirement, alignment);
+
     if (memoryRequirement > size)
     {
-        MappedMemoryRange range = allocateUploadMemory(pResourceLoader->ppRenderers[nodeIndex], memoryRequirement, alignment);
+        MappedMemoryRange range = allocateUploadMemory(pRenderer, memoryRequirement, alignment);
         LOADER_LOGF(
             LogLevel::eINFO,
             "Allocating temporary staging buffer. Required allocation size of %llu is larger than the staging buffer capacity of %llu",
@@ -1115,6 +1047,7 @@ static MappedMemoryRange allocateStagingMemory(CopyEngine* pCopyEngine, uint64_t
 
 static UploadFunctionResult updateBuffer(Renderer* pRenderer, CopyEngine* pCopyEngine, const BufferUpdateDesc& bufUpdateDesc)
 {
+    UNREF_PARAM(pRenderer);
     Buffer* pBuffer = bufUpdateDesc.pBuffer;
     ASSERT(pCopyEngine->pQueue->mNodeIndex == pBuffer->mNodeIndex);
     ASSERT(RESOURCE_MEMORY_USAGE_GPU_ONLY == pBuffer->mMemoryUsage);
@@ -1128,8 +1061,10 @@ static UploadFunctionResult updateBuffer(Renderer* pRenderer, CopyEngine* pCopyE
     }
 
     MappedMemoryRange range = bufUpdateDesc.mInternal.mMappedRange;
-    cmdUpdateBuffer(pCmd, pBuffer, bufUpdateDesc.mDstOffset, range.pBuffer, range.mOffset,
-                    bufUpdateDesc.mSize ? bufUpdateDesc.mSize : range.mSize);
+    uint64_t          size = bufUpdateDesc.mSize ? bufUpdateDesc.mSize : range.mSize;
+    size = min(range.pBuffer->mSize, size);
+    size = round_up_64(size, pRenderer->pGpu->mUploadBufferAlignment);
+    cmdUpdateBuffer(pCmd, pBuffer, bufUpdateDesc.mDstOffset, range.pBuffer, range.mOffset, size);
 
     if (IssueBufferCopyBarriers() && bufUpdateDesc.mCurrentState != RESOURCE_STATE_COPY_DEST)
     {
@@ -1163,7 +1098,7 @@ static UploadFunctionResult loadBuffer(Renderer* pRenderer, CopyEngine* pCopyEng
     }
     else
     {
-        range = allocateStagingMemory(pCopyEngine, loadDesc.pBuffer->mSize, RESOURCE_BUFFER_ALIGNMENT, pCopyEngine->nodeIndex);
+        range = allocateStagingMemory(pCopyEngine, loadDesc.pBuffer->mSize, 1, pCopyEngine->nodeIndex);
         if (!range.pData)
         {
             return UPLOAD_FUNCTION_RESULT_STAGING_BUFFER_FULL;
@@ -1189,6 +1124,11 @@ static UploadFunctionResult loadBuffer(Renderer* pRenderer, CopyEngine* pCopyEng
         }
 
         return UPLOAD_FUNCTION_RESULT_COMPLETED;
+    }
+
+    if (mapped)
+    {
+        unmapBuffer(pRenderer, loadDesc.pSrcBuffer);
     }
 
     UploadFunctionResult res = updateBuffer(pRenderer, pCopyEngine, updateDesc);
@@ -1496,20 +1436,6 @@ static UploadFunctionResult loadTexture(Renderer* pRenderer, CopyEngine* pCopyEn
             textureDesc.mStartState = RESOURCE_STATE_COPY_DEST;
             textureDesc.mNodeIndex = pTextureDesc->mNodeIndex;
 
-            if (pTextureDesc->mFlags & TEXTURE_CREATION_FLAG_SRGB)
-            {
-                TinyImageFormat srgbFormat = TinyImageFormat_ToSRGB(textureDesc.mFormat);
-                if (srgbFormat != TinyImageFormat_UNDEFINED)
-                    textureDesc.mFormat = srgbFormat;
-                else
-                {
-                    LOGF(eWARNING,
-                         "Trying to load '%s' image using SRGB profile. "
-                         "But image has '%s' format, which doesn't have SRGB counterpart.",
-                         pTextureDesc->pFileName, TinyImageFormat_Name(textureDesc.mFormat));
-                }
-            }
-
 #if defined(VULKAN)
             if (pTextureDesc->pYcbcrSampler)
             {
@@ -1615,6 +1541,7 @@ static void fillGeometryUpdateDesc(Renderer* pRenderer, CopyEngine* pCopyEngine,
                                    uint32_t* indexStride, BufferUpdateDesc vertexUpdateDesc[MAX_VERTEX_BINDINGS],
                                    BufferUpdateDesc indexUpdateDesc[1])
 {
+    UNREF_PARAM(pCopyEngine);
     bool     structuredBuffers = (pDesc->mFlags & GEOMETRY_LOAD_FLAG_STRUCTURED_BUFFERS) > 0;
     uint32_t indexBufferSize = *indexStride * geom->mIndexCount;
 
@@ -1660,7 +1587,7 @@ static void fillGeometryUpdateDesc(Renderer* pRenderer, CopyEngine* pCopyEngine,
     }
     else
     {
-        indexUpdateDesc->mInternal.mMappedRange.pData = (uint8_t*)tf_calloc_memalign(1, RESOURCE_BUFFER_ALIGNMENT, indexUpdateDesc->mSize);
+        indexUpdateDesc->mInternal.mMappedRange.pData = (uint8_t*)tf_calloc_memalign(1, 4, indexUpdateDesc->mSize);
     }
     indexUpdateDesc->pMappedData = indexUpdateDesc->mInternal.mMappedRange.pData;
 
@@ -1695,6 +1622,7 @@ static void fillGeometryUpdateDesc(Renderer* pRenderer, CopyEngine* pCopyEngine,
             vertexBufferDesc.mStructStride = geom->mVertexStrides[i];
             vertexBufferDesc.mMemoryUsage = RESOURCE_MEMORY_USAGE_GPU_ONLY;
             vertexBufferDesc.mStartState = gUma ? gVertexBufferState : RESOURCE_STATE_COPY_DEST;
+            vertexBufferDesc.pName = "VertexBuffer";
             addBuffer(pRenderer, &vertexBufferDesc, &geom->pVertexBuffers[bufferCounter]);
 
             vertexUpdateDesc[i].pBuffer = geom->pVertexBuffers[bufferCounter];
@@ -1712,8 +1640,7 @@ static void fillGeometryUpdateDesc(Renderer* pRenderer, CopyEngine* pCopyEngine,
         }
         else
         {
-            vertexUpdateDesc[i].mInternal.mMappedRange.pData =
-                (uint8_t*)tf_calloc_memalign(1, RESOURCE_BUFFER_ALIGNMENT, vertexUpdateDesc[i].mSize);
+            vertexUpdateDesc[i].mInternal.mMappedRange.pData = (uint8_t*)tf_calloc_memalign(1, 4, vertexUpdateDesc[i].mSize);
         }
         vertexUpdateDesc[i].pMappedData = vertexUpdateDesc[i].mInternal.mMappedRange.pData;
         ++bufferCounter;
@@ -1831,11 +1758,12 @@ static UploadFunctionResult loadGeometryCustomMeshFormat(Renderer* pRenderer, Co
             (uint32_t*)((uint8_t*)geomData->pInverseBindPoses + round_up(geomData->mJointCount * sizeof(*geomData->pInverseBindPoses), 16));
     }
 
+    uint8_t* pUserData = geomData->mJointCount > 0
+                             ? ((uint8_t*)geomData->pJointRemaps + round_up(geomData->mJointCount * sizeof(uint32_t), 16))
+                             : (uint8_t*)(geomData + 1);
     if (geomData->mUserDataSize > 0)
     {
-        geomData->pUserData = geomData->mJointCount > 0
-                                  ? ((uint8_t*)geomData->pJointRemaps + round_up(geomData->mJointCount * sizeof(uint32_t), 16))
-                                  : (uint8_t*)(geomData + 1);
+        geomData->pUserData = pUserData;
     }
 
     // Determine index stride
@@ -1995,8 +1923,8 @@ static UploadFunctionResult loadGeometry(Renderer* pRenderer, CopyEngine* pCopyE
     if (!gUma || (indexUpdateDesc.pMappedData && !indexUpdateDesc.pBuffer->pCpuMappedAddress))
     {
         indexUpdateDesc.mCurrentState = gUma ? indexUpdateDesc.mCurrentState : RESOURCE_STATE_COPY_DEST;
-        indexUpdateDesc.mInternal.mMappedRange =
-            allocateStagingMemory(pCopyEngine, indexUpdateDesc.mSize, RESOURCE_BUFFER_ALIGNMENT, pDesc->mNodeIndex);
+        indexUpdateDesc.mInternal.mMappedRange = allocateStagingMemory(pCopyEngine, indexUpdateDesc.mSize, 1, pDesc->mNodeIndex);
+        ASSERT(indexUpdateDesc.pMappedData);
         memcpy(indexUpdateDesc.mInternal.mMappedRange.pData, indexUpdateDesc.pMappedData, indexUpdateDesc.mSize);
         tf_free(indexUpdateDesc.pMappedData);
         if (indexUpdateDesc.mInternal.mMappedRange.mFlags & MAPPED_RANGE_FLAG_TEMP_BUFFER)
@@ -2017,7 +1945,8 @@ static UploadFunctionResult loadGeometry(Renderer* pRenderer, CopyEngine* pCopyE
             {
                 vertexUpdateDesc[i].mCurrentState = gUma ? vertexUpdateDesc[i].mCurrentState : RESOURCE_STATE_COPY_DEST;
                 vertexUpdateDesc[i].mInternal.mMappedRange =
-                    allocateStagingMemory(pCopyEngine, vertexUpdateDesc[i].mSize, RESOURCE_BUFFER_ALIGNMENT, pDesc->mNodeIndex);
+                    allocateStagingMemory(pCopyEngine, vertexUpdateDesc[i].mSize, 1, pDesc->mNodeIndex);
+                ASSERT(vertexUpdateDesc[i].pMappedData);
                 memcpy(vertexUpdateDesc[i].mInternal.mMappedRange.pData, vertexUpdateDesc[i].pMappedData, vertexUpdateDesc[i].mSize);
                 tf_free(vertexUpdateDesc[i].pMappedData);
                 if (vertexUpdateDesc[i].mInternal.mMappedRange.mFlags & MAPPED_RANGE_FLAG_TEMP_BUFFER)
@@ -2042,6 +1971,7 @@ static UploadFunctionResult loadGeometry(Renderer* pRenderer, CopyEngine* pCopyE
 
 static UploadFunctionResult copyTexture(Renderer* pRenderer, CopyEngine* pCopyEngine, TextureCopyDesc& pTextureCopy)
 {
+    UNREF_PARAM(pRenderer);
     Texture*              texture = pTextureCopy.pTexture;
     const TinyImageFormat fmt = (TinyImageFormat)texture->mFormat;
 
@@ -2106,15 +2036,6 @@ static void streamerThreadFunc(void* pThreadData)
 {
     ResourceLoader* pLoader = (ResourceLoader*)pThreadData;
     ASSERT(pLoader);
-
-#if defined(GLES)
-    GLContext localContext;
-    if (gPlatformParameters.mSelectedRendererApi == RENDERER_API_GLES)
-    {
-        if (!pLoader->mDesc.mSingleThreaded)
-            initGLContext(pLoader->ppRenderers[0]->mGLES.pConfig, &localContext, pLoader->ppRenderers[0]->mGLES.pContext);
-    }
-#endif
 
     while (pLoader->mRun)
     {
@@ -2256,9 +2177,7 @@ static void streamerThreadFunc(void* pThreadData)
     {
         streamerFlush(&pLoader->pCopyEngines[nodeIndex]);
 #if defined(DIRECT3D11)
-        const bool wait = gPlatformParameters.mSelectedRendererApi != RENDERER_API_D3D11;
-#elif defined(GLES)
-        const bool wait = gPlatformParameters.mSelectedRendererApi != RENDERER_API_GLES;
+        const bool wait = false;
 #else
         const bool wait = true;
 #endif
@@ -2269,14 +2188,6 @@ static void streamerThreadFunc(void* pThreadData)
 
         cleanupCopyEngine(pLoader->ppRenderers[nodeIndex], &pLoader->pCopyEngines[nodeIndex]);
     }
-
-#if defined(GLES)
-    if (gPlatformParameters.mSelectedRendererApi == RENDERER_API_GLES)
-    {
-        if (!pResourceLoader->mDesc.mSingleThreaded)
-            removeGLContext(&localContext);
-    }
-#endif
 }
 
 static void CopyEngineFlush(CopyEngine* pCopyEngine)
@@ -2324,6 +2235,7 @@ static void initResourceLoader(Renderer** ppRenderers, uint32_t rendererCount, R
         ASSERT(rendererCount == 1 || ppRenderers[i]->mGpuMode == GPU_MODE_UNLINKED);
         // Replicate single renderer in linked mode, for uniform handling of linked and unlinked multi gpu.
         pLoader->ppRenderers[i] = (rendererCount > 1) ? ppRenderers[i] : ppRenderers[0];
+        gUma = ppRenderers[i]->pGpu->mUnifiedMemorySupported;
     }
 
     pLoader->mRun = true; //-V601
@@ -2370,7 +2282,7 @@ static void initResourceLoader(Renderer** ppRenderers, uint32_t rendererCount, R
                 CopyResourceSet& resourceSet = pLoader->pCopyEngines[i].resourceSets[b];
                 CmdPoolDesc      poolDesc = {};
                 poolDesc.pQueue = pLoader->pUploadEngines[i].pQueue;
-                addCmdPool(pLoader->ppRenderers[i], &poolDesc, &resourceSet.pPostCopyBarrierCmdPool);
+                initCmdPool(pLoader->ppRenderers[i], &poolDesc, &resourceSet.pPostCopyBarrierCmdPool);
                 CmdDesc cmdDesc = {};
                 cmdDesc.pPool = resourceSet.pPostCopyBarrierCmdPool;
 #ifdef ENABLE_GRAPHICS_DEBUG
@@ -2378,8 +2290,8 @@ static void initResourceLoader(Renderer** ppRenderers, uint32_t rendererCount, R
                 snprintf(buffer, sizeof(buffer), "Node %u Strict Queue buffer %u Cmd", i, b);
                 cmdDesc.pName = buffer;
 #endif // ENABLE_GRAPHICS_DEBUG
-                addCmd(pLoader->ppRenderers[i], &cmdDesc, &resourceSet.pPostCopyBarrierCmd);
-                addFence(pLoader->ppRenderers[i], &resourceSet.pPostCopyBarrierFence);
+                initCmd(pLoader->ppRenderers[i], &cmdDesc, &resourceSet.pPostCopyBarrierCmd);
+                initFence(pLoader->ppRenderers[i], &resourceSet.pPostCopyBarrierFence);
             }
         }
 #endif
@@ -2396,12 +2308,7 @@ static void initResourceLoader(Renderer** ppRenderers, uint32_t rendererCount, R
 #endif
 
 #if defined(DIRECT3D11)
-    if (gPlatformParameters.mSelectedRendererApi == RENDERER_API_D3D11)
-        pLoader->mDesc.mSingleThreaded = true;
-#endif
-
-#if defined(ANDROID) && defined(USE_MULTIPLE_RENDER_APIS)
-    gUma = gPlatformParameters.mSelectedRendererApi == RENDERER_API_VULKAN;
+    pLoader->mDesc.mSingleThreaded = true;
 #endif
 
     // Create dedicated resource loader thread.
@@ -2430,9 +2337,7 @@ static void exitResourceLoader(ResourceLoader* pLoader)
     for (uint32_t nodeIndex = 0; nodeIndex < pLoader->mGpuCount; ++nodeIndex)
     {
 #if defined(DIRECT3D11)
-        const bool wait = gPlatformParameters.mSelectedRendererApi != RENDERER_API_D3D11;
-#elif defined(GLES)
-        const bool wait = gPlatformParameters.mSelectedRendererApi != RENDERER_API_GLES;
+        const bool wait = false;
 #else
         const bool wait = true;
 #endif
@@ -2445,12 +2350,12 @@ static void exitResourceLoader(ResourceLoader* pLoader)
         cleanupCopyEngine(renderer, &pLoader->pUploadEngines[nodeIndex]);
     }
 
-    destroyConditionVariable(&pLoader->mQueueCond);
-    destroyConditionVariable(&pLoader->mTokenCond);
-    destroyMutex(&pLoader->mQueueMutex);
-    destroyMutex(&pLoader->mTokenMutex);
-    destroyMutex(&pLoader->mSemaphoreMutex);
-    destroyMutex(&pLoader->mUploadEngineMutex);
+    exitConditionVariable(&pLoader->mQueueCond);
+    exitConditionVariable(&pLoader->mTokenCond);
+    exitMutex(&pLoader->mQueueMutex);
+    exitMutex(&pLoader->mTokenMutex);
+    exitMutex(&pLoader->mSemaphoreMutex);
+    exitMutex(&pLoader->mUploadEngineMutex);
 
     tf_delete(pLoader);
 }
@@ -2668,6 +2573,7 @@ void initResourceLoaderInterface(Renderer* pRenderer, ResourceLoaderDesc* pDesc)
 
 void exitResourceLoaderInterface(Renderer* pRenderer)
 {
+    UNREF_PARAM(pRenderer);
 #ifdef ENABLE_FORGE_MATERIALS
     if (pMaterialLibrary)
     {
@@ -2703,7 +2609,12 @@ void initResourceLoaderInterface(Renderer** ppRenderers, uint32_t rendererCount,
     initResourceLoader(ppRenderers, rendererCount, pDesc, &pResourceLoader);
 }
 
-void exitResourceLoaderInterface(Renderer** pRenderers, uint32_t rendererCount) { exitResourceLoader(pResourceLoader); }
+void exitResourceLoaderInterface(Renderer** pRenderers, uint32_t rendererCount)
+{
+    UNREF_PARAM(pRenderers);
+    UNREF_PARAM(rendererCount);
+    exitResourceLoader(pResourceLoader);
+}
 
 #ifdef ENABLE_FORGE_MATERIALS
 static void parseMaterial(const char* pFileBuffer, uint64_t fileSize, Material** pOut)
@@ -2849,9 +2760,9 @@ static void parseMaterial(const char* pFileBuffer, uint64_t fileSize, Material**
             pMaterialSet->mShaderSetIdx = INVALID_MATERIAL_ID;
             pMaterialSet->mTextureSetIdx = INVALID_MATERIAL_ID;
 
-            uint32_t offset = 0;
+            uint32_t offset32 = 0;
             pMaterialDesc->pMaterialSetNames[pMaterialDesc->mMaterialCount] =
-                materialParseAndStoreString(pMaterialDesc, pSetLine + 2, &offset);
+                materialParseAndStoreString(pMaterialDesc, pSetLine + 2, &offset32);
 
             ASSERT(pMaterialDesc->mMaterialCount < numMaterialSets);
             pMaterialDesc->mMaterialCount++;
@@ -3096,10 +3007,10 @@ uint32_t addMaterial(const char* pMaterialFileName, Material** pOutMaterial, Syn
         const MaterialDesc::TextureSet* pTextureSet = pMaterialDesc->pTextureSets + pMaterialSet->mTextureSetIdx;
 
         const uint32_t textureCount = pTextureSet->mTextureCount;
-        for (uint32_t i = 0; i < textureCount; ++i)
+        for (uint32_t j = 0; j < textureCount; ++j)
         {
             // Try to get the texture from the global cache
-            const uint32_t textureIndex = pMaterialDesc->pTextureIds[pTextureSet->pTextureIdxs[i]];
+            const uint32_t textureIndex = pMaterialDesc->pTextureIds[pTextureSet->pTextureIdxs[j]];
             ASSERT(textureIndex < pLib->mMaxMaterialTextures);
 
             // Check refcount because ppMaterialTextures[textureIndex] might still be null in case the loading is still queued in another
@@ -3111,9 +3022,9 @@ uint32_t addMaterial(const char* pMaterialFileName, Material** pOutMaterial, Syn
 
                 // Texture is not in the cache yet, load it into the cache
                 TextureLoadDesc desc = {};
-                desc.pFileName = pMaterialDesc->pTextureNames[pTextureSet->pTextureIdxs[i]];
+                desc.pFileName = pMaterialDesc->pTextureNames[pTextureSet->pTextureIdxs[j]];
                 desc.ppTexture = &pLib->ppMaterialTextures[textureIndex];
-                if (pMaterialDesc->pTextureFlags[i] & MaterialDesc::TextureFlags::SRGB)
+                if (pMaterialDesc->pTextureFlags[j] & MaterialDesc::TextureFlags::SRGB)
                     desc.mCreationFlag |= TEXTURE_CREATION_FLAG_SRGB;
                 addResource(&desc, &token);
 #ifdef TARGET_IOS
@@ -3123,7 +3034,7 @@ uint32_t addMaterial(const char* pMaterialFileName, Material** pOutMaterial, Syn
             }
 
             pLib->pMaterialTextureRefCount[textureIndex]++;
-            pLoadedMaterial->pTextureIndexes[i] = textureIndex;
+            pLoadedMaterial->pTextureIndexes[j] = textureIndex;
         }
 
         pLoadedMaterial->mTextureCount = textureCount;
@@ -3175,10 +3086,10 @@ void removeMaterial(Material* pMaterial)
             pLib->mLoadedShaderCount--;
         }
 
-        for (uint32_t i = 0; i < pLoadedMaterial->mTextureCount; ++i)
+        for (uint32_t j = 0; j < pLoadedMaterial->mTextureCount; ++j)
         {
-            const uint32_t textureIndex = pLoadedMaterial->pTextureIndexes[i];
-            pLoadedMaterial->pTextureIndexes[i] = INVALID_MATERIAL_ID;
+            const uint32_t textureIndex = pLoadedMaterial->pTextureIndexes[j];
+            pLoadedMaterial->pTextureIndexes[j] = INVALID_MATERIAL_ID;
             ASSERT(textureIndex < pLib->mMaxMaterialTextures);
             ASSERT(pLib->ppMaterialTextures[textureIndex] != NULL);
             ASSERT(pLib->pMaterialTextureRefCount[textureIndex] > 0);
@@ -3583,7 +3494,7 @@ void addGeometryBuffer(GeometryBufferLoadDesc* pDesc)
         loadDesc.mDesc.pPlacement = pDesc->pVerticesPlacements[i];
         addResource(&loadDesc, nullptr);
 
-        BufferChunkAllocatorDesc allocDesc = { pVertexBuffer };
+        allocDesc = { pVertexBuffer };
         addBufferChunkAllocator(&allocDesc, &pBuffer->mVertex[i]);
     }
 }
@@ -3813,10 +3724,10 @@ void beginUpdateResource(BufferUpdateDesc* pBufferUpdate)
         MutexLock         lock(pResourceLoader->mUploadEngineMutex);
         const uint32_t    nodeIndex = pBufferUpdate->pBuffer->mNodeIndex;
         CopyEngine*       pCopyEngine = &pResourceLoader->pUploadEngines[nodeIndex];
-        MappedMemoryRange range = allocateStagingMemory(pCopyEngine, size, RESOURCE_BUFFER_ALIGNMENT, nodeIndex);
+        MappedMemoryRange range = allocateStagingMemory(pCopyEngine, size, 1, nodeIndex);
         if (!range.pData)
         {
-            range = allocateUploadMemory(pRenderer, size, RESOURCE_BUFFER_ALIGNMENT);
+            range = allocateUploadMemory(pRenderer, size, 0);
             arrpush(pCopyEngine->resourceSets[pCopyEngine->activeSet].mTempBuffers, range.pBuffer);
         }
 
@@ -3868,8 +3779,8 @@ TextureSubresourceUpdate TextureUpdateDesc::getSubresourceUpdateDesc(uint32_t mi
         uint32_t srcSliceStride = 0;
         uint32_t srcRowStride = 0;
         uint32_t rowCount = 0;
-        bool     success = util_get_surface_info(MIP_REDUCE(texture->mWidth, i), MIP_REDUCE(texture->mHeight, i), fmt, &srcSliceStride,
-                                             &srcRowStride, &rowCount);
+        success = util_get_surface_info(MIP_REDUCE(texture->mWidth, i), MIP_REDUCE(texture->mHeight, i), fmt, &srcSliceStride,
+                                        &srcRowStride, &rowCount);
         ASSERT(success);
         uint32_t d = MIP_REDUCE(texture->mDepth, i);
 
@@ -4017,6 +3928,8 @@ Semaphore* getLastSemaphoreSubmitted(uint32_t nodeIndex)
 static bool load_shader_stage_byte_code(Renderer* pRenderer, const char* name, ShaderStage stage, BinaryShaderStageDesc* pOut,
                                         ShaderByteCodeBuffer* pShaderByteCodeBuffer, FSLMetadata* pOutMetadata)
 {
+    UNREF_PARAM(pRenderer);
+    UNREF_PARAM(stage);
     char binaryShaderPath[FS_MAX_PATH];
 
     {
@@ -4049,11 +3962,16 @@ static bool load_shader_stage_byte_code(Renderer* pRenderer, const char* name, S
     // NOTE: On some platforms, we might not be allowed to write in the `RD_SHADER_BINARIES` directory.
     // If we want to load re-compiled binaries, then they must be cached elsewhere and queried here.
 
-    void*      pCachedByteCode = NULL;
-    uint32_t   cachedByteCodeSize = 0;
+    void*    pCachedByteCode = NULL;
+    uint32_t cachedByteCodeSize = 0;
+
+#ifdef ENABLE_FORGE_RELOAD_SHADER
     const bool result = platformReloadClientGetShaderBinary(binaryShaderPath, &pCachedByteCode, &cachedByteCodeSize)
                             ? fsOpenStreamFromMemory(pCachedByteCode, cachedByteCodeSize, FM_READ, false, &binaryFileStream)
                             : fsOpenStreamFromPath(RD_SHADER_BINARIES, binaryShaderPath, FM_READ, &binaryFileStream);
+#else
+    const bool result = fsOpenStreamFromPath(RD_SHADER_BINARIES, binaryShaderPath, FM_READ, &binaryFileStream);
+#endif
 
     ASSERT(result);
     if (!result)
@@ -4101,12 +4019,9 @@ static bool load_shader_stage_byte_code(Renderer* pRenderer, const char* name, S
         uint64_t derivativeHash = 0;
 
 #if defined(VULKAN)
-        if (gPlatformParameters.mSelectedRendererApi == RENDERER_API_VULKAN)
-        {
-            // Needs to match with the way we set the derivatives in FSL scripts (vulkan.py, compilers.py)
-            derivativeHash = (uint64_t)pRenderer->pGpu->mVk.mShaderSampledImageArrayDynamicIndexingSupported |
-                             (uint64_t)pRenderer->pGpu->mVk.mDescriptorIndexingExtension << 1;
-        }
+        // Needs to match with the way we set the derivatives in FSL scripts (vulkan.py, compilers.py)
+        derivativeHash = (uint64_t)pRenderer->pGpu->mShaderSampledImageArrayDynamicIndexingSupported |
+                         (uint64_t)pRenderer->pGpu->mDescriptorIndexingExtension << 1;
 #endif
 
         for (uint32_t i = 0; i < header.mDerivativeCount; ++i)
@@ -4120,37 +4035,11 @@ static bool load_shader_stage_byte_code(Renderer* pRenderer, const char* name, S
                     break;
                 }
 
-                size_t size = pDerivatives[i].mSize;
+                size = pDerivatives[i].mSize;
 
-#if defined(GLES)
-#if defined(USE_MULTIPLE_RENDER_APIS)
-                if (gPlatformParameters.mSelectedRendererApi == RENDERER_API_GLES)
-#endif
-                {
-                    char* code = (char*)tf_malloc(size + 1);
-
-                    if (code)
-                    {
-                        if (fsReadFromStream(&binaryFileStream, code, size) != size)
-                        {
-                            LOGF(eERROR, "Failed to read file '%s'", binaryShaderPath);
-                        }
-                        else
-                        {
-                            code[size] = 0;
-                            if (!gl_compileShader(pRenderer, stage, binaryShaderPath, (uint32_t)size, code, pOut, pOut->pEntryPoint))
-                                LOGF(eERROR, "Failed to compile shader file '%s'", binaryShaderPath);
-                        }
-
-                        tf_free(code);
-                    }
-
-                    break;
-                }
-#endif
                 pOut->pByteCode = allocShaderByteCode(pShaderByteCodeBuffer, 256, (uint32_t)size, binaryShaderPath);
                 pOut->mByteCodeSize = (uint32_t)pDerivatives[i].mSize;
-                if (fsReadFromStream(&binaryFileStream, (void*)pOut->pByteCode, size) != size)
+                if (fsReadFromStream(&binaryFileStream, (void*)pOut->pByteCode, size) != (size_t)size)
                 {
                     LOGF(eERROR, "Failed to read file '%s'", binaryShaderPath);
                 }
@@ -4168,121 +4057,42 @@ static bool load_shader_stage_byte_code(Renderer* pRenderer, const char* name, S
 
 const char* getShaderPlatformName()
 {
-    switch (gPlatformParameters.mSelectedRendererApi)
-    {
 #if defined(DIRECT3D12)
 #if defined(SCARLETT)
-    case RENDERER_API_D3D12:
-        return "SCARLETT";
-        break;
+    return "SCARLETT";
 #elif defined(XBOX)
-    case RENDERER_API_D3D12:
-        return "XBOX";
-        break;
+    return "XBOX";
 #else
-    case RENDERER_API_D3D12:
-        return "DIRECT3D12";
-        break;
+    return "DIRECT3D12";
 #endif
 #endif
 #if defined(DIRECT3D11)
-    case RENDERER_API_D3D11:
-        return "DIRECT3D11";
-        break;
+    return "DIRECT3D11";
 #endif
 #if defined(VULKAN)
 #if defined(QUEST_VR)
-    case RENDERER_API_VULKAN:
-        return "QUEST";
-        break;
+    return "QUEST";
 #elif defined(__ANDROID__)
-    case RENDERER_API_VULKAN:
-        return "ANDROID_VULKAN";
-        break;
+    return "ANDROID_VULKAN";
 #elif defined(NX64)
-    case RENDERER_API_VULKAN:
-        return "SWITCH";
-        break;
+    return "SWITCH";
 #else
-    case RENDERER_API_VULKAN:
-        return "VULKAN";
-        break;
+    return "VULKAN";
 #endif
-#endif
-#if defined(GLES)
-    case RENDERER_API_GLES:
-        return "ANDROID_GLES";
-        break;
 #endif
 #if defined(METAL)
 #if defined(TARGET_IOS)
-    case RENDERER_API_METAL:
-        return "IOS";
-        break;
+    return "IOS";
 #else
-    case RENDERER_API_METAL:
-        return "MACOS";
-        break;
+    return "MACOS";
 #endif
 #endif
 #if defined(ORBIS)
-    case RENDERER_API_ORBIS:
-        return "ORBIS";
-        break;
+    return "ORBIS";
 #endif
 #if defined(PROSPERO)
-    case RENDERER_API_PROSPERO:
-        return "PROSPERO";
-        break;
+    return "PROSPERO";
 #endif
-    default:
-        break;
-    }
-
-    ASSERT(false && "Renderer API name not defined");
-    return "";
-}
-
-static bool find_shader_stage(const char* extension, BinaryShaderDesc* pBinaryDesc, BinaryShaderStageDesc** pOutStage, ShaderStage* pStage)
-{
-    if (stricmp(extension, "vert") == 0)
-    {
-        *pOutStage = &pBinaryDesc->mVert;
-        *pStage = SHADER_STAGE_VERT;
-    }
-    else if (stricmp(extension, "frag") == 0)
-    {
-        *pOutStage = &pBinaryDesc->mFrag;
-        *pStage = SHADER_STAGE_FRAG;
-    }
-#ifndef METAL
-    else if (stricmp(extension, "tesc") == 0)
-    {
-        *pOutStage = &pBinaryDesc->mHull;
-        *pStage = SHADER_STAGE_HULL;
-    }
-    else if (stricmp(extension, "tese") == 0)
-    {
-        *pOutStage = &pBinaryDesc->mDomain;
-        *pStage = SHADER_STAGE_DOMN;
-    }
-    else if (stricmp(extension, "geom") == 0)
-    {
-        *pOutStage = &pBinaryDesc->mGeom;
-        *pStage = SHADER_STAGE_GEOM;
-    }
-#endif
-    else if (stricmp(extension, "comp") == 0)
-    {
-        *pOutStage = &pBinaryDesc->mComp;
-        *pStage = SHADER_STAGE_COMP;
-    }
-    else
-    {
-        return false;
-    }
-
-    return true;
 }
 
 void addShader(Renderer* pRenderer, const ShaderLoadDesc* pDesc, Shader** ppShader)
@@ -4298,44 +4108,65 @@ void addShader(Renderer* pRenderer, const ShaderLoadDesc* pDesc, Shader** ppShad
 #if defined(METAL)
     bool bIsICBCompatible = true;
 #endif
+#define SHADER_STAGE_INDEX_VERT 0
+#define SHADER_STAGE_INDEX_TESC 1
+#define SHADER_STAGE_INDEX_TESE 2
+#define SHADER_STAGE_INDEX_GEOM 3
+#define SHADER_STAGE_INDEX_FRAG 4
+#define SHADER_STAGE_INDEX_COMP 5
+    const ShaderStageLoadDesc* stages[] = { &pDesc->mVert, &pDesc->mHull, &pDesc->mDomain, &pDesc->mGeom, &pDesc->mFrag, &pDesc->mComp };
 
-    ShaderStage stages = SHADER_STAGE_NONE;
-    for (uint32_t i = 0; i < SHADER_STAGE_COUNT; ++i)
+    for (uint32_t i = 0; i < TF_ARRAY_COUNT(stages); ++i)
     {
-        if (pDesc->mStages[i].pFileName && pDesc->mStages[i].pFileName[0] != 0)
-        {
-            ShaderStage            stage;
-            BinaryShaderStageDesc* pStage = NULL;
-            char                   ext[FS_MAX_PATH] = { 0 };
-            fsGetPathExtension(pDesc->mStages[i].pFileName, ext);
-            if (find_shader_stage(ext, &binaryDesc, &pStage, &stage))
-                stages |= stage;
-        }
-    }
-    for (uint32_t i = 0; i < SHADER_STAGE_COUNT; ++i)
-    {
-        const char* fileName = pDesc->mStages[i].pFileName;
+        const char* fileName = stages[i]->pFileName;
         if (!fileName || !*fileName)
-            continue;
-
-        ShaderStage            stage;
-        BinaryShaderStageDesc* pStage = NULL;
         {
-            char ext[FS_MAX_PATH];
-            fsGetPathExtension(fileName, ext);
-            if (!find_shader_stage(ext, &binaryDesc, &pStage, &stage))
-                continue;
+            continue;
         }
+
+        BinaryShaderStageDesc* pBinaryStageDesc = NULL;
+        ShaderStage            stage = SHADER_STAGE_NONE;
+        switch (i)
+        {
+        case SHADER_STAGE_INDEX_VERT:
+            stage = SHADER_STAGE_VERT;
+            pBinaryStageDesc = &binaryDesc.mVert;
+            break;
+        case SHADER_STAGE_INDEX_FRAG:
+            stage = SHADER_STAGE_FRAG;
+            pBinaryStageDesc = &binaryDesc.mFrag;
+            break;
+        case SHADER_STAGE_INDEX_COMP:
+            stage = SHADER_STAGE_COMP;
+            pBinaryStageDesc = &binaryDesc.mComp;
+            break;
+        case SHADER_STAGE_INDEX_TESC:
+            stage = SHADER_STAGE_TESC;
+            pBinaryStageDesc = &binaryDesc.mHull;
+            break;
+        case SHADER_STAGE_INDEX_TESE:
+            stage = SHADER_STAGE_TESE;
+            pBinaryStageDesc = &binaryDesc.mDomain;
+            break;
+        case SHADER_STAGE_INDEX_GEOM:
+            stage = SHADER_STAGE_GEOM;
+            pBinaryStageDesc = &binaryDesc.mGeom;
+            break;
+        default:
+            ASSERTMSG(false, "Unkown shader stage.");
+            break;
+        }
+
+        binaryDesc.mStages |= stage;
+        pBinaryStageDesc->pName = fileName;
 
         FSLMetadata metadata = {};
-        if (!load_shader_stage_byte_code(pRenderer, fileName, stage, pStage, &shaderByteCodeBuffer, &metadata))
+        if (!load_shader_stage_byte_code(pRenderer, fileName, stage, pBinaryStageDesc, &shaderByteCodeBuffer, &metadata))
         {
             freeShaderByteCode(&shaderByteCodeBuffer, &binaryDesc);
             return;
         }
 
-        binaryDesc.mStages |= stage;
-        pStage->pName = fileName;
 #if defined(QUEST_VR)
         binaryDesc.mIsMultiviewVR |= metadata.mUseMultiView;
 #endif
@@ -4345,25 +4176,31 @@ void addShader(Renderer* pRenderer, const ShaderLoadDesc* pDesc, Shader** ppShad
 #endif
 
 #if defined(METAL)
-        if (pDesc->mStages[i].pEntryPointName)
-            pStage->pEntryPoint = pDesc->mStages[i].pEntryPointName;
+        if (stages[i]->pEntryPointName)
+        {
+            pBinaryStageDesc->pEntryPoint = stages[i]->pEntryPointName;
+        }
 
         if (SHADER_STAGE_COMP == stage)
         {
-            pStage->mNumThreadsPerGroup[0] = metadata.mNumThreadsPerGroup[0];
-            pStage->mNumThreadsPerGroup[1] = metadata.mNumThreadsPerGroup[1];
-            pStage->mNumThreadsPerGroup[2] = metadata.mNumThreadsPerGroup[2];
+            pBinaryStageDesc->mNumThreadsPerGroup[0] = metadata.mNumThreadsPerGroup[0];
+            pBinaryStageDesc->mNumThreadsPerGroup[1] = metadata.mNumThreadsPerGroup[1];
+            pBinaryStageDesc->mNumThreadsPerGroup[2] = metadata.mNumThreadsPerGroup[2];
         }
         else if (SHADER_STAGE_FRAG == stage)
         {
-            pStage->mOutputRenderTargetTypesMask = metadata.mOutputRenderTargetTypesMask;
+            pBinaryStageDesc->mOutputRenderTargetTypesMask = metadata.mOutputRenderTargetTypesMask;
         }
 
 #elif !defined(ORBIS) && !defined(PROSPERO)
-        if (pDesc->mStages[i].pEntryPointName)
-            pStage->pEntryPoint = pDesc->mStages[i].pEntryPointName;
+        if (stages[i]->pEntryPointName)
+        {
+            pBinaryStageDesc->pEntryPoint = stages[i]->pEntryPointName;
+        }
         else
-            pStage->pEntryPoint = "main";
+        {
+            pBinaryStageDesc->pEntryPoint = "main";
+        }
 #endif
     }
 
@@ -4406,23 +4243,6 @@ void loadPipelineCache(Renderer* pRenderer, const PipelineCacheLoadDesc* pDesc, 
 #if defined(DIRECT3D12) || defined(VULKAN)
 
     char rendererApi[FS_MAX_PATH] = {};
-#if defined(USE_MULTIPLE_RENDER_APIS)
-    switch (gPlatformParameters.mSelectedRendererApi)
-    {
-#if defined(DIRECT3D12)
-    case RENDERER_API_D3D12:
-        strcat(rendererApi, "DIRECT3D12/");
-        break;
-#endif
-#if defined(VULKAN)
-    case RENDERER_API_VULKAN:
-        strcat(rendererApi, "VULKAN/");
-        break;
-#endif
-    default:
-        break;
-    }
-#endif
 
     ASSERT(strlen(rendererApi) + strlen(pDesc->pFileName) < sizeof(rendererApi));
     strcat(rendererApi, pDesc->pFileName);
@@ -4455,6 +4275,13 @@ void loadPipelineCache(Renderer* pRenderer, const PipelineCacheLoadDesc* pDesc, 
         tf_free(data);
     }
 #endif
+#if defined(DIRECT3D11)
+
+    UNREF_PARAM(pRenderer);
+    UNREF_PARAM(pDesc);
+    UNREF_PARAM(ppPipelineCache);
+
+#endif
 }
 
 void savePipelineCache(Renderer* pRenderer, PipelineCache* pPipelineCache, PipelineCacheSaveDesc* pDesc)
@@ -4462,23 +4289,6 @@ void savePipelineCache(Renderer* pRenderer, PipelineCache* pPipelineCache, Pipel
 #if defined(DIRECT3D12) || defined(VULKAN)
 
     char rendererApi[FS_MAX_PATH] = {};
-#if defined(USE_MULTIPLE_RENDER_APIS)
-    switch (gPlatformParameters.mSelectedRendererApi)
-    {
-#if defined(DIRECT3D12)
-    case RENDERER_API_D3D12:
-        strcat(rendererApi, "DIRECT3D12/");
-        break;
-#endif
-#if defined(VULKAN)
-    case RENDERER_API_VULKAN:
-        strcat(rendererApi, "VULKAN/");
-        break;
-#endif
-    default:
-        break;
-    }
-#endif
 
     ASSERT(strlen(rendererApi) + strlen(pDesc->pFileName) < sizeof(rendererApi));
     strcat(rendererApi, pDesc->pFileName);
@@ -4498,6 +4308,14 @@ void savePipelineCache(Renderer* pRenderer, PipelineCache* pPipelineCache, Pipel
 
         fsCloseStream(&stream);
     }
+#endif
+
+#if defined(DIRECT3D11)
+
+    UNREF_PARAM(pRenderer);
+    UNREF_PARAM(pDesc);
+    UNREF_PARAM(pPipelineCache);
+
 #endif
 }
 /************************************************************************/

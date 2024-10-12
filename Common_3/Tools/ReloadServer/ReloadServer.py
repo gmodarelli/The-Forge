@@ -162,8 +162,9 @@ class Shader(object):
 
 
 def get_host_ip():
+    ips = None
     try:
-        (_, _, ips) = socket.gethostbyname_ex(socket.gethostname())
+        ips = socket.gethostbyname_ex(socket.gethostname())[2]
         for ip in sorted(ips):
             if ip.startswith('192.168'):
                 return ip
@@ -212,22 +213,20 @@ def kwargs_ensure_no_popup_console() -> dict:
 
 def get_file_times_recursive(root: Path) -> Dict[Path, float]:
     # Skip checking text files and shader sources
-    suffixes_to_ignore = [
-        '.txt', '.json', '.fsl', '.hlsl', '.glsl',
-        '.vert', '.frag', '.tesc', '.tese', '.geom', '.comp',
+    suffixes_to_pass = [
+        '.vert', '.geom', '.frag', '.comp', '.metal'
     ]
     file_times = {}
     for path in root.rglob('*'):
-        if not path.is_dir() and path.suffix not in suffixes_to_ignore:
+        if not path.is_dir() and path.suffix in suffixes_to_pass:
             file_times[path] = path.stat().st_mtime
     return file_times
 
 
 def get_fsl_arg_index(cmd: list, *args: str) -> int:
     for arg in args:
-        index = cmd.index(arg)
-        if index != -1:
-            return index
+        if arg in cmd:
+            return cmd.index(arg)
     return -1
 
 

@@ -66,11 +66,6 @@ inline float2 f2(uint x) { return float2(x, x); }
 #define min16float4 half4
 #endif
 
-#if defined(DIRECT3D12) || defined(DIRECT3D11)
-#define Get(X) X
-#else
-#define Get(X) srt_##X
-#endif
 
 /* Matrix */
 
@@ -109,6 +104,7 @@ inline f3x3 make_f3x3_rows(float3 r0, float3 r1, float3 r2) { return f3x3(r0, r1
 #define make_f4x4_col_elems(E00, E01, E02, E03, E10, E11, E12, E13, E20, E21, E22, E23, E30, E31, E32, E33) \
     f4x4(E00, E10, E20, E30, E01, E11, E21, E31, E02, E12, E22, E32, E03, E13, E23, E33)
 #define make_f4x4_row_elems f4x4
+#define make_f4x4_cols(C0, C1, C2, C3) transpose(f4x4(C0, C1, C2, C3))
 
 inline f4x4 Identity()
 {
@@ -321,8 +317,13 @@ f2x2 setRow(inout f2x2 M, in float2 row, const uint i)
 // }
 
 // Begin TIDES changes
+// #if defined( DIRECT3D11 ) || defined( ORBIS )
 // bool2 And(const bool2 a, const bool2 b)
 // { return a && b; }
+// #else
+// bool2 And(const bool2 a, const bool2 b)
+// { return and(a, b); }
+// #endif
 // End TIDES changes
 
 #define _GREATER_THAN(TYPE)                                                  \
@@ -386,6 +387,8 @@ uint insert_bits(uint src, uint ins, uint off, uint bits)
 #define GroupMemoryBarrier GroupMemoryBarrierWithGroupSync
 #undef AllMemoryBarrier
 #define AllMemoryBarrier AllMemoryBarrierWithGroupSync
+#undef MemoryBarrier
+#define MemoryBarrier DeviceMemoryBarrier
 // #endif
 
 #define _DECL_FLOAT_TYPES(EXPR) \
@@ -424,21 +427,23 @@ uint insert_bits(uint src, uint ins, uint off, uint bits)
     EXPR(half)                   \
     EXPR(float)
 
-#define atomic_uint uint
-
-#if defined(DIRECT3D12) || defined(DIRECT3D11)
-#define GetRes(X) X
-#else
-#define GetRes(X) srt_##X
-#endif
-
 #if defined(DIRECT3D12) || defined(DIRECT3D11)
 // #define _DECL_AtomicAdd(TYPE) \
 // inline void AtomicAdd(inout TYPE dst, TYPE value, out TYPE original_val) \
 // { InterlockedAdd(dst, value, original_val); }
 // _DECL_AtomicAdd(int)
 // _DECL_AtomicAdd(uint)
-#define AtomicAdd(DEST, VALUE, ORIGINAL_VALUE) InterlockedAdd(DEST, VALUE, ORIGINAL_VALUE)
+#define AtomicAdd(DEST, VALUE, ORIGINAL_VALUE) \
+    InterlockedAdd(DEST, VALUE, ORIGINAL_VALUE)
+
+#define AtomicOr(DEST, VALUE, ORIGINAL_VALUE) \
+    InterlockedOr(DEST, VALUE, ORIGINAL_VALUE)
+
+#define AtomicAnd(DEST, VALUE, ORIGINAL_VALUE) \
+    InterlockedAnd(DEST, VALUE, ORIGINAL_VALUE)
+
+#define AtomicXor(DEST, VALUE, ORIGINAL_VALUE) \
+    InterlockedXor(DEST, VALUE, ORIGINAL_VALUE)
 #endif
 
 // #define AtomicStore(DEST, VALUE) \
@@ -450,7 +455,11 @@ _DECL_TYPES(_DECL_AtomicStore)
 
 #define AtomicLoad(SRC)                             SRC
 
-#define AtomicExchange(DEST, VALUE, ORIGINAL_VALUE) InterlockedExchange((DEST), (VALUE), (ORIGINAL_VALUE))
+#define AtomicExchange(DEST, VALUE, ORIGINAL_VALUE) \
+    InterlockedExchange((DEST), (VALUE), (ORIGINAL_VALUE))
+
+#define AtomicCompareExchange(DEST, COMPARE_VALUE, VALUE, ORIGINAL_VALUE) \
+    InterlockedCompareExchange((DEST), (COMPARE_VALUE), (VALUE), (ORIGINAL_VALUE))
 
 #if defined(DIRECT3D12) || defined(ORBIS) || defined(PROSPERO)
 #define inout(T)          inout T
@@ -546,6 +555,11 @@ inline void StoreByte4(RWByteBuffer buff, uint address, uint4 val) { buff.Store4
 #define _DECL_SampleLvlTexCube(TYPE) \
     inline TYPE SampleLvlTexCube(TextureCube<TYPE> tex, SamplerState smp, float3 p, float l) { return tex.SampleLevel(smp, p, l); }
 _DECL_FLOAT_TYPES(_DECL_SampleLvlTexCube)
+
+#define _DECL_SampleLvlTexCubeArray(TYPE) \
+inline TYPE SampleLvlTexCubeArray(TextureCubeArray<TYPE> tex, SamplerState smp, float3 p, float l) \
+{ return tex.SampleLevel(smp, float4(p, l), 0); }
+_DECL_FLOAT_TYPES(_DECL_SampleLvlTexCubeArray)
 // _DECL_SampleLvlTexCube(float)
 // _DECL_SampleLvlTexCube(float2)
 // _DECL_SampleLvlTexCube(float3)
@@ -651,6 +665,11 @@ _DECL_FLOAT_TYPES(_DECL_SampleGradTex2D)
 #define _DECL_SampleTexCube(TYPE) \
     inline TYPE SampleTexCube(TextureCube<TYPE> tex, SamplerState smp, float3 p) { return tex.Sample(smp, p); }
 _DECL_FLOAT_TYPES(_DECL_SampleTexCube)
+
+#define _DECL_SampleTexCubeArray(TYPE) \
+inline TYPE SampleTexCubeArray(TextureCubeArray<TYPE> tex, SamplerState smp, float4 p) \
+{ return tex.Sample(smp, p); }
+_DECL_FLOAT_TYPES(_DECL_SampleTexCubeArray)
 
 #define _DECL_SampleUTexCube(TYPE) \
     inline TYPE SampleUTexCube(TextureCube<TYPE> tex, SamplerState smp, float3 p) { return tex.Sample(smp, p); }
@@ -766,6 +785,11 @@ inline void AtomicMax2D(RWTexture2D<TYPE> tex, int2 p, TYPE val, out TYPE origin
 { InterlockedMax(tex[p], val, original_val); }
 _DECL_AtomicMax2D(uint)
 
+#if defined(FT_ATOMICS_64)
+#define AtomicMinU64(DST, VALUE) InterlockedMin(DST, VALUE)
+#define AtomicMaxU64(DST, VALUE) InterlockedMax(DST, VALUE)
+#endif
+
 // #define _DECL_AtomicMin2DArray(TYPE) \
 // inline void AtomicMin2DArray(RWTexture2DArray<TYPE> tex, int2 p, int layer, TYPE val, out TYPE original_val) \
 // { InterlockedMin(tex[int3(p, layer)], val, original_val); }
@@ -790,10 +814,16 @@ _DECL_AtomicMax2D(uint)
 #define FLATTEN                   [flatten]
 
 #if defined(ORBIS) || defined(PROSPERO)
-#define PUSH_CONSTANT(NAME, REG) struct NAME
+#define ROOT_CONSTANT(T) T
+#elif defined(DIRECT3D11)
+#define ROOT_CONSTANT(T) cbuffer
 #else
-#define PUSH_CONSTANT(NAME, REG) cbuffer NAME: register(REG)
+#define ROOT_CONSTANT(T) ConstantBuffer<T>
 #endif
+
+// Begin TIDES changes
+#define PUSH_CONSTANT(NAME, REG) cbuffer NAME: register(REG)
+// End TIDES changes
 
 #if defined(ORBIS) || defined(PROSPERO)
 #undef Buffer
@@ -884,6 +914,7 @@ inline int2 GetDimensions(TextureCube t, SamplerState smp) { return GetDimension
 // { uint2 d; t.GetDimensions(d[0], d[1]); return d; }
 
 #define TexCube(ELEM_TYPE) TextureCube<ELEM_TYPE>
+#define TexCubeArray(ELEM_TYPE) TextureCubeArray<ELEM_TYPE>
 
 #define Tex1D(ELEM_TYPE)   Texture1D<ELEM_TYPE>
 #define Tex2D(ELEM_TYPE)   Texture2D<ELEM_TYPE>
@@ -937,14 +968,14 @@ inline int2 GetDimensions(TextureCube t, SamplerState smp) { return GetDimension
 #define ToFloat3x3(NAME)                          ((float3x3)NAME)
 
 #if defined(DIRECT3D12)
-#define CBUFFER(NAME, FREQ, REG, BINDING)   cbuffer NAME: register(REG, FREQ)
-#define RES(TYPE, NAME, FREQ, REG, BINDING) TYPE NAME: register(REG, FREQ)
+    #define CBUFFER(T) ConstantBuffer<T>
+    #define RES(TYPE, NAME, FREQ, REG, BINDING) TYPE NAME : register(REG, FREQ)
 #elif defined(ORBIS) || defined(PROSPERO)
-#define CBUFFER(NAME, FREQ, REG, BINDING) struct NAME
-#define RES(TYPE, NAME, FREQ, REG, BINDING)
+    #define CBUFFER(T) T
+    #define RES(TYPE, NAME, FREQ, REG, BINDING)
 #else
-#define CBUFFER(NAME, FREQ, REG, BINDING)   cbuffer NAME: register(REG)
-#define RES(TYPE, NAME, FREQ, REG, BINDING) TYPE NAME: register(REG)
+    #define CBUFFER(T) cbuffer
+    #define RES(TYPE, NAME, FREQ, REG, BINDING) TYPE NAME : register(REG)
 #endif
 
 #define EARLY_FRAGMENT_TESTS [earlydepthstencil]
@@ -978,7 +1009,8 @@ inline int2 GetDimensions(TextureCube t, SamplerState smp) { return GetDimension
 
 #ifdef ENABLE_WAVEOPS
 
-#define WaveGetMaxActiveIndex() WaveActiveMax(WaveGetLaneIndex())
+    #define  WaveGetMaxActiveIndex() WaveActiveMax(WaveGetLaneIndex())
+	#define	 WaveIsHelperLane()		 IsHelperLane()
 
 #if !defined(ballot_t)
 #define ballot_t uint4

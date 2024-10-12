@@ -80,17 +80,6 @@ float length(int2 x)
 #define CENTROID(TYPE) TYPE
 #define centroid centroid_perspective
 
-// #define SHADER_VIS_VS   1
-// #define SHADER_VIS_TC   2
-// #define SHADER_VIS_TE   4
-// #define SHADER_VIS_GS   8
-// #define SHADER_VIS_PS   16
-// #define SHADER_VIS_ALL SHADER_VIS_VS | SHADER_VIS_TC | SHADER_VIS_TE | SHADER_VIS_GS | SHADER_VIS_PS
-// #define SHADER_VIS_CS SHADER_VIS_ALL
-
-// global resource access
-#define Get(X) _Get_##X
-
 #define ddx dfdx
 #define ddy dfdy
 
@@ -153,8 +142,8 @@ float radians(float degrees)
 
 #define STRUCT(NAME) struct NAME
 #define DATA(TYPE, NAME, SEM) TYPE NAME
-#define CBUFFER(NAME, REG, FREQ, BINDING) struct NAME
-#define PUSH_CONSTANT(NAME, REG) STRUCT(NAME)
+#define CBUFFER(TYPE) struct TYPE
+#define ROOT_CONSTANT(TYPE) struct TYPE
 
 /* Matrix */
 
@@ -272,51 +261,61 @@ inline float2x2 setRow(inout(float2x2) M, in(float2) row, const uint i) { M[0][i
 #define setRow2(M, R) setRow(M, R, 2)
 #define setRow3(M, R) setRow(M, R, 3)
 
-
-void AtomicAdd(threadgroup atomic_uint& DEST, uint VALUE, thread uint& ORIGINAL_VALUE)
-{ ORIGINAL_VALUE = atomic_fetch_add_explicit(&(DEST), VALUE, memory_order_relaxed); }
-
+void AtomicAdd(device uint& DEST, uint VALUE, thread uint& ORIGINAL_VALUE)
+{ ORIGINAL_VALUE = atomic_fetch_add_explicit((device atomic_uint*)&(DEST), VALUE, memory_order_relaxed); }
 void AtomicAdd(threadgroup uint& DEST, uint VALUE, thread uint& ORIGINAL_VALUE)
 { ORIGINAL_VALUE = atomic_fetch_add_explicit((threadgroup atomic_uint*)&(DEST), VALUE, memory_order_relaxed); }
+void AtomicAdd(device uint& DEST, uint VALUE, threadgroup uint& ORIGINAL_VALUE)
+{ ORIGINAL_VALUE = atomic_fetch_add_explicit((device atomic_uint*)&(DEST), VALUE, memory_order_relaxed); }
 
-void AtomicAdd(volatile device uint& DEST, uint VALUE, thread uint& ORIGINAL_VALUE)
-{ ORIGINAL_VALUE = atomic_fetch_add_explicit((volatile device atomic_uint*)&(DEST), VALUE, memory_order_relaxed); }
+inline void AtomicStore(device uint& dst, uint val)
+{ atomic_store_explicit((device atomic_uint*)&dst, val, memory_order_relaxed); }
+inline void AtomicStore(threadgroup uint& dst, uint val)
+{ atomic_store_explicit((threadgroup atomic_uint*)&dst, val, memory_order_relaxed); }
 
-void AtomicAdd(device atomic_uint& DEST, uint VALUE, threadgroup uint& ORIGINAL_VALUE)
-{ ORIGINAL_VALUE = atomic_fetch_add_explicit(&(DEST), VALUE, memory_order_relaxed); }
+inline uint AtomicLoad(device uint& src)
+{ return atomic_load_explicit((device atomic_uint*)&src, memory_order_relaxed); }
+inline uint AtomicLoad(threadgroup uint& src)
+{ return atomic_load_explicit((threadgroup atomic_uint*)&src, memory_order_relaxed); }
 
-void AtomicAdd(device atomic_uint& DEST, uint VALUE, thread uint& ORIGINAL_VALUE)
-{ ORIGINAL_VALUE = atomic_fetch_add_explicit(&(DEST), VALUE, memory_order_relaxed); }
+inline void AtomicExchange(threadgroup uint& dst, uint value, thread uint& original)
+{ original = atomic_exchange_explicit((threadgroup atomic_uint*)&dst, value, memory_order_relaxed); }
+inline void AtomicExchange(device uint& dst, uint value, thread uint& original)
+{ original = atomic_exchange_explicit((device atomic_uint*)&dst, value, memory_order_relaxed); }
 
-void AtomicAdd(device uint& DEST, threadgroup atomic_uint& VALUE, threadgroup atomic_uint& ORIGINAL_VALUE)
-{ 
-    uint index = atomic_load_explicit(&VALUE, memory_order_relaxed);
-    atomic_store_explicit(&ORIGINAL_VALUE, 
-        atomic_fetch_add_explicit((device atomic_uint*)&(DEST), index, memory_order_relaxed),
-        memory_order_relaxed);
-}
+#define AtomicCompareExchange(DEST, COMPARE_VALUE, VALUE, ORIGINAL_VALUE) \
+    atomic_compare_exchange_weak_explicit(&(DEST), &(COMPARE_VALUE), (VALUE), memory_order_relaxed, memory_order_relaxed)
 
-#define AtomicStore(DEST, VALUE) \
-    atomic_store_explicit(&DEST, VALUE, memory_order_relaxed)
-#define AtomicLoad(SRC) \
-    atomic_load_explicit(&SRC, memory_order_relaxed)
-#define AtomicExchange(DEST, VALUE, ORIGINAL_VALUE) \
-    ORIGINAL_VALUE = atomic_exchange_explicit(&DEST, VALUE, memory_order_relaxed)
+void AtomicMax(device uint& dst, uint val, thread uint& original)
+{ original = atomic_fetch_max_explicit((device atomic_uint*)&(dst), val, memory_order_relaxed); }
+void AtomicMax(device uint& dst, uint val)
+{ atomic_fetch_max_explicit((device atomic_uint*)&(dst), val, memory_order_relaxed); }
+void AtomicMin(device uint& dst, uint val, thread uint& original)
+{ original = atomic_fetch_min_explicit((device atomic_uint*)&(dst), val, memory_order_relaxed); }
+void AtomicMin(device uint& dst, uint val)
+{ atomic_fetch_min_explicit((device atomic_uint*)&(dst), val, memory_order_relaxed); }
 
 #define AtomicMin3D NO_TEXTURE_ATOMIC_SUPPORT
 #define AtomicMax3D NO_TEXTURE_ATOMIC_SUPPORT
 
-void AtomicMax(device uint& DEST, uint VALUE, thread uint& ORIGINAL_VALUE)
-{ ORIGINAL_VALUE = atomic_fetch_max_explicit((device atomic_uint*)&(DEST), VALUE, memory_order_relaxed); }
-void AtomicMin(device uint& DEST, uint VALUE, thread uint& ORIGINAL_VALUE)
-{ ORIGINAL_VALUE = atomic_fetch_min_explicit((device atomic_uint*)&(DEST), VALUE, memory_order_relaxed); }
-void AtomicMax(device uint& DEST, uint VALUE)
-{ atomic_fetch_max_explicit((device atomic_uint*)&(DEST), VALUE, memory_order_relaxed); }
-void AtomicMin(device uint& DEST, uint VALUE)
-{ atomic_fetch_min_explicit((device atomic_uint*)&(DEST), VALUE, memory_order_relaxed); }
+inline void AtomicAnd( device uint& dst, uint val, thread uint& original)
+{ original = atomic_fetch_and_explicit((device atomic_uint*)&dst, val, memory_order_relaxed);}
+
+inline void AtomicOr( device uint& dst, uint val, thread uint& original)
+{ original = atomic_fetch_or_explicit((device atomic_uint*)&dst, val, memory_order_relaxed);}
+
+inline void AtomicXor( device uint& dst, uint val, thread uint& original)
+{ original = atomic_fetch_xor_explicit((device atomic_uint*)&dst, val, memory_order_relaxed);}
 
 // #define AtomicMax(DST, VAL) \
 // atomic_fetch_max_explicit((device atomic_uint*)&fsData.IntermediateBuffer[index], UINT_MAX, memory_order_relaxed);
+
+#if defined(FT_ATOMICS_64)
+void AtomicMinU64(device uint64_t& DEST, ulong VALUE)
+{ atomic_min_explicit((device atomic_ulong*)&(DEST), VALUE, memory_order_relaxed); }
+void AtomicMaxU64(device uint64_t& DEST, ulong VALUE)
+{ atomic_max_explicit((device atomic_ulong*)&(DEST), VALUE, memory_order_relaxed); }
+#endif
 
 #define clip(COND) if( (COND) < 0 )  discard_fragment()
 
@@ -329,6 +328,7 @@ void AtomicMin(device uint& DEST, uint VALUE)
 #define discard discard_fragment()
 
 #define SampleLvlTexCube(NAME, SAMPLER, COORD, LEVEL) NAME.sample(SAMPLER, COORD, level(LEVEL))
+#define SampleLvlTexCubeArray(NAME, SAMPLER, COORD, LEVEL) NAME.sample(SAMPLER, COORD, (LEVEL))
 #define SampleLvlTex3D(NAME, SAMPLER, COORD, LEVEL) NAME.sample(SAMPLER, COORD, level(LEVEL))
 #define SampleLvlTex2DArray(NAME, SAMPLER, COORD, LEVEL) NAME.sample(SAMPLER, COORD, level(LEVEL))
 
@@ -393,6 +393,9 @@ vec<T, 4> _LoadTex3D(texture3d<T, A> tex, uint3 p, uint lod)
 #define METAL_int2   int
 #define METAL_int3   int
 #define METAL_int4   int
+#ifdef FT_ATOMICS_64
+#define METAL_uint64_t uint64_t
+#endif
 #define METAL_T(ELEM_TYPE) METAL_##ELEM_TYPE
 
 template<typename T, metal::access A>
@@ -416,7 +419,7 @@ int2 GetDimensions(const texturecube<T, A> t, uint _NO_SAMPLER)
 #define Buffer(T) T
 #define RWBuffer(T) T
 #define WBuffer(T) T
-#define RWCoherentBuffer(T) volatile T
+#define RWCoherentBuffer(T) T
 
 #define ByteBuffer uint
 #define RWByteBuffer uint
@@ -441,6 +444,7 @@ inline uint3 asuint(float3 X) { return as_type<uint3>(X); }
 inline uint4 asuint(float4 X) { return as_type<uint4>(X); }
 
 #define TexCube(ELEM_TYPE) texturecube<METAL_T(ELEM_TYPE), access::sample>
+#define TexCubeArray(ELEM_TYPE) texturecube_array<METAL_T(ELEM_TYPE), access::sample>
 
 #define RWTex1D(ELEM_TYPE) texture1d<METAL_T(ELEM_TYPE), access::read_write>
 #define RWTex2D(ELEM_TYPE) texture2d<METAL_T(ELEM_TYPE), access::read_write>
@@ -550,6 +554,8 @@ bool any(float3 x) { return any(x!= 0.0f); }
     #define WaveGetLaneIndex() simd_lane_id
     #define WaveIsFirstLane simd_is_first
     #define WaveGetMaxActiveIndex() simd_max(WaveGetLaneIndex())
+    #define WaveActiveMax(X) simd_max(X)
+    #define WaveGetLaneCount() simdgroup_size
     #define countbits popcount
     #define CountBallot _popcount_u4
     inline ballot_t WaveActiveBallot(bool expr)
@@ -585,6 +591,12 @@ bool any(float3 x) { return any(x!= 0.0f); }
 
     // simd_lane_id is made available inside MetalShader by fsl using ENABLE_WAVEOPS()
     #define WavePrefixCountBits(EXPR) _WavePrefixCountBits(EXPR, simd_lane_id)
+
+    inline uint _WavePrefixCountBits(uint4 b, uint simd_lane_id)
+    {
+        uint4 mask = uint4(extract_bits(0xFFFFFFFF, 0, min(simd_lane_id, 32u)), extract_bits(0xFFFFFFFF, 0, (uint)max((int)simd_lane_id - 32, 0)), uint2(0));
+        return _popcount_u4(b & mask);
+    }
 
     inline uint _WavePrefixCountBits(bool expr, uint simd_lane_id)
     {

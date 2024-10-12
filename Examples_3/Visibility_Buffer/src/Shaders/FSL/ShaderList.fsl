@@ -1,30 +1,28 @@
-// need to use FT_ICB for all shaders which will be used with indirect command buffers
-
-#vert FT_ICB shadow_pass.vert
+#vert shadow_pass.vert
 #include "shadow_pass.vert.fsl"
 #end
 
-#vert FT_ICB shadow_pass_alpha.vert
+#vert shadow_pass_alpha.vert
 #include "shadow_pass_alpha.vert.fsl"
 #end
 
-#frag FT_ICB shadow_pass_alpha.frag
+#frag shadow_pass_alpha.frag
 #include "shadow_pass_alpha.frag.fsl"
 #end
 
-#vert FT_PRIM_ID FT_ICB visibilityBuffer_pass.vert
+#vert FT_PRIM_ID FT_MULTIVIEW visibilityBuffer_pass.vert
 #include "visibilityBuffer_pass.vert.fsl"
 #end
 
-#frag FT_PRIM_ID FT_ICB visibilityBuffer_pass.frag
+#frag FT_PRIM_ID visibilityBuffer_pass.frag
 #include "visibilityBuffer_pass.frag.fsl"
 #end
 
-#vert FT_PRIM_ID FT_ICB visibilityBuffer_pass_alpha.vert
+#vert FT_PRIM_ID FT_MULTIVIEW visibilityBuffer_pass_alpha.vert
 #include "visibilityBuffer_pass_alpha.vert.fsl"
 #end
 
-#frag FT_PRIM_ID FT_ICB visibilityBuffer_pass_alpha.frag
+#frag FT_PRIM_ID visibilityBuffer_pass_alpha.frag
 #include "visibilityBuffer_pass_alpha.frag.fsl"
 #end
 
@@ -32,30 +30,9 @@
 #include "triangle_filtering.comp.fsl"
 #end
 
-#comp batch_compaction.comp
-#include "batch_compaction.comp.fsl"
-#end
-
 #comp clear_buffers.comp
 #include "clear_buffers.comp.fsl"
 #end
-
-#if defined(METAL)
-#comp triangle_filtering_icb.comp
-#define INDIRECT_COMMAND_BUFFER 1
-#include "triangle_filtering.comp.fsl"
-#end
-
-#comp batch_compaction_icb.comp
-#define INDIRECT_COMMAND_BUFFER 1
-#include "batch_compaction.comp.fsl"
-#end
-
-#comp clear_buffers_icb.comp
-#define INDIRECT_COMMAND_BUFFER 1
-#include "clear_buffers.comp.fsl"
-#end
-#endif
 
 #comp clear_light_clusters.comp
 #include "clear_light_clusters.comp.fsl"
@@ -65,21 +42,21 @@
 #include "cluster_lights.comp.fsl"
 #end
 
-#vert display.vert
+#vert FT_MULTIVIEW display.vert
 #include "display.vert.fsl"
 #end
 
-#frag godray_SAMPLE_COUNT_1.frag
+#frag FT_MULTIVIEW godray_SAMPLE_COUNT_1.frag
 #define SAMPLE_COUNT 1
 #include "godray.frag.fsl"
 #end
 
-#frag godray_SAMPLE_COUNT_2.frag
+#frag FT_MULTIVIEW godray_SAMPLE_COUNT_2.frag
 #define SAMPLE_COUNT 2
 #include "godray.frag.fsl"
 #end
 
-#frag godray_SAMPLE_COUNT_4.frag
+#frag FT_MULTIVIEW godray_SAMPLE_COUNT_4.frag
 #define SAMPLE_COUNT 4
 #include "godray.frag.fsl"
 #end
@@ -88,15 +65,11 @@
 #include "godray_blur.comp.fsl"
 #end
 
-#frag CurveConversion.frag
-#include "CurveConversion.frag.fsl"
-#end
-
-#frag display.frag
+#frag FT_MULTIVIEW display.frag
 #include "display.frag.fsl"
 #end
 
-#vert skybox.vert
+#vert FT_MULTIVIEW skybox.vert
 #include "skybox.vert.fsl"
 #end
 
@@ -104,7 +77,7 @@
 #include "skybox.frag.fsl"
 #end
 
-#vert visibilityBuffer_shade.vert
+#vert FT_MULTIVIEW visibilityBuffer_shade.vert
 #include "visibilityBuffer_shade.vert.fsl"
 #end
 
@@ -112,34 +85,71 @@
 #include "resolve.vert.fsl"
 #end
 
+//--------------------------------------------
+//-- Visibility Buffer Shading
+//--------------------------------------------
+
 // We should have a better way of generating these
-#frag visibilityBuffer_shade_SAMPLE_1.frag
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_1.frag
 #define SAMPLE_COUNT 1
 #include "visibilityBuffer_shade.frag.fsl"
 #end
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_1_GRAY.frag
+#define SAMPLE_COUNT 1
+#define ENABLED_GODRAY
+#include "visibilityBuffer_shade.frag.fsl"
+#end
 
-#frag visibilityBuffer_shade_SAMPLE_1_AO.frag
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_1_AO.frag
 #define SAMPLE_COUNT 1
 #include "visibilityBuffer_shade.frag.fsl"
 #end
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_1_AO_GRAY.frag
+#define SAMPLE_COUNT 1
+#define USE_AMBIENT_OCCLUSION 1
+#define ENABLED_GODRAY
+#include "visibilityBuffer_shade.frag.fsl"
+#end
 
-#frag visibilityBuffer_shade_SAMPLE_2.frag
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_2.frag
 #define SAMPLE_COUNT 2
 #include "visibilityBuffer_shade.frag.fsl"
 #end
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_2_GRAY.frag
+#define SAMPLE_COUNT 2
+#define ENABLED_GODRAY
+#include "visibilityBuffer_shade.frag.fsl"
+#end
 
-#frag visibilityBuffer_shade_SAMPLE_2_AO.frag
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_2_AO.frag
 #define SAMPLE_COUNT 2
 #include "visibilityBuffer_shade.frag.fsl"
 #end
-
-#frag visibilityBuffer_shade_SAMPLE_4.frag
-#define SAMPLE_COUNT 4
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_2_AO_GRAY.frag
+#define SAMPLE_COUNT 2
+#define USE_AMBIENT_OCCLUSION 1
+#define ENABLED_GODRAY
 #include "visibilityBuffer_shade.frag.fsl"
 #end
 
-#frag visibilityBuffer_shade_SAMPLE_4_AO.frag
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_4.frag
 #define SAMPLE_COUNT 4
+#include "visibilityBuffer_shade.frag.fsl"
+#end
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_4_GRAY.frag
+#define SAMPLE_COUNT 4
+#define ENABLED_GODRAY
+#include "visibilityBuffer_shade.frag.fsl"
+#end
+
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_4_AO.frag
+#define SAMPLE_COUNT 4
+#include "visibilityBuffer_shade.frag.fsl"
+#end
+#frag FT_MULTIVIEW visibilityBuffer_shade_SAMPLE_4_AO_GRAY.frag
+#define SAMPLE_COUNT 4
+#define USE_AMBIENT_OCCLUSION 1
+#define ENABLED_GODRAY
 #include "visibilityBuffer_shade.frag.fsl"
 #end
 

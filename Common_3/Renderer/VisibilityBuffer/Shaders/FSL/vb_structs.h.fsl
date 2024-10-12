@@ -25,11 +25,12 @@
 #ifndef _VB_STRUCTS_H
 #define _VB_STRUCTS_H
 
-#ifdef NO_FSL_DEFINITIONS
+#if !defined(__fsl)
 	#define STATIC static
 	#define STRUCT(NAME) struct NAME
 	#define DATA(TYPE, NAME, SEM) TYPE NAME
-	#define CBUFFER(NAME, REG, FREQ, BINDING) struct NAME
+	#define CBUFFER(NAME) struct NAME
+	#define RES(RESOURCE, NANE, FREQ, REGISTER, BINDING) 
 	#define float4x4 mat4
 	#define uint uint32_t
 #endif
@@ -80,16 +81,12 @@ STRUCT(FilterDispatchGroupData)
 {
 	DATA(uint, meshIndex, None);	  // Index into meshConstants
 	DATA(uint, indexOffset, None);	  // Index relative to the meshConstants[meshIndex].indexOffset
-	DATA(uint, outputIndexOffset, None); // Offset into the output index buffer
-	DATA(uint, meshDispatchGroupStart, None);	// First slot for the current draw call
-	DATA(uint, accumDrawIndex, None);
     DATA(uint, instanceDataIndex, None);   // Instance specific data, usually an offset into instanceData buffer but could also contain more encoded data in different bits
 
 	//   - geometrySet: 2 bits (we have 3 geometry sets: OPAQUE, ALPHA_CUTOUT, ALPHA_BLEND)
-    //   - faceCount: 11 bits (this depends on VB_COMPUTE_THEADS, which has a max of 1024 so 11 bits are enough)
+    //   - faceCount: 11 bits (this depends on VB_COMPUTE_THREADS, which has a max of 1024 so 11 bits are enough)
 	//   - 19 bit free
 	DATA(uint, geometrySet_faceCount, None); 
-	DATA(uint, _pad0, None); 
 };
 
 STRUCT(CullingViewPort)
@@ -99,24 +96,31 @@ STRUCT(CullingViewPort)
 	DATA(uint,   _pad0,       None);
 };
 
-STRUCT(UncompactedDrawArguments)
+#if defined(__fsl)
+struct CameraMatrix
 {
-	DATA(uint, numIndices, None);
-	DATA(uint, startIndex, None);
-	DATA(uint, vertexOffset, None);
-	DATA(uint, geometrySet, None);
-	DATA(uint, instanceDataIndex, None);
+#if defined(TARGET_QUEST)
+	float4x4 mat[2];
+#else
+	float4x4 mat;
+#endif
 };
+#endif
 
 STRUCT(Transform)
 {
-	DATA(float4x4, mvp, None);
-	DATA(float4x4, invVP, None);
-	DATA(float4x4, vp, None);
-	DATA(float4x4, view, None);
-	DATA(float4x4, projection, None);
-	DATA(float2, cameraPlane, None); //x : near, y : far
-    DATA(float2, _pad0, None);
+	DATA(CameraMatrix, vp, None);
+	DATA(CameraMatrix, mvp, None);
+	DATA(CameraMatrix, projection, None);
+	DATA(CameraMatrix, invVP, None);
+};
+
+STRUCT(VBConstants)
+{
+	DATA(uint, indexOffset, None);
+	DATA(uint, pad_0, None);
+	DATA(uint, pad_1, None);
+	DATA(uint, pad_2, None);
 };
 
 #endif //!_VB_STRUCTS_H

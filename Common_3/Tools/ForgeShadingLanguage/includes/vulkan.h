@@ -83,7 +83,6 @@
 #define in_array(T, X)    in(T) X
 #define groupshared inout
 
-#define Get(X) _Get##X
 
 #define _NONE
 #define NUM_THREADS(X, Y, Z) layout (local_size_x = X, local_size_y = Y, local_size_z = Z) in(_NONE);
@@ -136,11 +135,13 @@ bvec2 LessThan(in(vec2) a, in(float) b)      { return lessThan(a, vec2(b)); }
 bvec2 LessThan(in(vec2) a, in(vec2) b)       { return lessThan(a, b);}
 bvec3 LessThan(in(vec3) X, in(float) Y)      { return lessThan(X, f3(Y)); }
 bvec3 LessThanEqual(in(vec3) X, in(float) Y) { return lessThanEqual(X, f3(Y)); }
+bvec2 LessThanEqual(in(vec2) a, in(vec2) b)  { return lessThanEqual(a, b);}
 
 bvec2 GreaterThan(in(vec2) a, in(float) b)      { return greaterThan(a, vec2(b)); }
 bvec3 GreaterThan(in(vec3) a, in(float) b)      { return greaterThan(a, f3(b)); }
 bvec2 GreaterThan(in(uvec2) a, in(uint) b)      { return greaterThan(a, uvec2(b)); }
 bvec2 GreaterThan(in(vec2) a, in(vec2) b)       { return greaterThan(a, b);}
+bvec2 GreaterThanEqual(in(vec2) a, in(vec2) b)  { return greaterThanEqual(a, b);}
 bvec4 GreaterThan(in(vec4) a, in(vec4) b)       { return greaterThan(a, b); }
 bvec3 GreaterThanEqual(in(vec3) a, in(float) b) { return greaterThanEqual(a, vec3(b)); }
 
@@ -154,6 +155,11 @@ bool allGreaterThan(const vec4 a, const vec4 b)
     groupMemoryBarrier(); \
     barrier(); \
 }
+
+#define MemoryBarrier() { \
+	memoryBarrier(); \
+}
+
 // #define AllMemoryBarrier AllMemoryBarrierWithGroupSync()
 #define AllMemoryBarrier() { \
     groupMemoryBarrier(); \
@@ -166,6 +172,11 @@ bool allGreaterThan(const vec4 a, const vec4 b)
     discard;\
     return;\
 }
+#if defined(FT_ATOMICS_64)
+#extension GL_ARB_gpu_shader_int64 : enable
+#extension GL_EXT_shader_atomic_int64 : enable
+#extension GL_EXT_shader_image_int64 : enable
+#endif
 
 #extension GL_ARB_shader_ballot : enable
 
@@ -177,8 +188,10 @@ bool allGreaterThan(const vec4 a, const vec4 b)
     SRC
 #define AtomicExchange(DEST, VALUE, ORIGINAL_VALUE) \
     ORIGINAL_VALUE = atomicExchange((DEST), (VALUE))
+#define AtomicCompareExchange(DEST, COMPARE_VALUE, VALUE, ORIGINAL_VALUE) \
+    ORIGINAL_VALUE = atomicCompSwap((DEST), (COMPARE_VALUE), (VALUE))
 
-#define CBUFFER(NAME, FREQ, REG, BINDING) layout(std140, FREQ, BINDING) uniform NAME
+#define CBUFFER(T)
 #define PUSH_CONSTANT(NAME, REG) layout(push_constant) uniform NAME##Block
 
 // #define mul(a, b) (a * b)
@@ -205,6 +218,8 @@ textureLod(sampler3D(NAME, SAMPLER), COORD, LEVEL)
 textureLod(sampler2DArray(NAME, SAMPLER), COORD, LEVEL)
 #define SampleLvlTexCube(NAME, SAMPLER, COORD, LEVEL ) \
 textureLod(samplerCube(NAME, SAMPLER), COORD, LEVEL)
+#define SampleLvlTexCubeArray(NAME, SAMPLER, COORD, LEVEL ) \
+textureLod(samplerCubeArray(NAME, SAMPLER), float4(COORD, LEVEL), 0)
 
 // vec4 SampleLvlOffsetTex2D( texture2D NAME, sampler SAMPLER, vec2 COORD, float LEVEL, const in(ivec2) OFFSET )
 // { return textureLodOffset(sampler2D(NAME, SAMPLER), COORD, LEVEL, OFFSET); }
@@ -310,6 +325,9 @@ textureGrad(sampler2D(TEX, SMP), P, DX, DY)
 #define GatherRedTex2D(TEX, SMP, P) _GatherRedTex2D((TEX), (SMP), vec2(P.xy))
 vec4 _GatherRedTex2D(texture2D TEX, sampler SMP, vec2 P) { return textureGather(sampler2D(TEX, SMP), P, 0 ); }
 
+#define GatherRedTex3D(TEX, SMP, P) _GatherRedTex3D((TEX), (SMP), vec3(P.xyz))
+vec4 _GatherRedTex3D(texture2DArray TEX, sampler SMP, vec3 P) { return textureGather(sampler2DArray(TEX, SMP), P, 0 ); }
+
 #define GatherRedOffsetTex2D(TEX, SMP, P, O) _GatherRedOffsetTex2D((TEX), (SMP), vec2(P.xy), ivec2(O))
 vec4 _GatherRedOffsetTex2D(texture2D TEX, sampler SMP, vec2 P, ivec2 O) { return textureGatherOffset(sampler2D(TEX, SMP), P, O, 0 ); }
 
@@ -406,6 +424,14 @@ ivec4 _to4(in(int)   x)  { return ivec4(x, 0, 0, 0); }
 #define AtomicMax2D( DST, COORD, VALUE, ORIGINAL_VALUE ) ((ORIGINAL_VALUE) = imageAtomicMax((DST), ivec2((COORD).xy), (VALUE)))
 #define AtomicMin(DST, VALUE) atomicMin(DST, VALUE)
 #define AtomicMax(DST, VALUE) atomicMax(DST, VALUE)
+#define AtomicOr(DST, VALUE, ORIGINAL_VALUE) atomicOr(DST, VALUE)
+#define AtomicAnd(DST, VALUE, ORIGINAL_VALUE) atomicAnd(DST, VALUE)
+#define AtomicXor(DST, VALUE, ORIGINAL_VALUE) atomicXor(DST, VALUE)
+
+#if defined(FT_ATOMICS_64)
+#define AtomicMinU64(DST, VALUE) atomicMin(DST, VALUE)
+#define AtomicMaxU64(DST, VALUE) atomicMax(DST, VALUE)
+#endif
 
 #define UNROLL_N(X)
 #define UNROLL
@@ -526,8 +552,6 @@ f2x2 setRow(inout(f2x2) M, in(vec2) row, const uint i) { M[0][i] = row[0]; M[1][
 #define setRow2(M, R) setRow(M, R, 2)
 #define setRow3(M, R) setRow(M, R, 3)
 
-
-#define atomic_uint uint
 #define packed_float3 vec3
 
 #define int2 ivec2
@@ -596,6 +620,10 @@ int3 imageSize(utexture2DArray TEX) { return textureSize(TEX, 0); }
 // int2 GetDimensions(writeonly iimage2D t, uint _NO_SAMPLER) { return imageSize(t); }
 // int2 GetDimensions(writeonly uimage2D t, uint _NO_SAMPLER) { return imageSize(t); }
 // int2 GetDimensions(writeonly image2D t, uint _NO_SAMPLER) { return imageSize(t); }
+
+#ifdef FT_ATOMICS_64
+#define VK_T_uint64_t(T)   u64 ## T
+#endif
 
 #define VK_T_uint(T)   u ## T
 #define VK_T_uint2(T)  u ## T
@@ -741,6 +769,7 @@ bool any(vec3 x) { return any(notEqual(x, vec3(0))); }
 
 #ifdef WAVE_OPS_BASIC_BIT
     #extension GL_KHR_shader_subgroup_basic: enable
+    #define WaveGetLaneCount() gl_SubgroupSize
 #endif
 
 #ifdef TARGET_SWITCH
@@ -770,6 +799,7 @@ bool any(vec3 x) { return any(notEqual(x, vec3(0))); }
     #ifdef WAVE_OPS_BASIC_BIT
         #define WaveIsFirstLane        subgroupElect
         #define WaveGetLaneIndex() gl_SubgroupInvocationID
+		#define WaveIsHelperLane() gl_HelperInvocation
     #endif
     
     #ifdef WAVE_OPS_ARITHMETIC_BIT
@@ -788,12 +818,13 @@ bool any(vec3 x) { return any(notEqual(x, vec3(0))); }
 
     #ifdef WAVE_OPS_ARITHMETIC_BIT
         #define WaveActiveMax subgroupMax
+        #define WaveActiveMin subgroupMin
         #define WaveActiveSum subgroupAdd
         #define WavePrefixSum subgroupExclusiveAdd
     #endif
 
     #ifdef WAVE_OPS_BALLOT_BIT
-        #define WavePrefixCountBits(X) subgroupBallotInclusiveBitCount(subgroupBallot(X))
+        #define WavePrefixCountBits(X) subgroupBallotExclusiveBitCount(subgroupBallot(X))
         #define WaveActiveCountBits(X) subgroupBallotBitCount(subgroupBallot(X))
         
         #ifdef TARGET_ANDROID

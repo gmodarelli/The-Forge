@@ -1,0 +1,254 @@
+/*
+ * Copyright (c) 2017-2024 The Forge Interactive Inc.
+ *
+ * This file is part of The-Forge
+ * (see https://github.com/ConfettiFX/The-Forge).
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+*/
+
+#include "../../../../../Common_3/Graphics/ShaderUtilities.h.fsl"
+#include "shader_defs.h.fsl"
+
+float sampleDepth(
+	float2 rtSize,
+	float2 texCoord,
+#if(SAMPLE_COUNT > 1)
+	Tex2DMS(float, SAMPLE_COUNT) pDepthTex,
+#else
+	Tex2D(float) pDepthTex,
+#endif
+	SamplerState samplerState)
+{
+#if SAMPLE_COUNT > 1
+	uint2 loc = uint2(texCoord * rtSize);
+	return LoadTex2DMS(pDepthTex, samplerState, loc, 0).x;
+#else
+	return SampleLvlTex2D(pDepthTex, samplerState, texCoord, 0).x;
+#endif
+}
+
+// Camera space position reconstruction from depth
+float3 reconstructPositionCS(
+	float2 texCoord,
+	float depth,
+	float farPlane,
+	float nearPlane,
+	float2 frustumPlaneSizeNormalized)
+{
+	float3 pos = float3(texCoord - float2(0.5f, 0.5f), 1.0f);
+	pos.y *= -1.0f;
+	pos.xy *= frustumPlaneSizeNormalized;
+	pos *= linearizeDepthReverseZ(depth, nearPlane, farPlane);
+	return pos;
+}
+
+// Camera space normal reconstruction from depth
+// Based on:
+// https://www.shadertoy.com/view/fsVczR
+// https://twitter.com/kenpex/status/1632093409254195203/photo/1
+// https://atyuwen.github.io/posts/normal-reconstruction/
+// 
+// Note that we deal with the "original 1/z" depth buffer, not a linear one,
+// hence our formulas for dl/dr/db/dt are simpler, as depth values in
+// screen-space are linear in the "original 1/z" depth buffer.
+float3 reconstructNormalCS(
+	float2 rtSize,
+	float2 invRTSize,
+	float2 texCoord,
+	float farPlane,
+	float nearPlane,
+	float2 frustumPlaneSizeNormalized,
+#if(SAMPLE_COUNT > 1)
+	Tex2DMS(float, SAMPLE_COUNT) pDepthTex,
+#else
+	Tex2D(float) pDepthTex,
+#endif
+	SamplerState samplerState)
+{
+	float c0 = sampleDepth(rtSize, texCoord, pDepthTex, samplerState);
+	float l1 = sampleDepth(rtSize, texCoord + float2(-1.0f * invRTSize.x, 0.0f), pDepthTex, samplerState);
+	float l2 = sampleDepth(rtSize, texCoord + float2(-2.0f * invRTSize.x, 0.0f), pDepthTex, samplerState);
+	float r1 = sampleDepth(rtSize, texCoord + float2(1.0f * invRTSize.x, 0.0f), pDepthTex, samplerState);
+	float r2 = sampleDepth(rtSize, texCoord + float2(2.0f * invRTSize.x, 0.0f), pDepthTex, samplerState);
+	float b1 = sampleDepth(rtSize, texCoord + float2(0.0f, -1.0f * invRTSize.y), pDepthTex, samplerState);
+	float b2 = sampleDepth(rtSize, texCoord + float2(0.0f, -2.0f * invRTSize.y), pDepthTex, samplerState);
+	float t1 = sampleDepth(rtSize, texCoord + float2(0.0f, 1.0f * invRTSize.y), pDepthTex, samplerState);
+	float t2 = sampleDepth(rtSize, texCoord + float2(0.0f, 2.0f * invRTSize.y), pDepthTex, samplerState);
+
+	float dl = abs( (2.0f * l1 - l2) - c0 );
+	float dr = abs( (2.0f * r1 - r2) - c0 );
+	float db = abs( (2.0f * b1 - b2) - c0 );
+	float dt = abs( (2.0f * t1 - t2) - c0 );
+
+	float3 ce = reconstructPositionCS(texCoord, c0, farPlane, nearPlane, frustumPlaneSizeNormalized);
+
+	float3 dpdx = (dl < dr) ?
+		ce - reconstructPositionCS(texCoord + float2(-1.0f * invRTSize.x, 0.0f), l1, farPlane, nearPlane, frustumPlaneSizeNormalized) :
+		-ce + reconstructPositionCS(texCoord + float2(1.0f * invRTSize.x, 0.0f), r1, farPlane, nearPlane, frustumPlaneSizeNormalized);
+	float3 dpdy = (db < dt) ?
+		ce - reconstructPositionCS(texCoord + float2(0.0f, -1.0f * invRTSize.y), b1, farPlane, nearPlane, frustumPlaneSizeNormalized) :
+		-ce + reconstructPositionCS(texCoord + float2(0.0f, 1.0f * invRTSize.y), t1, farPlane, nearPlane, frustumPlaneSizeNormalized);
+
+	return normalize(cross(dpdx, dpdy));
+}
+
+float4 gatherDepthSamples(
+	float2 rtSize,
+	float2 texCoord,
+#if(SAMPLE_COUNT > 1)
+	Tex2DMS(float, SAMPLE_COUNT) pDepthTex,
+#else
+	Tex2D(float) pDepthTex,
+#endif
+	SamplerState samplerState)
+{
+    float4 f4Ret = f4(0);
+
+#if SAMPLE_COUNT > 1
+    uint2 loc = uint2(texCoord * rtSize);
+    f4Ret.x = LoadTex2DMS(pDepthTex, samplerState, loc + uint2(0,1), 0).x;
+    f4Ret.y = LoadTex2DMS(pDepthTex, samplerState, loc + uint2(1,1), 0).x;
+    f4Ret.z = LoadTex2DMS(pDepthTex, samplerState, loc + uint2(1,0), 0).x;
+    f4Ret.w = LoadTex2DMS(pDepthTex, samplerState, loc + uint2(0,0), 0).x;
+#else
+    f4Ret = GatherRedTex2D(pDepthTex, samplerState, texCoord);
+#endif
+
+    return f4Ret;
+}
+
+
+float calcAo(
+	float3 position,
+	float3 normal,
+	float2 texCoord,
+	float depth,
+	float farPlane,
+	float nearPlane,
+	float2 frustumPlaneSizeNormalized)
+{
+	float3 samplePosition = reconstructPositionCS(texCoord, depth, farPlane, nearPlane, frustumPlaneSizeNormalized);
+	float3 v = samplePosition - position;
+	float distSq = dot(v, v);
+
+	return saturate( (dot(v, normal) - 0.1f) / (1.0f + distSq) );
+}
+
+STATIC const float2 gAORingPattern[20] = 
+{
+    // Ring 1
+    { 1, -1 },
+    { 0, 1 },
+    
+    // Ring 2
+    { 0, 3 },
+    { 2, 1 },
+    { 3, -1 },
+    { 1, -3 },
+        
+    // Ring 3
+    { 1, -5 },
+    { 3, -3 },
+    { 5, -1 },
+    { 4, 1 },
+    { 2, 3 },
+    { 0, 5 },
+    
+    // Ring 4
+    { 0, 7 },
+    { 2, 5 },
+    { 4, 3 },
+    { 6, 1 },
+    { 7, -1 },
+    { 5, -3 },
+    { 3, -5 },
+    { 1, -7 },
+};
+
+float calculateAoContrib(
+	float2 rtSize,
+	float aoIntensity,
+	uint aoQuality,
+	float farPlane,
+	float nearPlane,
+	float2 frustumPlaneSizeNormalized,
+	float2 screenCoords,
+#if(SAMPLE_COUNT > 1)
+	Tex2DMS(float, SAMPLE_COUNT) pDepthTex,
+#else
+	Tex2D(float) pDepthTex,
+#endif
+	SamplerState samplerState)
+{
+	if (aoQuality == 0)
+		return 1.f;
+
+	float2 f2InvRTSize = 1.0f / rtSize;
+	float2 f2ScreenCoord = screenCoords;
+	uint2 ui2ScreenCoord = uint2( f2ScreenCoord );
+	float2 f2TexCoord = float2(f2ScreenCoord * f2InvRTSize);
+
+	// Sample the center pixel for camera Z
+	float fDepth = sampleDepth(rtSize, f2TexCoord, pDepthTex, samplerState);
+	float fDepthLinear = linearizeDepthReverseZ(fDepth, nearPlane, farPlane);
+
+	float3 f3Position = reconstructPositionCS(f2TexCoord, fDepth, farPlane, nearPlane, frustumPlaneSizeNormalized);
+	float3 f3Normal = reconstructNormalCS(rtSize, f2InvRTSize, f2TexCoord, farPlane, nearPlane, frustumPlaneSizeNormalized, pDepthTex, samplerState);
+
+	float4 f4Occlusion = f4(0.0f);
+
+	// Loop through each gather location, and compare with its mirrored location
+	uint numRingGathers = (aoQuality + 1) * aoQuality;
+    for( uint iGather=0; iGather < numRingGathers; iGather++ )
+    {
+        float2 f2SampleOffSet = gAORingPattern[iGather];
+        float2 f2MirrorSampleOffSet = (f2SampleOffSet + float2(1.0f, 1.0f)) * float2(-1.0f, -1.0f);
+        
+        // Sample
+        f2TexCoord = float2(f2ScreenCoord + f2SampleOffSet) * f2InvRTSize;
+        float2 f2MirrorTexCoord = float2(f2ScreenCoord + f2MirrorSampleOffSet) * f2InvRTSize;
+
+		float4 f4SampledZ[2];
+
+#if SAMPLE_COUNT > 1
+        f4SampledZ[0] = gatherDepthSamples(rtSize, f2TexCoord, pDepthTex, samplerState);
+        f4SampledZ[1] = gatherDepthSamples(rtSize, f2MirrorTexCoord, pDepthTex, samplerState);
+#else
+        f4SampledZ[0] = gatherDepthSamples(rtSize, f2TexCoord + 0.5f*f2InvRTSize, pDepthTex, samplerState);
+        f4SampledZ[1] = gatherDepthSamples(rtSize, f2MirrorTexCoord + 0.5f*f2InvRTSize, pDepthTex, samplerState);
+#endif	
+
+		f4Occlusion.x += calcAo(f3Position, f3Normal, f2TexCoord + float2(0.0f * f2InvRTSize.x, 0.0f * f2InvRTSize.y), f4SampledZ[0].w, farPlane, nearPlane, frustumPlaneSizeNormalized);
+		f4Occlusion.y += calcAo(f3Position, f3Normal, f2TexCoord + float2(1.0f * f2InvRTSize.x, 0.0f * f2InvRTSize.y), f4SampledZ[0].z, farPlane, nearPlane, frustumPlaneSizeNormalized);
+		f4Occlusion.z += calcAo(f3Position, f3Normal, f2TexCoord + float2(1.0f * f2InvRTSize.x, 1.0f * f2InvRTSize.y), f4SampledZ[0].y, farPlane, nearPlane, frustumPlaneSizeNormalized);
+		f4Occlusion.w += calcAo(f3Position, f3Normal, f2TexCoord + float2(0.0f * f2InvRTSize.x, 1.0f * f2InvRTSize.y), f4SampledZ[0].x, farPlane, nearPlane, frustumPlaneSizeNormalized);
+
+		f4Occlusion.x += calcAo(f3Position, f3Normal, f2MirrorTexCoord + float2(0.0f * f2InvRTSize.x, 0.0f * f2InvRTSize.y), f4SampledZ[1].w, farPlane, nearPlane, frustumPlaneSizeNormalized);
+		f4Occlusion.y += calcAo(f3Position, f3Normal, f2MirrorTexCoord + float2(1.0f * f2InvRTSize.x, 0.0f * f2InvRTSize.y), f4SampledZ[1].z, farPlane, nearPlane, frustumPlaneSizeNormalized);
+		f4Occlusion.z += calcAo(f3Position, f3Normal, f2MirrorTexCoord + float2(1.0f * f2InvRTSize.x, 1.0f * f2InvRTSize.y), f4SampledZ[1].y, farPlane, nearPlane, frustumPlaneSizeNormalized);
+		f4Occlusion.w += calcAo(f3Position, f3Normal, f2MirrorTexCoord + float2(0.0f * f2InvRTSize.x, 1.0f * f2InvRTSize.y), f4SampledZ[1].x, farPlane, nearPlane, frustumPlaneSizeNormalized);
+    }
+
+	// Final occlusion value
+	float fOcclusion = ( f4Occlusion.x + f4Occlusion.y + f4Occlusion.z + f4Occlusion.w ) / ( 8.0f * numRingGathers );
+	fOcclusion *= aoIntensity;
+    fOcclusion = 1.0f - saturate( fOcclusion );
+
+	return fOcclusion;
+}

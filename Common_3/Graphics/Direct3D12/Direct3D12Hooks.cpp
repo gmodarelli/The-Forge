@@ -57,6 +57,7 @@ HRESULT WINAPI d3d12dll_DXGIGetDebugInterface1(UINT Flags, REFIID riid, void** p
 
 void hook_enable_debug_layer(const RendererContextDesc* pDesc, RendererContext* pContext)
 {
+    UNREF_PARAM(pDesc);
     UNREF_PARAM(pContext);
 #if defined(ENABLE_GRAPHICS_DEBUG)
     pContext->mDx.pDebug->EnableDebugLayer();
@@ -148,6 +149,7 @@ HRESULT hook_add_special_resource(Renderer* pRenderer, const D3D12_RESOURCE_DESC
     desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER;
     ASSERT(D3D12_RESOURCE_STATE_COPY_DEST == state);
     hres = device->CreatePlacedResource(heap, 0, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&pBuffer->mDx.pResource));
+    SAFE_RELEASE(device);
     ASSERT(SUCCEEDED(hres));
     pBuffer->mDx.pMarkerBufferHeap = heap;
     pBuffer->mDx.mMarkerBuffer = true;
@@ -157,6 +159,12 @@ HRESULT hook_add_special_resource(Renderer* pRenderer, const D3D12_RESOURCE_DESC
 HRESULT hook_add_special_resource(Renderer* pRenderer, const D3D12_RESOURCE_DESC* pDesc, const D3D12_CLEAR_VALUE* pClearValue,
                                   D3D12_RESOURCE_STATES startState, uint32_t flags, Texture* pOutTexture)
 {
+    UNREF_PARAM(pRenderer);
+    UNREF_PARAM(pDesc);
+    UNREF_PARAM(startState);
+    UNREF_PARAM(flags);
+    UNREF_PARAM(pClearValue);
+    UNREF_PARAM(pOutTexture);
     return E_NOINTERFACE;
 }
 
@@ -278,7 +286,7 @@ HRESULT hook_signal(Queue* pQueue, ID3D12Fence* pFence, uint64_t fenceValue) { r
 
 HRESULT hook_signal_flush(Queue* pQueue, ID3D12Fence* pFence, uint64_t fenceValue) { return hook_signal(pQueue, pFence, fenceValue); }
 
-extern void hook_fill_gpu_desc(ID3D12Device* pDevice, D3D_FEATURE_LEVEL featureLevel, GpuDesc* pInOutDesc)
+extern void hook_fill_gpu_desc(ID3D12Device* pDevice, D3D_FEATURE_LEVEL featureLevel, DXGPUInfo* pInOutDesc)
 {
     // Query the level of support of Shader Model.
     D3D12_FEATURE_DATA_D3D12_OPTIONS  featureData = {};
@@ -287,7 +295,7 @@ extern void hook_fill_gpu_desc(ID3D12Device* pDevice, D3D_FEATURE_LEVEL featureL
     pDevice->CheckFeatureSupport((D3D12_FEATURE)D3D12_FEATURE_D3D12_OPTIONS, &featureData, sizeof(featureData));
     pDevice->CheckFeatureSupport((D3D12_FEATURE)D3D12_FEATURE_D3D12_OPTIONS1, &featureData1, sizeof(featureData1));
 
-    GpuDesc&           gpuDesc = *pInOutDesc;
+    DXGPUInfo&         gpuDesc = *pInOutDesc;
     DXGI_ADAPTER_DESC3 desc = {};
     gpuDesc.pGpu->GetDesc3(&desc);
 
@@ -325,7 +333,14 @@ void hook_modify_shader_compile_flags(uint32_t, bool, const WCHAR**, uint32_t* p
 
 void hook_modify_rootsignature_flags(uint32_t, D3D12_ROOT_SIGNATURE_FLAGS*) {}
 
+void hook_fill_dispatch_indirect_argument_desc(D3D12_INDIRECT_ARGUMENT_DESC* pInOutDesc, bool async)
+{
+    UNREF_PARAM(async);
+    pInOutDesc->Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+}
 void hook_modify_command_signature_desc(D3D12_COMMAND_SIGNATURE_DESC* pInOutDesc, uint32_t padding) { pInOutDesc->ByteStride += padding; }
 
-void hook_pre_resolve_query(Cmd* pCmd) {}
+void hook_pre_resolve_query(Cmd* pCmd) { UNREF_PARAM(pCmd); }
+
+void hook_fill_occlusion_query(Cmd*, uint32_t) {}
 #endif

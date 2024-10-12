@@ -1,0 +1,104 @@
+/*
+ * Copyright (c) 2017-2024 The Forge Interactive Inc.
+ *
+ * This file is part of The-Forge
+ * (see https://github.com/ConfettiFX/The-Forge).
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+*/
+
+#include "shader_defs.h.fsl"
+#include "../../../../../../Common_3/Graphics/ShaderUtilities.h.fsl"
+
+#ifdef TARGET_ANDROID
+// GPU hang with 32 samples
+#define NUM_SHADOW_SAMPLES 16
+#else
+#define NUM_SHADOW_SAMPLES 32
+#endif
+
+float3 calculateIllumination(
+	float3 normal,
+	float3 ViewVec,
+	float3 HalfVec,
+	float3 ReflectVec,
+	float NoL,
+	float NoV,
+	float3 camPos, float esmControl,
+	float3 normalizedDirToLight, float4 posLS, float3 position,
+	Tex2D(float) pShadowMap,
+	float3 albedo,
+	float3 specularColor,
+	float Roughness,
+	float Metallic,
+	SamplerState sh,
+	bool isBackface,
+	float isPBR)
+{
+	// Project pixel position post-perspective division coordinates and map to [0..1] range to access the shadow map
+	posLS /= posLS.w;
+	posLS.y *= -1.0f;
+	posLS.xy = posLS.xy * 0.5 + float2(0.5f, 0.5f);
+	float shadowFactor = 0.0f;
+
+	if (all(GreaterThan(posLS.xy, 0.0f)) && all(LessThan(posLS.xy, 1.0f)))
+	{
+		shadowFactor = calcESMShadowFactor(posLS, pShadowMap, sh, esmControl);
+	}
+
+	float3 finalColor;
+
+	if (isPBR > 0.5f)
+	{
+		finalColor = PBR_shadowFactor(NoL, NoV, -normalizedDirToLight, ViewVec, HalfVec, normal, albedo, specularColor, Roughness, Metallic, isBackface, shadowFactor);
+	}
+	else
+	{
+		specularColor = calculateSpecular(specularColor, camPos, position, -normalizedDirToLight, normal);
+		finalColor    = albedo + lerp(float3(0.0, 0.0, 0.0), specularColor, shadowFactor);
+	}
+
+	finalColor *= shadowFactor;
+
+	return finalColor;
+}
+
+float3 pointLightShade(
+	float3 normal,
+	float3 ViewVec,
+	float3 HalfVec,
+	float3 ReflectVec,
+	float NoL,
+	float NoV,
+	float3 lightPos,
+	float3 lightCol,
+	float3 pCamPos,
+	float3 normalizedDirToLight, 
+	float3 position,
+	float3 albedo,
+	float3 specularColor,
+	float Roughness,
+	float Metallic,
+	bool isBackface,
+	float radius)
+{
+	float3 lVec = (lightPos - position) * (1.0 / radius);
+	float atten = pow(saturate(1.0f - dot(lVec, lVec)), 2.0);
+	   
+	return lightCol * PBR(NoL, NoV, -normalizedDirToLight, ViewVec, HalfVec, normal, albedo, specularColor, Roughness, Metallic, isBackface) * atten;
+}
