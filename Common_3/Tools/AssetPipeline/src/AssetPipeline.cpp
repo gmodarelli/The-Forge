@@ -1319,6 +1319,22 @@ static inline constexpr TinyImageFormat util_cgltf_type_to_image_format(cgltf_ty
 
 typedef void (*PackingFunction)(uint32_t count, uint32_t srcStride, uint32_t dstStride, uint32_t offset, const uint8_t* src, uint8_t* dst);
 
+static inline void util_convert_float3_rh_to_lh(uint32_t count, uint32_t srcStride, uint32_t dstStride, uint32_t offset, const uint8_t* src,
+    uint8_t* dst)
+{
+    COMPILE_ASSERT(sizeof(float3) == sizeof(float[3]));
+    ASSERT(srcStride == sizeof(float3));
+    ASSERT(dstStride == sizeof(float3));
+
+    float3* p = (float3*)src;
+    for (uint32_t e = 0; e < count; e++)
+    {
+        float3 position = p[e];
+        position.x *= -1.0f;
+        *(float3*)(dst + e * sizeof(float3) + offset) = position;
+    }
+}
+
 static inline void util_pack_float2_to_half2(uint32_t count, uint32_t srcStride, uint32_t dstStride, uint32_t offset, const uint8_t* src,
                                              uint8_t* dst)
 {
@@ -1341,6 +1357,7 @@ static inline void util_pack_float3_direction_to_half2(uint32_t count, uint32_t 
     for (uint32_t e = 0; e < count; ++e)
     {
         float3 f = *(float3*)(src + e * srcStride);
+        f.x *= -1.0f;
         *(uint32_t*)(dst + e * dstStride + offset) = packFloat3DirectionToHalf2(f);
     }
 }
@@ -1907,11 +1924,16 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
             const TinyImageFormat srcFormat = util_cgltf_type_to_image_format(cgltfAttr->data->type, cgltfAttr->data->component_type);
             const TinyImageFormat dstFormat = attr->mFormat == TinyImageFormat_UNDEFINED ? srcFormat : attr->mFormat;
 
-            if (dstFormat != srcFormat)
+            if (dstFormat != srcFormat || attr->mSemantic == SEMANTIC_POSITION)
             {
                 // Select appropriate packing function which will be used when filling the vertex buffer
                 switch (cgltfAttr->type)
                 {
+                case cgltf_attribute_type_position:
+                {
+                    vertexPacking[attr->mSemantic] = util_convert_float3_rh_to_lh;
+                    break;
+                }
                 case cgltf_attribute_type_texcoord:
                 {
                     if (sizeof(uint32_t) == dstFormatSize && sizeof(float[2]) == srcFormatSize)
