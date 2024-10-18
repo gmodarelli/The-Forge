@@ -235,15 +235,7 @@ int TR_initRenderer(TR_AppSettings *appSettings)
 	if (!platformInitFontSystem())
 		return EXIT_FAILURE;
 
-	fsSetPathForResourceDir(pSystemFileIO, RM_DEBUG, RD_LOG, "");
-
 	initLog(appName, DEFAULT_LOG_LEVEL);
-
-	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_GPU_CONFIG, "GPUCfg");
-	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_SHADER_BINARIES, "content/compiled_shaders");
-	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_TEXTURES, "content");
-	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_MESHES, "content");
-	fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, RD_FONTS, "content");
 
 	g_TerrainDrawCalls = (TR_DrawCallInstanced *)tf_malloc(sizeof(TR_DrawCallInstanced) * g_TerrainDrawCallsCountMax);
 	assert(g_TerrainDrawCalls);
@@ -1451,7 +1443,7 @@ void ComputePBRMaps()
 	params[0].ppTextures = &g_TextureBRDFLut;
 	updateDescriptorSet(g_Renderer, 0, pDescriptorSetBRDF, 1, params);
 	cmdBindDescriptorSet(pCmd, 0, pDescriptorSetBRDF);
-	const uint32_t* pThreadGroupSize = pBRDFIntegrationShader->pReflection->mStageReflections[0].mNumThreadsPerGroup;
+	const uint32_t* pThreadGroupSize = pBRDFIntegrationShader->pReflection->mNumThreadsPerGroup;
 	cmdDispatch(pCmd, gBRDFIntegrationSize / pThreadGroupSize[0], gBRDFIntegrationSize / pThreadGroupSize[1], pThreadGroupSize[2]);
 
 	TextureBarrier srvBarrier[1] = { { g_TextureBRDFLut, RESOURCE_STATE_UNORDERED_ACCESS, RESOURCE_STATE_SHADER_RESOURCE } };
@@ -1470,7 +1462,7 @@ void ComputePBRMaps()
 	params[1].ppTextures = &g_TextureIrradiance;
 	updateDescriptorSet(g_Renderer, 0, pDescriptorSetIrradiance, 2, params);
 	cmdBindDescriptorSet(pCmd, 0, pDescriptorSetIrradiance);
-	pThreadGroupSize = pIrradianceShader->pReflection->mStageReflections[0].mNumThreadsPerGroup;
+	pThreadGroupSize = pIrradianceShader->pReflection->mNumThreadsPerGroup;
 	cmdDispatch(pCmd, gIrradianceSize / pThreadGroupSize[0], gIrradianceSize / pThreadGroupSize[1], 6);
 	/************************************************************************/
 	// Compute specular sky
@@ -1500,7 +1492,7 @@ void ComputePBRMaps()
 		params[0].mUAVMipSlice = i;
 		updateDescriptorSet(g_Renderer, i, pDescriptorSetSpecular[1], 1, params);
 		cmdBindDescriptorSet(pCmd, i, pDescriptorSetSpecular[1]);
-		pThreadGroupSize = pIrradianceShader->pReflection->mStageReflections[0].mNumThreadsPerGroup;
+		pThreadGroupSize = pIrradianceShader->pReflection->mNumThreadsPerGroup;
 		cmdDispatch(pCmd, max(1u, (gSpecularSize >> i) / pThreadGroupSize[0]), max(1u, (gSpecularSize >> i) / pThreadGroupSize[1]), 6);
 	}
 	/************************************************************************/
