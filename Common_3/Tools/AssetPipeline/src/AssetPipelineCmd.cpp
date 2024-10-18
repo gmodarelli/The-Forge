@@ -190,6 +190,7 @@ int AssetPipelineCmd(int argc, char** argv)
 
     FileSystemInitDesc fsDesc = {};
     fsDesc.pAppName = gApplicationName;
+    fsDesc.mIsTool = true;
 
     if (content)
     {
@@ -203,9 +204,19 @@ int AssetPipelineCmd(int argc, char** argv)
         return 1;
     }
 
-    fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, params.mRDInput, input);
-    fsSetPathForResourceDir(pSystemFileIO, RM_CONTENT, params.mRDOutput, output);
-    fsSetPathForResourceDir(pSystemFileIO, RM_DEBUG, RD_LOG, "");
+    char   inputPath[FS_MAX_PATH] = { 0 };
+    size_t size = fsNormalizePath(input, '/', inputPath);
+    if (inputPath[size - 1] != '/')
+        inputPath[size] = '/';
+
+    char outputPath[FS_MAX_PATH] = { 0 };
+    fsNormalizePath(output, '/', outputPath);
+    if (outputPath[size - 1] != '/')
+        outputPath[size] = '/';
+
+    fsSetPathForResourceDir(pSystemFileIO, params.mRDInput, inputPath);
+    fsSetPathForResourceDir(pSystemFileIO, params.mRDOutput, outputPath);
+    fsSetPathForResourceDir(pSystemFileIO, RD_LOG, "");
 
     LogLevel logLevel = params.mSettings.quiet ? eWARNING : DEFAULT_LOG_LEVEL;
     initLog(gApplicationName, logLevel);
