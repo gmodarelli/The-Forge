@@ -1942,7 +1942,7 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
                     break;
                 }
                 case cgltf_attribute_type_normal:
-                case cgltf_attribute_type_tangent:
+                // case cgltf_attribute_type_tangent:
                 {
                     if (sizeof(uint32_t) == dstFormatSize && (sizeof(float[3]) == srcFormatSize || sizeof(float[4]) == srcFormatSize))
                         vertexPacking[attr->mSemantic] = util_pack_float3_direction_to_half2;
@@ -2710,7 +2710,8 @@ int AssetPipelineRun(AssetPipelineParams* assetParams)
             vertexLayout.mAttribs[1].mLocation = 1;
             vertexLayout.mAttribs[1].mOffset = 0;
             vertexLayout.mAttribs[2].mSemantic = SEMANTIC_TANGENT;
-            vertexLayout.mAttribs[2].mFormat = TinyImageFormat_R32_UINT;
+            // vertexLayout.mAttribs[2].mFormat = TinyImageFormat_R32_UINT;
+            vertexLayout.mAttribs[2].mFormat = TinyImageFormat_R32G32B32A32_SFLOAT;
             vertexLayout.mAttribs[2].mBinding = 2;
             vertexLayout.mAttribs[2].mLocation = 2;
             vertexLayout.mAttribs[2].mOffset = 0;
