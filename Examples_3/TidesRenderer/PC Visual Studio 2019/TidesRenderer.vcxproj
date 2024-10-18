@@ -79,9 +79,9 @@
     </Link>
     <PostBuildEvent>
       <Command>%(Command)
-        xcopy "$(SolutionDir)..\..\..\Data\Libraries\ags\ags_lib\lib\amd_ags_x64.dll" "$(OutDir)amd_ags_x64.dll"* /S /Y /D
-        xcopy "$(SolutionDir)..\..\..\Data\Libraries\DirectXShaderCompiler\bin\x64\dxcompiler.dll" "$(OutDir)dxcompiler.dll"* /S /Y /D
-        xcopy "$(SolutionDir)..\..\..\Data\Libraries\winpixeventruntime\bin\WinPixEventRuntime.dll" "$(OutDir)WinPixEventRunTime.dll"* /S /Y /D
+        xcopy "$(SolutionDir)..\..\..\Common_3\Graphics\ThirdParty\OpenSource\ags\ags_lib\lib\amd_ags_x64.dll" "$(OutDir)amd_ags_x64.dll"* /S /Y /D
+        xcopy "$(SolutionDir)..\..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxcompiler.dll" "$(OutDir)dxcompiler.dll"* /S /Y /D
+        xcopy "$(SolutionDir)..\..\..\Common_3\Graphics\ThirdParty\OpenSource\winpixeventruntime\bin\WinPixEventRuntime.dll" "$(OutDir)WinPixEventRunTime.dll"* /S /Y /D
       </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -107,9 +107,9 @@
     </Link>
     <PostBuildEvent>
       <Command>%(Command)
-        xcopy "$(SolutionDir)..\..\..\Data\Libraries\ags\ags_lib\lib\amd_ags_x64.dll" "$(OutDir)amd_ags_x64.dll"* /S /Y /D
-        xcopy "$(SolutionDir)..\..\..\Data\Libraries\DirectXShaderCompiler\bin\x64\dxcompiler.dll" "$(OutDir)dxcompiler.dll"* /S /Y /D
-        xcopy "$(SolutionDir)..\..\..\Data\Libraries\winpixeventruntime\bin\WinPixEventRuntime.dll" "$(OutDir)WinPixEventRunTime.dll"* /S /Y /D
+        xcopy "$(SolutionDir)..\..\..\Common_3\Graphics\ThirdParty\OpenSource\ags\ags_lib\lib\amd_ags_x64.dll" "$(OutDir)amd_ags_x64.dll"* /S /Y /D
+        xcopy "$(SolutionDir)..\..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxcompiler.dll" "$(OutDir)dxcompiler.dll"* /S /Y /D
+        xcopy "$(SolutionDir)..\..\..\Common_3\Graphics\ThirdParty\OpenSource\winpixeventruntime\bin\WinPixEventRuntime.dll" "$(OutDir)WinPixEventRunTime.dll"* /S /Y /D
       </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
