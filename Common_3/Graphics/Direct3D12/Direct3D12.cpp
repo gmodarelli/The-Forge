@@ -2455,7 +2455,7 @@ static bool AddDevice(const RendererDesc* pDesc, Renderer* pRenderer)
     {
         pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
         pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-        pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, false);
+        pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
         pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_INFO, false);
         pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_MESSAGE, false);
 
@@ -2496,7 +2496,7 @@ static bool AddDevice(const RendererDesc* pDesc, Renderer* pRenderer)
 
         if (pRenderer->mDx.mUseDebugCallback)
         {
-            pRenderer->mDx.pDebugValidation->SetMuteDebugOutput(true);
+            pRenderer->mDx.pDebugValidation->SetMuteDebugOutput(false);
             // D3D12_MESSAGE_CALLBACK_IGNORE_FILTERS, will enable all message filtering in the callback function, no need to use Push/Pop,
             // but we stick with FLAG_NONE for failsafe
             HRESULT res = pRenderer->mDx.pDebugValidation->RegisterMessageCallback(DebugMessageCallback, D3D12_MESSAGE_CALLBACK_FLAG_NONE,
