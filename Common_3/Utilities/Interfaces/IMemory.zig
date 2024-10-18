@@ -21,16 +21,16 @@ pub extern fn memGetStatistics() MemoryStatistics;
 // TIDES: BEGIN TIDES CHANGES
 // We don't need any of these functions
 // pub extern fn @"tf_malloc_internal"(size: usize, f: [*c]const u8, l: c_int, sf: [*c]const u8) ?*anyopaque;
-// pub extern fn @"tf_memalign_internal"(@"align": usize, size: usize, f: [*c]const u8, l: c_int, sf: [*c]const u8) ?*anyopaque;
+// pub extern fn @"tf_memalign_internal"(align: usize, size: usize, f: [*c]const u8, l: c_int, sf: [*c]const u8) ?*anyopaque;
 // pub extern fn @"tf_calloc_internal"(count: usize, size: usize, f: [*c]const u8, l: c_int, sf: [*c]const u8) ?*anyopaque;
-// pub extern fn @"tf_calloc_memalign_internal"(count: usize, @"align": usize, size: usize, f: [*c]const u8, l: c_int, sf: [*c]const u8) ?*anyopaque;
+// pub extern fn @"tf_calloc_memalign_internal"(count: usize, align: usize, size: usize, f: [*c]const u8, l: c_int, sf: [*c]const u8) ?*anyopaque;
 // pub extern fn @"tf_realloc_internal"(ptr: ?*anyopaque, size: usize, f: [*c]const u8, l: c_int, sf: [*c]const u8) ?*anyopaque;
 // pub extern fn @"tf_free_internal"(ptr: ?*anyopaque, f: [*c]const u8, l: c_int, sf: [*c]const u8) void;
-// pub fn tf_placement_new(comptime T: typecomptime Args: type, ptr: ?*anyopaque, args: Args &&..., ...) [*c]T {
+// , pub fn tf_placement_new(comptime T: typecomptime Args: type, ptr: ?*anyopaque, args: Args &&..., ...) [*c]T {
 // return ;
 // }
 //
-// pub fn tf_new_internal(comptime T: typecomptime Args: type, f: [*c]const u8, l: c_int, sf: [*c]const u8, args: Args &&..., ...) [*c]T {
+// , pub fn tf_new_internal(comptime T: typecomptime Args: type, f: [*c]const u8, l: c_int, sf: [*c]const u8, args: Args &&..., ...) [*c]T {
 // var ptr: [*c]T = @as([*c]T, tf_memalign_internal(, @sizeOf(T), f, l, sf));
 // return tf_placement_new(ptr, );
 // }
@@ -41,3 +41,4 @@ pub extern fn memGetStatistics() MemoryStatistics;
 // tf_free_internal(ptr, f, l, sf);
 // }}
 // TIDES: END TIDES CHANGES
+

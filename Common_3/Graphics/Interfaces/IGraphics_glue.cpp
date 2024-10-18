@@ -105,11 +105,6 @@ extern "C" void _1_resetCmdPool_(Renderer* pRenderer, CmdPool* pCmdPool) { ::res
 extern "C" void _1_beginCmd_(Cmd* pCmd) { ::beginCmd(pCmd); }
 extern "C" void _1_endCmd_(Cmd* pCmd) { ::endCmd(pCmd); }
 extern "C" void _1_cmdBindRenderTargets_(Cmd* pCmd, const BindRenderTargetsDesc* pDesc) { ::cmdBindRenderTargets(pCmd, pDesc); }
-extern "C" void _1_cmdSetSampleLocations_(Cmd* pCmd, SampleCount samplesCount, uint32_t gridSizeX, uint32_t gridSizeY,
-                                          SampleLocations* plocations)
-{
-    ::cmdSetSampleLocations(pCmd, samplesCount, gridSizeX, gridSizeY, plocations);
-}
 extern "C" void _1_cmdSetViewport_(Cmd* pCmd, float x, float y, float width, float height, float minDepth, float maxDepth)
 {
     ::cmdSetViewport(pCmd, x, y, width, height, minDepth, maxDepth);
@@ -195,6 +190,12 @@ extern "C" void _1_cmdExecuteIndirect_(Cmd* pCmd, IndirectArgumentType type, uns
 {
     ::cmdExecuteIndirect(pCmd, type, maxCommandCount, pIndirectBuffer, bufferOffset, pCounterBuffer, counterBufferOffset);
 }
+extern "C" void _1_addWorkgraph_(Renderer* pRenderer, const WorkgraphDesc* pDesc, Workgraph** ppWorkgraph)
+{
+    ::addWorkgraph(pRenderer, pDesc, ppWorkgraph);
+}
+extern "C" void _1_removeWorkgraph_(Renderer* pRenderer, Workgraph* pWorkgraph) { ::removeWorkgraph(pRenderer, pWorkgraph); }
+extern "C" void _1_cmdDispatchWorkgraph_(Cmd* pCmd, const DispatchGraphDesc* pDesc) { ::cmdDispatchWorkgraph(pCmd, pDesc); }
 extern "C" void _1_getTimestampFrequency_(Queue* pQueue, double* pFrequency) { ::getTimestampFrequency(pQueue, pFrequency); }
 extern "C" void _1_initQueryPool_(Renderer* pRenderer, const QueryPoolDesc* pDesc, QueryPool** ppQueryPool)
 {

@@ -2,26 +2,6 @@
 const std = @import("std");
 //const cpp = @import("cpp");
 
-// TIDES: BEGIN MANUAL CHANGES
-const time_t = i64;
-// TIDES: END MANUAL CHANGES
-
-pub const ResourceMount = extern struct {
-    bits: c_int = 0,
-
-    /// Installed game directory / bundle resource directory
-    pub const RM_CONTENT: ResourceMount = .{ .bits = @as(c_uint, @intCast(0)) };
-    /// For storing debug data such as log files. To be used only during development
-    pub const RM_DEBUG: ResourceMount = .{ .bits = ResourceMount.RM_CONTENT.bits + 1 };
-    /// Documents directory
-    pub const RM_DOCUMENTS: ResourceMount = .{ .bits = ResourceMount.RM_CONTENT.bits + 2 };
-    /// Save game data mount 0
-    pub const RM_SAVE_0: ResourceMount = .{ .bits = ResourceMount.RM_CONTENT.bits + 3 };
-    pub const RM_COUNT: ResourceMount = .{ .bits = ResourceMount.RM_CONTENT.bits + 4 };
-
-    // pub usingnamespace cpp.FlagsMixin(ResourceMount);
-};
-
 pub const ResourceDirectory = extern struct {
     bits: c_int = 0,
 
@@ -144,6 +124,12 @@ pub const FileStreamUserData = extern struct {
     data: [6]usize,
 };
 
+pub const ResourceDirectoryInfo = extern struct {
+    pIO: [*c]IFileSystem,
+    mPath: [512]u8,
+    mBundled: bool,
+};
+
 /// After stream is opened, only FileStream::pIO must be used for this stream.
 /// Example:
 ///   io->Open(
@@ -162,7 +148,6 @@ pub const FileStreamUserData = extern struct {
 pub const FileStream = extern struct {
     pIO: [*c]IFileSystem,
     mMode: FileMode,
-    mMount: ResourceMount,
     /// access to this field is IO exclusive
     mUser: FileStreamUserData,
 };
@@ -185,7 +170,11 @@ pub const FileStream = extern struct {
 pub const FileSystemInitDesc = extern struct {
     pAppName: [*c]const u8,
     pPlatformData: ?*anyopaque,
-    pResourceMounts: [4][*c]const u8,
+    /// should be true for tools it will skip using
+    /// PathStatement file and set resource dirs manually
+    /// using fsSetResourceDirectory
+    /// in Consoles and Phones it will be ignored
+    mIsTool: bool,
 };
 
 pub const IFileSystem = extern struct {
@@ -207,7 +196,6 @@ pub const IFileSystem = extern struct {
     Flush: ?*const fn ([*c]FileStream) callconv(.C) bool,
     /// Returns whether the current seek position is at the end of the file stream.
     IsAtEnd: ?*const fn ([*c]FileStream) callconv(.C) bool,
-    GetResourceMount: ?*const fn (ResourceMount) callconv(.C) [*c]const u8,
     /// Acquire unique file identifier.
     /// Only Archive FS supports it currently.
     GetFileUid: ?*const fn ([*c]IFileSystem, ResourceDirectory, [*c]const u8, [*c]u64) callconv(.C) bool,
@@ -220,6 +208,8 @@ pub const IFileSystem = extern struct {
     /// Use fsStreamWrapMemoryMap for strong cross-platform compatibility.
     /// This function does read-only memory map.
     MemoryMap: ?*const fn ([*c]FileStream, [*c]usize, [*c]const ?*anyopaque) callconv(.C) bool,
+    /// getSystemHandle
+    GetSystemHandle: ?*const fn ([*c]FileStream) callconv(.C) ?*anyopaque,
     pUser: ?*anyopaque,
 };
 
@@ -233,6 +223,8 @@ pub extern fn fsGetSystemFileIO() [*c]IFileSystem;
 ///*********************************************************************
 ///
 /// Initializes the FileSystem API
+/// utlize PathStatement.txt file in Art directory
+/// unless FileSystemInitDesc::toolsFilesystem = true
 pub extern fn initFileSystem(pDesc: [*c]FileSystemInitDesc) bool;
 /// Frees resources associated with the FileSystem API
 pub extern fn exitFileSystem() void;
@@ -322,13 +314,7 @@ pub extern fn fsReadBstringFromStream(stream: [*c]FileStream, pStr: [*c]bstring,
 /// fsCloseStream(FileStream*) takes care of cleaning wrapped stream.
 /// So checking return value is optional.
 pub extern fn fsStreamWrapMemoryMap(fs: [*c]FileStream) bool;
-extern fn _1_fsIoOpenStreamFromPath_(pIO: [*c]IFileSystem, rd: ResourceDirectory, fileName: [*c]const u8, mode: FileMode, pOut: [*c]FileStream) bool;
-///*********************************************************************
-///
-/// MARK: - IFileSystem IO shortcuts
-///*********************************************************************
-pub const fsIoOpenStreamFromPath = _1_fsIoOpenStreamFromPath_;
-
+pub extern fn fsGetSystemHandle(fs: [*c]FileStream) ?*anyopaque;
 extern fn _1_fsCloseStream_(fs: [*c]FileStream) bool;
 /// Closes and invalidates the file stream.
 pub const fsCloseStream = _1_fsCloseStream_;
@@ -362,10 +348,6 @@ extern fn _1_fsStreamAtEnd_(fs: [*c]FileStream) bool;
 /// Returns whether the current seek position is at the end of the file stream.
 pub const fsStreamAtEnd = _1_fsStreamAtEnd_;
 
-pub inline fn fsIoGetResourceMount(pIO: [*c]IFileSystem, mount: ResourceMount) [*c]const u8 {
-    if (!pIO.GetResourceMount != null) return &"\"\"";
-    return pIO.GetResourceMount(mount);
-}
 pub inline fn fsIoGetFileUid(pIO: [*c]IFileSystem, rd: ResourceDirectory, fileName: [*c]const u8, outUid: [*c]u64) bool {
     if (!pIO.GetFileUid != null) return false;
     return pIO.GetFileUid(pIO, rd, fileName, outUid);
@@ -378,28 +360,12 @@ pub inline fn fsStreamMemoryMap(fs: [*c]FileStream, outSize: [*c]usize, outData:
     if (!fs.pIO.MemoryMap != null) return false;
     return fs.pIO.MemoryMap(fs, outSize, outData);
 }
-///*********************************************************************
-///
-/// MARK: - Directory queries
-///*********************************************************************
-///
-/// Returns location set for resource directory in fsSetPathForResourceDir.
-pub extern fn fsGetResourceDirectory(resourceDir: ResourceDirectory) [*c]const u8;
-/// Returns Resource Mount point for resource directory
-pub extern fn fsGetResourceDirectoryMount(resourceDir: ResourceDirectory) ResourceMount;
 /// Sets the relative path for `resourceDir` from `mount` to `bundledFolder`.
 /// The `resourceDir` will making use of the given IFileSystem `pIO` file functions.
 /// When `mount` is set to `RM_CONTENT` for a `resourceDir`, this directory is marked as a bundled resource folder.
 /// Bundled resource folders should only be used for Read operations.
 /// NOTE: A `resourceDir` can only be set once.
-pub extern fn fsSetPathForResourceDir(pIO: [*c]IFileSystem, mount: ResourceMount, resourceDir: ResourceDirectory, bundledFolder: [*c]const u8) void;
-/// Gets the time of last modification for the file at `fileName`, within 'resourceDir'.
-pub extern fn fsGetLastModifiedTime(resourceDir: ResourceDirectory, fileName: [*c]const u8) time_t;
-///*********************************************************************
-///
-/// MARK: - Platform-dependent function definitions
-///*********************************************************************
-pub extern fn fsCreateResourceDirectory(resourceDir: ResourceDirectory) bool;
+pub extern fn fsSetPathForResourceDir(pIO: [*c]IFileSystem, resourceDir: ResourceDirectory, bundledFolder: [*c]const u8) void;
 /// Buny Archive File structure description:
 /// First bytes are BunyArHeader with magic values and metadata location pointers
 /// Metadata consist of following units:

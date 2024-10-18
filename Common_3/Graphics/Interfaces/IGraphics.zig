@@ -15,6 +15,7 @@ pub fn byteSizeOfBlock(format: TinyImageFormat) u32 {
 }
 
 const DWORD = u32;
+const WCHAR = u16;
 const D3D_FEATURE_LEVEL = u32;
 const D3D12_GPU_VIRTUAL_ADDRESS = u64;
 const D3D12_QUERY_TYPE = u32;
@@ -36,6 +37,7 @@ const ID3D12PipelineState = anyopaque;
 const ID3D12QueryHeap = anyopaque;
 const ID3D12Resource = anyopaque;
 const ID3D12RootSignature = anyopaque;
+const ID3D12StateObject = anyopaque;
 const IDxcBlobEncoding = anyopaque;
 const IDXGIAdapter4 = anyopaque;
 const IDXGIFactory6 = anyopaque;
@@ -51,6 +53,10 @@ pub const D3D12_CPU_DESCRIPTOR_HANDLE = extern struct {
 
 pub const D3D12_GPU_DESCRIPTOR_HANDLE = extern struct {
     ptr: u64,
+};
+
+pub const D3D12_PROGRAM_IDENTIFIER = extern struct {
+    opaque_data: [4]u64,
 };
 
 /// D3D structs definitions copied from zig-gamdev/zwin32/d3dcommon.zig
@@ -484,6 +490,7 @@ pub const SampleCount = extern struct {
     pub const SAMPLE_COUNT_8: SampleCount = .{ .bits = @as(c_uint, @intCast(8)) };
     pub const SAMPLE_COUNT_16: SampleCount = .{ .bits = @as(c_uint, @intCast(16)) };
     pub const SAMPLE_COUNT_COUNT: SampleCount = .{ .bits = @as(c_uint, @intCast(5)) };
+    pub const SAMPLE_COUNT_ALL_BITS: SampleCount = .{ .bits = (@as(u32, @intCast(SampleCount.SAMPLE_COUNT_1.bits)) | @as(u32, @intCast(SampleCount.SAMPLE_COUNT_2.bits)) | @as(u32, @intCast(SampleCount.SAMPLE_COUNT_4.bits)) | @as(u32, @intCast(SampleCount.SAMPLE_COUNT_8.bits)) | @as(u32, @intCast(SampleCount.SAMPLE_COUNT_16.bits))) };
 
     // pub usingnamespace cpp.FlagsMixin(SampleCount);
 };
@@ -501,7 +508,8 @@ pub const ShaderStage = extern struct {
     pub const SHADER_STAGE_ALL_GRAPHICS: ShaderStage = .{ .bits = (@as(u32, @intCast(ShaderStage.SHADER_STAGE_VERT.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_GEOM.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_FRAG.bits))) };
     pub const SHADER_STAGE_HULL: ShaderStage = .{ .bits = @as(c_uint, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) };
     pub const SHADER_STAGE_DOMN: ShaderStage = .{ .bits = @as(c_uint, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) };
-    pub const SHADER_STAGE_COUNT: ShaderStage = .{ .bits = @as(c_uint, @intCast(6)) };
+    pub const SHADER_STAGE_WORKGRAPH: ShaderStage = .{ .bits = @as(c_uint, @intCast(64)) };
+    pub const SHADER_STAGE_COUNT: ShaderStage = .{ .bits = @as(c_uint, @intCast(7)) };
 
     // pub usingnamespace cpp.FlagsMixin(ShaderStage);
 };
@@ -694,7 +702,8 @@ pub const PipelineType = extern struct {
     pub const PIPELINE_TYPE_UNDEFINED: PipelineType = .{ .bits = @as(c_uint, @intCast(0)) };
     pub const PIPELINE_TYPE_COMPUTE: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 1 };
     pub const PIPELINE_TYPE_GRAPHICS: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 2 };
-    pub const PIPELINE_TYPE_COUNT: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 3 };
+    pub const PIPELINE_TYPE_WORKGRAPH: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 3 };
+    pub const PIPELINE_TYPE_COUNT: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 4 };
 
     // pub usingnamespace cpp.FlagsMixin(PipelineType);
 };
@@ -1861,6 +1870,12 @@ pub const ComputePipelineDesc = extern struct {
     pRootSignature: [*c]RootSignature,
 };
 
+pub const WorkgraphPipelineDesc = extern struct {
+    pShaderProgram: [*c]Shader,
+    pRootSignature: [*c]RootSignature,
+    pWorkgraphName: [*c]const u8,
+};
+
 pub const PipelineDesc = extern struct {
     __union_field1: __Union0,
     pCache: [*c]PipelineCache,
@@ -1872,6 +1887,7 @@ pub const PipelineDesc = extern struct {
     pub const __Union0 = extern union {
         mComputeDesc: ComputePipelineDesc,
         mGraphicsDesc: GraphicsPipelineDesc,
+        mWorkgraphDesc: WorkgraphPipelineDesc,
     };
 };
 
@@ -1879,10 +1895,20 @@ pub const Pipeline = extern struct {
     mDx: __Struct0,
 
     pub const __Struct0 = extern struct {
-        pPipelineState: *ID3D12PipelineState,
+        __union_field1: __Union0,
         pRootSignature: [*c]const RootSignature,
         mType: PipelineType,
         mPrimitiveTopology: D3D_PRIMITIVE_TOPOLOGY,
+
+        pub const __Union0 = extern union {
+            pPipelineState: *ID3D12PipelineState,
+            __struct_field1: __Struct1,
+
+            pub const __Struct1 = extern struct {
+                pStateObject: *ID3D12StateObject,
+                pWorkgraphName: *WCHAR,
+            };
+        };
     };
 };
 
@@ -1909,6 +1935,48 @@ pub const PipelineCache = extern struct {
     pub const __Struct0 = extern struct {
         pLibrary: *ID3D12PipelineLibrary,
         pData: ?*anyopaque,
+    };
+};
+
+pub const WorkgraphDesc = extern struct {
+    pPipeline: [*c]Pipeline,
+};
+
+pub const Workgraph = extern struct {
+    pBackingBuffer: [*c]Buffer,
+    pPipeline: [*c]Pipeline,
+    mId: D3D12_PROGRAM_IDENTIFIER,
+};
+
+pub const DispatchGraphInputType = extern struct {
+    bits: c_int = 0,
+
+    pub const DISPATCH_GRAPH_INPUT_CPU: DispatchGraphInputType = .{ .bits = @as(c_uint, @intCast(0)) };
+    pub const DISPATCH_GRAPH_INPUT_GPU: DispatchGraphInputType = .{ .bits = DispatchGraphInputType.DISPATCH_GRAPH_INPUT_CPU.bits + 1 };
+    pub const DISPATCH_GRAPH_INPUT_COUNT: DispatchGraphInputType = .{ .bits = DispatchGraphInputType.DISPATCH_GRAPH_INPUT_CPU.bits + 2 };
+
+    // pub usingnamespace cpp.FlagsMixin(DispatchGraphInputType);
+};
+
+pub const DispatchGraphDesc = extern struct {
+    pWorkgraph: [*c]Workgraph,
+    __union_field1: __Union0,
+    mInputType: DispatchGraphInputType,
+    mInitialize: bool,
+
+    pub const __Union0 = extern union {
+        __struct_field1: __Struct0,
+        __struct_field3: __Struct2,
+
+        pub const __Struct0 = extern struct {
+            pInput: ?*anyopaque,
+            mInputStride: u32,
+        };
+
+        pub const __Struct2 = extern struct {
+            pInputBuffer: [*c]Buffer,
+            mInputBufferOffset: u32,
+        };
     };
 };
 
@@ -2048,6 +2116,7 @@ pub const GPUVendorPreset = extern struct {
     mRTCoresCount: u32,
 };
 
+/// if you made change to this structure, please update GraphicsConfig.cpp FORMAT_CAPABILITY_COUNT
 pub const FormatCapability = extern struct {
     bits: c_int = 0,
 
@@ -2061,6 +2130,7 @@ pub const FormatCapability = extern struct {
     // pub usingnamespace cpp.FlagsMixin(FormatCapability);
 };
 
+/// if you made change to this structure, please update GraphicsConfig.cpp FORMAT_CAPABILITY_COUNT
 pub const WaveOpsSupportFlags = extern struct {
     bits: c_int = 0,
 
@@ -2124,12 +2194,13 @@ pub const GpuDesc = extern struct {
         mUnifiedMemorySupported: u1, // 17 bits
         mRayPipelineSupported: u1, // 18 bits
         mRayQuerySupported: u1, // 19 bits
-        mSoftwareVRSSupported: u1, // 20 bits
-        mPrimitiveIdSupported: u1, // 21 bits
-        mPrimitiveIdPsSupported: u1, // 22 bits
-        m64BitAtomicsSupported: u1, // 23 bits
+        mWorkgraphSupported: u1, // 20 bits
+        mSoftwareVRSSupported: u1, // 21 bits
+        mPrimitiveIdSupported: u1, // 22 bits
+        mPrimitiveIdPsSupported: u1, // 23 bits
+        m64BitAtomicsSupported: u1, // 24 bits
         /// Padding added by c2z
-        _dummy_padding: u9,
+        _dummy_padding: u8,
     },
 
     mFeatureLevel: D3D_FEATURE_LEVEL,
@@ -2152,6 +2223,7 @@ pub const GpuDesc = extern struct {
     },
 
     mAmdAsicFamily: u32,
+    mFrameBufferSamplesCount: u32,
 
     pub const __Struct0 = extern struct {
         pGpu: *IDXGIAdapter4,
@@ -2281,10 +2353,19 @@ pub const BindDepthTargetDesc = extern struct {
     },
 };
 
+/// Uses render targets' sample count in bindRenderTargetsDesc
+pub const SampleLocationDesc = extern struct {
+    pLocations: [*c]SampleLocations,
+    mGridSizeX: u32,
+    mGridSizeY: u32,
+};
+
+/// Uses render targets' sample count in bindRenderTargetsDesc
 pub const BindRenderTargetsDesc = extern struct {
     mRenderTargetCount: u32,
     mRenderTargets: [8]BindRenderTargetDesc,
     mDepthStencil: BindDepthTargetDesc,
+    mSampleLocation: SampleLocationDesc,
     /// Explicit viewport for empty render pass
     mExtent: [2]u32,
 };
@@ -2426,9 +2507,6 @@ pub const endCmd = _1_endCmd_;
 extern fn _1_cmdBindRenderTargets_(pCmd: [*c]Cmd, pDesc: [*c]const BindRenderTargetsDesc) void;
 pub const cmdBindRenderTargets = _1_cmdBindRenderTargets_;
 
-extern fn _1_cmdSetSampleLocations_(pCmd: [*c]Cmd, samplesCount: SampleCount, gridSizeX: u32, gridSizeY: u32, plocations: [*c]SampleLocations) void;
-pub const cmdSetSampleLocations = _1_cmdSetSampleLocations_;
-
 extern fn _1_cmdSetViewport_(pCmd: [*c]Cmd, x: f32, y: f32, width: f32, height: f32, minDepth: f32, maxDepth: f32) void;
 pub const cmdSetViewport = _1_cmdSetViewport_;
 
@@ -2511,6 +2589,15 @@ pub const getRecommendedSwapchainImageCount = _1_getRecommendedSwapchainImageCou
 extern fn _1_cmdExecuteIndirect_(pCmd: [*c]Cmd, type: IndirectArgumentType, maxCommandCount: c_uint, pIndirectBuffer: [*c]Buffer, bufferOffset: u64, pCounterBuffer: [*c]Buffer, counterBufferOffset: u64) void;
 ///indirect Draw functions
 pub const cmdExecuteIndirect = _1_cmdExecuteIndirect_;
+
+extern fn _1_addWorkgraph_(pRenderer: [*c]Renderer, pDesc: [*c]const WorkgraphDesc, ppWorkgraph: [*c][*c]Workgraph) void;
+pub const addWorkgraph = _1_addWorkgraph_;
+
+extern fn _1_removeWorkgraph_(pRenderer: [*c]Renderer, pWorkgraph: [*c]Workgraph) void;
+pub const removeWorkgraph = _1_removeWorkgraph_;
+
+extern fn _1_cmdDispatchWorkgraph_(pCmd: [*c]Cmd, pDesc: [*c]const DispatchGraphDesc) void;
+pub const cmdDispatchWorkgraph = _1_cmdDispatchWorkgraph_;
 
 extern fn _1_getTimestampFrequency_(pQueue: [*c]Queue, pFrequency: [*c]f64) void;
 ///*********************************************************************

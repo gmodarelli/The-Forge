@@ -5,6 +5,7 @@ const std = @import("std");
 // TIDES: BEGIN MANUAL CHANGES
 const FileMode = @import("../Interfaces/IFileSystem.zig").FileMode;
 // TIDES: END MANUAL CHANGES
+
 /// If you add more levels don't forget to change LOG_LEVELS macro to the actual number of levels
 pub const LogLevel = extern struct {
     bits: c_int = 0,

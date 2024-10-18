@@ -445,6 +445,7 @@ pub const ShaderLoadDesc = extern struct {
     mHull: ShaderStageLoadDesc,
     mDomain: ShaderStageLoadDesc,
     mComp: ShaderStageLoadDesc,
+    mGraph: ShaderStageLoadDesc,
     pConstants: [*c]const ShaderConstant,
     mConstantCount: u32,
 };

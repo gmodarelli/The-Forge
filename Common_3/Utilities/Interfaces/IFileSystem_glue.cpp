@@ -3,13 +3,8 @@
 #include "IFileSystem.h"
 
 extern "C" const void* _1_pSystemFileIO_ = (void*)&::pSystemFileIO;
-extern "C" bool        _1_fsIoOpenStreamFromPath_(IFileSystem* pIO, const ResourceDirectory rd, const char* fileName, FileMode mode,
-                                                  FileStream* pOut)
-{
-    return ::fsIoOpenStreamFromPath(pIO, rd, fileName, mode, pOut);
-}
-extern "C" bool   _1_fsCloseStream_(FileStream* fs) { return ::fsCloseStream(fs); }
-extern "C" size_t _1_fsReadFromStream_(FileStream* fs, void* pOutputBuffer, size_t bufferSizeInBytes)
+extern "C" bool        _1_fsCloseStream_(FileStream* fs) { return ::fsCloseStream(fs); }
+extern "C" size_t      _1_fsReadFromStream_(FileStream* fs, void* pOutputBuffer, size_t bufferSizeInBytes)
 {
     return ::fsReadFromStream(fs, pOutputBuffer, bufferSizeInBytes);
 }
