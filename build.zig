@@ -43,6 +43,7 @@ pub fn package(
     zforge_cpp.addCSourceFiles(.{
         .files = &.{
             "external/The-Forge/Common_3/Application/Interfaces/IFont_glue.cpp",
+            "external/The-Forge/Common_3/Application/Interfaces/IProfiler_glue.cpp",
             "external/The-Forge/Common_3/Graphics/Interfaces/IGraphics_glue.cpp",
             "external/The-Forge/Common_3/Resources/ResourceLoader/Interfaces/IResourceLoader_glue.cpp",
             "external/The-Forge/Common_3/Utilities/Interfaces/IFileSystem_glue.cpp",
