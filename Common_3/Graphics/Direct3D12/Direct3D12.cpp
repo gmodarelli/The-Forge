@@ -2235,7 +2235,18 @@ static void InitializeTextureDesc(Renderer* pRenderer, const TextureDesc* pDesc,
     desc->Height = pDesc->mHeight;
     desc->DepthOrArraySize = (UINT16)(pDesc->mArraySize != 1 ? pDesc->mArraySize : pDesc->mDepth);
     desc->MipLevels = (UINT16)pDesc->mMipLevels;
+#if defined(TIDES)
+    if (dxFormat == DXGI_FORMAT_R9G9B9E5_SHAREDEXP)
+    {
+        desc->Format = dxFormat;
+    }
+    else
+    {
+        desc->Format = (DXGI_FORMAT)TinyImageFormat_DXGI_FORMATToTypeless((TinyImageFormat_DXGI_FORMAT)dxFormat);
+    }
+#else
     desc->Format = (DXGI_FORMAT)TinyImageFormat_DXGI_FORMATToTypeless((TinyImageFormat_DXGI_FORMAT)dxFormat);
+#endif
     desc->SampleDesc.Count = (UINT)pDesc->mSampleCount;
     desc->SampleDesc.Quality = (UINT)pDesc->mSampleQuality;
     desc->Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
