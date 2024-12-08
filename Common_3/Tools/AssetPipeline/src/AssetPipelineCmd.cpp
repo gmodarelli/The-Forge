@@ -97,8 +97,13 @@ int AssetPipelineCmd(int argc, char** argv)
         return 0;
     }
 
+#if defined(TIDES)
+    if (!initMemAlloc(nullptr))
+        return EXIT_FAILURE;
+#else
     if (!initMemAlloc(gApplicationName))
         return EXIT_FAILURE;
+#endif
 
     const char* input = "";
     const char* output = "";
@@ -192,11 +197,6 @@ int AssetPipelineCmd(int argc, char** argv)
     fsDesc.pAppName = gApplicationName;
     fsDesc.mIsTool = true;
 
-    if (content)
-    {
-        fsDesc.pResourceMounts[RM_CONTENT] = content;
-    }
-
     if (!initFileSystem(&fsDesc))
     {
         LOGF(eERROR, "Filesystem failed to initialize.");
@@ -210,7 +210,7 @@ int AssetPipelineCmd(int argc, char** argv)
         inputPath[size] = '/';
 
     char outputPath[FS_MAX_PATH] = { 0 };
-    fsNormalizePath(output, '/', outputPath);
+    size = fsNormalizePath(output, '/', outputPath);
     if (outputPath[size - 1] != '/')
         outputPath[size] = '/';
 
@@ -219,7 +219,11 @@ int AssetPipelineCmd(int argc, char** argv)
     fsSetPathForResourceDir(pSystemFileIO, RD_LOG, "");
 
     LogLevel logLevel = params.mSettings.quiet ? eWARNING : DEFAULT_LOG_LEVEL;
+#if defined(TIDES)
+    initLog(nullptr, logLevel);
+#else
     initLog(gApplicationName, logLevel);
+#endif
 
     bool runAssetPipeline = false;
     for (uint32_t i = 0; i < TF_ARRAY_COUNT(gAssetPipelineCommands); ++i)

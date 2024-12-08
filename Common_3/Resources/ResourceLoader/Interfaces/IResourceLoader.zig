@@ -201,7 +201,13 @@ pub const Geometry = extern struct {
     /// If present, data is stored in pGeometryBuffer
     pGeometryBuffer: [*c]GeometryBuffer,
     meshlets: GeometryMeshlets,
-    mPad: [20]u32,
+// TIDES: BEGIN MANUAL CHANGES
+    mAabbMin: [3]f32,
+    mAabbMax: [3]f32,
+    mAabbCenter: [3]f32,
+    mRadius: f32,
+    mPad: [10]u32,
+// TIDES: END MANUAL CHANGES
 
     pub const __Union0 = extern union {
         __struct_field1: __Struct0,

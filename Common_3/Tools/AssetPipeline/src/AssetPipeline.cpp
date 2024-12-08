@@ -2069,6 +2069,19 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
             }
         }
 
+#if defined(TIDES)
+        geom->mAabbCenter[0] = 0.0f;
+        geom->mAabbCenter[1] = 0.0f;
+        geom->mAabbCenter[2] = 0.0f;
+        geom->mAabbMin[0] = FLT_MAX;
+        geom->mAabbMin[1] = FLT_MAX;
+        geom->mAabbMin[2] = FLT_MAX;
+        geom->mAabbMax[0] = FLT_MIN;
+        geom->mAabbMax[1] = FLT_MIN;
+        geom->mAabbMax[2] = FLT_MIN;
+        geom->mRadius = 0.0f;
+#endif
+
         for (uint32_t j = 0; j < data->meshes_count; ++j)
         {
             for (uint32_t p = 0; p < data->meshes[j].primitives_count; ++p)
@@ -2126,6 +2139,21 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
                             vertexPacking[semanticIdx]((uint32_t)attr->data->count, (uint32_t)attr->data->stride, stride, 0, src, dst);
                         else
                             memcpy(dst, src, attr->data->count * attr->data->stride);
+#if defined(TIDES)
+                        // Encapsulate primitive AABB into mesh AABB
+                        if (semanticIdx == SEMANTIC_POSITION)
+                        {
+                            if (attr->data->has_min && attr->data->has_max)
+                            {
+                                geom->mAabbMin[0] = TF_MIN(attr->data->min[0], geom->mAabbMin[0]);
+                                geom->mAabbMin[1] = TF_MIN(attr->data->min[1], geom->mAabbMin[1]);
+                                geom->mAabbMin[2] = TF_MIN(attr->data->min[2], geom->mAabbMin[2]);
+                                geom->mAabbMax[0] = TF_MAX(attr->data->max[0], geom->mAabbMax[0]);
+                                geom->mAabbMax[1] = TF_MAX(attr->data->max[1], geom->mAabbMax[1]);
+                                geom->mAabbMax[2] = TF_MAX(attr->data->max[2], geom->mAabbMax[2]);
+                            }
+                        }
+#endif
                     }
                 }
 
@@ -2245,6 +2273,22 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
                 ++drawCount;
             }
         }
+
+#if defined(TIDES)
+        // Convert from LH to RH
+        geom->mAabbMin[0] *= -1.0f;
+        geom->mAabbMax[0] *= -1.0f;
+        // Calculate AABB center
+        geom->mAabbCenter[0] = (geom->mAabbMin[0] + geom->mAabbMax[0]) * 0.5f;
+        geom->mAabbCenter[1] = (geom->mAabbMin[1] + geom->mAabbMax[1]) * 0.5f;
+        geom->mAabbCenter[2] = (geom->mAabbMin[2] + geom->mAabbMax[2]) * 0.5f;
+        // Calculate Mesh radius
+        float radiusX = (geom->mAabbMax[0] - geom->mAabbMin[0]) * 0.5f;
+        float radiusY = (geom->mAabbMax[1] - geom->mAabbMin[1]) * 0.5f;
+        float radiusZ = (geom->mAabbMax[2] - geom->mAabbMin[2]) * 0.5f;
+        geom->mRadius = TF_MAX(radiusX, TF_MAX(radiusY, radiusZ));
+#endif
+
 
         geom->mIndexCount = indexCount;
         geom->mVertexCount = vertexCount;

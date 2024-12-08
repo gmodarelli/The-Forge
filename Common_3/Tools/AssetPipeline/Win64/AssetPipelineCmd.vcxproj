@@ -126,7 +126,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>Disabled</Optimization>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_WINDOWS;_CONSOLE;TOOLS_FILESYSTEM;</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_WINDOWS;_CONSOLE;TOOLS_FILESYSTEM;TIDES</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
@@ -235,7 +235,7 @@ $(systemroot)\System32\xcopy /Y "$(ProjectDir)$(Platform)\Debug\ozz_base.lib" "$
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_WINDOWS;_CONSOLE;TOOLS_FILESYSTEM;</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;_WINDOWS;_CONSOLE;TOOLS_FILESYSTEM;TIDES</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>

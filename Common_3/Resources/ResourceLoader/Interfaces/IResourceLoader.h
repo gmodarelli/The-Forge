@@ -215,7 +215,15 @@ typedef struct Geometry
 
     GeometryMeshlets meshlets;
 
+#if defined(TIDES)
+    float mAabbMin[3];
+    float mAabbMax[3];
+    float mAabbCenter[3];
+    float mRadius;
+    uint32_t mPad[10];
+#else
     uint32_t mPad[20];
+#endif
 } Geometry;
 
 static_assert(sizeof(Geometry) == 352, "If Geometry size changes we need to rebuild all custom binary meshes");
