@@ -6329,6 +6329,26 @@ void cmdSetScissor(Cmd* pCmd, uint32_t x, uint32_t y, uint32_t width, uint32_t h
     pCmd->mDx.pCmdList->RSSetScissorRects(1, &scissor);
 }
 
+#if defined(TIDES)
+
+void cmdSetViewports(Cmd* pCmd, const ViewportDesc* pViewportDescs, uint32_t viewportCount)
+{
+    ASSERT(pCmd);
+    ASSERT(pCmd->mDx.pCmdList);
+
+    pCmd->mDx.pCmdList->RSSetViewports(viewportCount, (D3D12_VIEWPORT*)pViewportDescs);
+}
+
+void cmdSetScissors(Cmd* pCmd, const ScissorDesc* pScissorDescs, uint32_t scissorCount)
+{
+    ASSERT(pCmd);
+    ASSERT(pCmd->mDx.pCmdList);
+
+    pCmd->mDx.pCmdList->RSSetScissorRects(scissorCount, (D3D12_RECT*)pScissorDescs);
+}
+
+#endif
+
 void cmdSetStencilReferenceValue(Cmd* pCmd, uint32_t val)
 {
     ASSERT(pCmd);

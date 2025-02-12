@@ -2371,6 +2371,24 @@ pub const BindRenderTargetsDesc = extern struct {
 };
 
 // TIDES: BEGIN MANUAL CHANGES
+pub const ViewportDesc = extern struct {
+    mX: f32,
+    mY: f32,
+    mWidth: f32,
+    mHeight: f32,
+    mMinDepth: f32,
+    mMaxDepth: f32,
+};
+
+pub const ScissorDesc = extern struct {
+    mLeft: u32,
+    mTop: u32,
+    mRight: u32,
+    mBottom: u32,
+};
+// TIDES: END MANUAL CHANGES
+
+// TIDES: BEGIN MANUAL CHANGES
 extern fn _1_initGPUConfiguration_(pExtendedSettings: [*c]ExtendedSettings) void;
 pub const initGPUConfiguration = _1_initGPUConfiguration_;
 // TIDES: END MANUAL CHANGES
@@ -2512,6 +2530,14 @@ pub const cmdSetViewport = _1_cmdSetViewport_;
 
 extern fn _1_cmdSetScissor_(pCmd: [*c]Cmd, x: u32, y: u32, width: u32, height: u32) void;
 pub const cmdSetScissor = _1_cmdSetScissor_;
+
+// TIDES: BEGIN MANUAL CHANGES
+extern fn _1_cmdSetViewports_(pCmd: [*c]Cmd, pViewportDescs: [*c]const ViewportDesc, viewportCount: u32) void;
+pub const cmdSetViewports = _1_cmdSetViewports_;
+
+extern fn _1_cmdSetScissors_(pCmd: [*c]Cmd, pScissorDescs: [*c]const ScissorDesc, scissorCount: u32) void;
+pub const cmdSetScissors = _1_cmdSetScissors_;
+// TIDES: END MANUAL CHANGES
 
 extern fn _1_cmdSetStencilReferenceValue_(pCmd: [*c]Cmd, val: u32) void;
 pub const cmdSetStencilReferenceValue = _1_cmdSetStencilReferenceValue_;

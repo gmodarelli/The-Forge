@@ -113,6 +113,16 @@ extern "C" void _1_cmdSetScissor_(Cmd* pCmd, uint32_t x, uint32_t y, uint32_t wi
 {
     ::cmdSetScissor(pCmd, x, y, width, height);
 }
+// TIDES: BEGIN MANUAL CHANGES
+extern "C" void _1_cmdSetViewports_(Cmd* pCmd, const ViewportDesc* pViewportDescs, uint32_t viewportCount)
+{
+    ::cmdSetViewports(pCmd, pViewportDescs, viewportCount);
+}
+extern "C" void _1_cmdSetScissors_(Cmd* pCmd, const ScissorDesc* pScissorDescs, uint32_t scissorCount)
+{
+    ::cmdSetScissors(pCmd, pScissorDescs, scissorCount);
+}
+// TIDES: END MANUAL CHANGES
 extern "C" void _1_cmdSetStencilReferenceValue_(Cmd* pCmd, uint32_t val) { ::cmdSetStencilReferenceValue(pCmd, val); }
 extern "C" void _1_cmdBindPipeline_(Cmd* pCmd, Pipeline* pPipeline) { ::cmdBindPipeline(pCmd, pPipeline); }
 extern "C" void _1_cmdBindDescriptorSet_(Cmd* pCmd, uint32_t index, DescriptorSet* pDescriptorSet)

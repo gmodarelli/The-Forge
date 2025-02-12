@@ -3218,6 +3218,28 @@ typedef struct BindRenderTargetsDesc
     uint32_t             mExtent[2];
 } BindRenderTargetsDesc;
 
+#if defined(TIDES)
+
+typedef struct ViewportDesc
+{
+    float mX;
+    float mY;
+    float mWidth;
+    float mHeight;
+    float mMinDepth;
+    float mMaxDepth;
+} ViewportDesc;
+
+typedef struct ScissorDesc
+{
+    uint32_t mLeft;
+    uint32_t mTop;
+    uint32_t mRight;
+    uint32_t mBottom;
+} ScissorDesc;
+
+#endif
+
 // clang-format off
 
 // API functions
@@ -3295,6 +3317,10 @@ void endCmd(Cmd* pCmd);
 void cmdBindRenderTargets(Cmd* pCmd, const BindRenderTargetsDesc* pDesc);
 void cmdSetViewport(Cmd* pCmd, float x, float y, float width, float height, float minDepth, float maxDepth);
 void cmdSetScissor(Cmd* pCmd, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+#if defined(TIDES)
+void cmdSetViewports(Cmd* pCmd, const ViewportDesc* pViewportDescs, uint32_t viewportCount);
+void cmdSetScissors(Cmd* pCmd, const ScissorDesc* pScissorDescs, uint32_t scissorCount);
+#endif
 void cmdSetStencilReferenceValue(Cmd* pCmd, uint32_t val);
 void cmdBindPipeline(Cmd* pCmd, Pipeline* pPipeline);
 void cmdBindDescriptorSet(Cmd* pCmd, uint32_t index, DescriptorSet* pDescriptorSet);
