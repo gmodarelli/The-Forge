@@ -38,6 +38,7 @@
     <ClCompile Include="..\..\ThirdParty\OpenSource\meshoptimizer\src\vertexfilter.cpp" />
     <ClCompile Include="..\..\ThirdParty\OpenSource\meshoptimizer\src\vfetchanalyzer.cpp" />
     <ClCompile Include="..\..\ThirdParty\OpenSource\meshoptimizer\src\vfetchoptimizer.cpp" />
+    <ClCompile Include="..\..\ThirdParty\OpenSource\MikkTSpace\mikktspace.c" />
     <ClCompile Include="..\..\..\Utilities\FileSystem\ToolFileSystem.c" />
     <ClCompile Include="..\src\AssetPipeline.cpp" />
     <ClCompile Include="..\src\AssetPipelineCmd.cpp" />
@@ -47,6 +48,7 @@
     <ClInclude Include="..\..\..\Resources\AnimationSystem\ThirdParty\OpenSource\TressFX\TressFXAsset.h" />
     <ClInclude Include="..\..\..\Resources\AnimationSystem\ThirdParty\OpenSource\TressFX\TressFXFileFormat.h" />
     <ClInclude Include="..\..\ThirdParty\OpenSource\meshoptimizer\src\meshoptimizer.h" />
+    <ClInclude Include="..\..\ThirdParty\OpenSource\MikkTSpace\mikktspace.h" />
     <ClInclude Include="..\src\AssetPipeline.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

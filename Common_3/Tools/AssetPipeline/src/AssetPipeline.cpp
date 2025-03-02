@@ -45,6 +45,12 @@
 // Meshoptimizer
 #include "../../ThirdParty/OpenSource/meshoptimizer/src/meshoptimizer.h"
 
+#if defined(TIDES)
+// MikktSpace
+#include <assert.h>
+#include "../../ThirdParty/OpenSource/MikkTSpace/mikktspace.h"
+#endif
+
 #ifdef ENABLE_ASSET_PIPELINE_CGLTF_WRITE_IMPLEMENTATION
 #define CGLTF_WRITE_IMPLEMENTATION
 #endif
@@ -307,6 +313,117 @@ cgltf_result cgltf_write(ResourceDirectory resourceDir, const char* skeletonAsse
 
     return cgltf_result_success;
 }
+
+#if defined(TIDES)
+struct GeometryContext
+{
+    Geometry*     geom;
+    GeometryData* geomData;
+    uint32_t primIndexOffset;
+    uint32_t primIndexCount;
+    uint32_t primVertexOffset;
+    uint32_t primVertexCount;
+};
+
+int32_t mikkt_get_num_faces(const SMikkTSpaceContext* context) {
+    GeometryContext* geomContext = (GeometryContext*)context->m_pUserData;
+    return (int32_t)geomContext->primIndexCount / 3;
+}
+
+int32_t mikkt_get_num_vertices_of_face(const SMikkTSpaceContext* context, int32_t faceIndex) {
+    (void)context;
+    (void)faceIndex;
+
+    return 3;
+}
+
+uint32_t get_vertex_index(GeometryContext* geomContext, int32_t faceIndex, int32_t vertIndex)
+{
+    GeometryData* geomData = geomContext->geomData;
+    Geometry*     geom = geomContext->geom;
+
+    uint32_t index = faceIndex * 3 + vertIndex;
+    ASSERT(index < geomContext->primIndexCount);
+    uint32_t vertexIndex = 0;
+    if (geom->mIndexType == INDEX_TYPE_UINT16)
+    {
+        uint16_t* indices = (uint16_t*)geomData->pShadow->pIndices + geomContext->primIndexOffset;
+        vertexIndex = (uint32_t)indices[index];
+    }
+    else
+    {
+        uint32_t* indices = (uint32_t*)geomData->pShadow->pIndices + geomContext->primIndexOffset;
+        vertexIndex = indices[index];
+    }
+
+    ASSERT(vertexIndex < geomContext->primVertexCount);
+    return vertexIndex;
+}
+
+void mikkt_get_position(const SMikkTSpaceContext* context, float position[3], int32_t faceIndex, int32_t vertIndex)
+{
+    GeometryContext* geomContext = (GeometryContext*)context->m_pUserData;
+    GeometryData*    geomData = geomContext->geomData;
+    Geometry*        geom = geomContext->geom;
+
+    uint32_t vertexIndex = get_vertex_index(geomContext, faceIndex, vertIndex);
+
+    const uint32_t stride = geomContext->geomData->pShadow->mVertexStrides[SEMANTIC_POSITION];
+    float3* positions = (float3*)((uint8_t*)geomData->pShadow->pAttributes[SEMANTIC_POSITION] + geomContext->primVertexOffset * stride);
+    float3  vertPosition = positions[vertexIndex];
+    position[0] = vertPosition.x;
+    position[1] = vertPosition.y;
+    position[2] = vertPosition.z;
+}
+
+void mikkt_get_normal(const SMikkTSpaceContext* context, float normal[3], int32_t faceIndex, int32_t vertIndex) {
+    GeometryContext* geomContext = (GeometryContext*)context->m_pUserData;
+    GeometryData* geomData = geomContext->geomData;
+    Geometry* geom = geomContext->geom;
+
+    uint32_t vertexIndex = get_vertex_index(geomContext, faceIndex, vertIndex);
+
+    const uint32_t stride = geomContext->geomData->pShadow->mVertexStrides[SEMANTIC_NORMAL];
+    float3* normals = (float3*)((uint8_t*)geomData->pShadow->pAttributes[SEMANTIC_NORMAL] + geomContext->primVertexOffset * stride);
+    float3 vertNormal = normals[vertexIndex];
+    normal[0] = vertNormal.x;
+    normal[1] = vertNormal.y;
+    normal[2] = vertNormal.z;
+}
+
+void mikkt_get_tex_coord(const SMikkTSpaceContext* context, float texture[2], int32_t faceIndex, int32_t vertIndex)
+{
+    GeometryContext* geomContext = (GeometryContext*)context->m_pUserData;
+    GeometryData*    geomData = geomContext->geomData;
+    Geometry*        geom = geomContext->geom;
+
+    uint32_t vertexIndex = get_vertex_index(geomContext, faceIndex, vertIndex);
+
+    const uint32_t stride = geomContext->geomData->pShadow->mVertexStrides[SEMANTIC_TEXCOORD0];
+    float2* tex_coords = (float2*)((uint8_t*)geomData->pShadow->pAttributes[SEMANTIC_TEXCOORD0] + geomContext->primVertexOffset * stride);
+    float2  tex_coord = tex_coords[vertexIndex];
+    texture[0] = tex_coord.x;
+    texture[1] = tex_coord.y;
+}
+
+void mikkt_set_tspace_basic(const SMikkTSpaceContext* context, const float tangent[3], float sign, int32_t faceIndex, int32_t vertIndex)
+{
+    GeometryContext* geomContext = (GeometryContext*)context->m_pUserData;
+    GeometryData*    geomData = geomContext->geomData;
+    Geometry*        geom = geomContext->geom;
+
+    uint32_t vertexIndex = get_vertex_index(geomContext, faceIndex, vertIndex);
+
+    const uint32_t stride = geomContext->geomData->pShadow->mVertexStrides[SEMANTIC_TANGENT];
+    float4* tangents = (float4*)((uint8_t*)geomData->pShadow->pAttributes[SEMANTIC_TANGENT] + geomContext->primVertexOffset * stride);
+    float4* vertTangent = &tangents[vertexIndex];
+    vertTangent->x = tangent[0];
+    vertTangent->y = tangent[1];
+    vertTangent->z = tangent[2];
+    vertTangent->w = sign;
+}
+
+#endif
 
 static void DiscoverExtraAnimationsForMesh(ResourceDirectory resourceDirInput, const char* searchRootDir,
                                            const char* extraAnimationsSubdirName, SkeletonAndAnimations* pSkeletonAndAnimations)
@@ -1329,9 +1446,25 @@ static inline void util_convert_float3_rh_to_lh(uint32_t count, uint32_t srcStri
     float3* p = (float3*)src;
     for (uint32_t e = 0; e < count; e++)
     {
-        float3 position = p[e];
-        position.x *= -1.0f;
-        *(float3*)(dst + e * sizeof(float3) + offset) = position;
+        float3 vector = p[e];
+        vector.x *= -1.0f;
+        *(float3*)(dst + e * sizeof(float3) + offset) = vector;
+    }
+}
+
+static inline void util_convert_float4_rh_to_lh(uint32_t count, uint32_t srcStride, uint32_t dstStride, uint32_t offset, const uint8_t* src,
+                                                uint8_t* dst)
+{
+    COMPILE_ASSERT(sizeof(float4) == sizeof(float[4]));
+    ASSERT(srcStride == sizeof(float4));
+    ASSERT(dstStride == sizeof(float4));
+
+    float4* p = (float4*)src;
+    for (uint32_t e = 0; e < count; e++)
+    {
+        float4 vector = p[e];
+        vector.x *= -1.0f;
+        *(float4*)(dst + e * sizeof(float4) + offset) = vector;
     }
 }
 
@@ -1837,8 +1970,40 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
                     vertexAttribs[semanticIdx] = &prim->attributes[k];
                     vertexAttribCount[semanticIdx] += (uint32_t)prim->attributes[k].data->count;
                 }
+
             }
         }
+
+#if defined(TIDES)
+        // Ignore mesh tangents and create custom ones
+        vertexAttribs[SEMANTIC_TANGENT] = 0;
+        vertexAttribCount[SEMANTIC_TANGENT] = 0;
+
+        if (vertexAttribCount[SEMANTIC_TEXCOORD0] > 0)
+        {
+            for (uint32_t j = 0; j < data->meshes_count; ++j)
+            {
+                const cgltf_mesh* mesh = &data->meshes[j];
+
+                for (uint32_t p = 0; p < mesh->primitives_count; ++p)
+                {
+                    const cgltf_primitive* prim = &mesh->primitives[p];
+                    for (uint32_t k = 0; k < prim->attributes_count; ++k)
+                    {
+                        const uint32_t semanticIdx =
+                            (uint32_t)util_cgltf_attrib_type_to_semantic(prim->attributes[k].type, prim->attributes[k].index);
+                        ASSERT(semanticIdx < MAX_SEMANTICS);
+
+                        if (semanticIdx == SEMANTIC_POSITION)
+                        {
+                            vertexAttribs[SEMANTIC_TANGENT] = 0;
+                            vertexAttribCount[SEMANTIC_TANGENT] += (uint32_t)prim->attributes[k].data->count;
+                        }
+                    }
+                }
+            }
+        }
+#endif
 
         // Request the size that the user will need to load it's custom fields
         uint32_t userDataSize = 0;
@@ -1897,6 +2062,17 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
             const VertexAttrib*    attr = &pVertexLayout->mAttribs[attrIdx];
             const cgltf_attribute* cgltfAttr = vertexAttribs[attr->mSemantic];
 
+#if defined(TIDES)
+            // NOTE: We want to generate tangents.
+            if (attr->mSemantic == SEMANTIC_TANGENT)
+            {
+                const uint32_t tangentStride = TinyImageFormat_BitSizeOfBlock(attr->mFormat) >> 3;
+                ASSERT(vertexAttrStrides[attr->mSemantic] == 0);
+                vertexAttrStrides[attr->mSemantic] = tangentStride;
+                continue;
+            }
+#endif
+
             if (!cgltfAttr)
             {
                 if (glTFParams->mIgnoreMissingAttributes)
@@ -1924,7 +2100,7 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
             const TinyImageFormat srcFormat = util_cgltf_type_to_image_format(cgltfAttr->data->type, cgltfAttr->data->component_type);
             const TinyImageFormat dstFormat = attr->mFormat == TinyImageFormat_UNDEFINED ? srcFormat : attr->mFormat;
 
-            if (dstFormat != srcFormat || attr->mSemantic == SEMANTIC_POSITION)
+            if (dstFormat != srcFormat || attr->mSemantic == SEMANTIC_POSITION || attr->mSemantic == SEMANTIC_NORMAL)
             {
                 // Select appropriate packing function which will be used when filling the vertex buffer
                 switch (cgltfAttr->type)
@@ -1942,10 +2118,11 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
                     break;
                 }
                 case cgltf_attribute_type_normal:
-                // case cgltf_attribute_type_tangent:
                 {
-                    if (sizeof(uint32_t) == dstFormatSize && (sizeof(float[3]) == srcFormatSize || sizeof(float[4]) == srcFormatSize))
-                        vertexPacking[attr->mSemantic] = util_pack_float3_direction_to_half2;
+                    // TODO: Enable normal packing once we know the renderer works correctly
+                    vertexPacking[attr->mSemantic] = util_convert_float3_rh_to_lh;
+                    // if (sizeof(uint32_t) == dstFormatSize && (sizeof(float[3]) == srcFormatSize || sizeof(float[4]) == srcFormatSize))
+                    //    vertexPacking[attr->mSemantic] = util_pack_float3_direction_to_half2;
                     // #TODO: Add more variations if needed
                     break;
                 }
@@ -2073,12 +2250,12 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
         geom->mAabbCenter[0] = 0.0f;
         geom->mAabbCenter[1] = 0.0f;
         geom->mAabbCenter[2] = 0.0f;
-        geom->mAabbMin[0] = FLT_MAX;
-        geom->mAabbMin[1] = FLT_MAX;
-        geom->mAabbMin[2] = FLT_MAX;
-        geom->mAabbMax[0] = FLT_MIN;
-        geom->mAabbMax[1] = FLT_MIN;
-        geom->mAabbMax[2] = FLT_MIN;
+        geom->mAabbMin[0] =  FLT_MAX;
+        geom->mAabbMin[1] =  FLT_MAX;
+        geom->mAabbMin[2] =  FLT_MAX;
+        geom->mAabbMax[0] = -FLT_MAX;
+        geom->mAabbMax[1] = -FLT_MAX;
+        geom->mAabbMax[2] = -FLT_MAX;
         geom->mRadius = 0.0f;
 #endif
 
@@ -2156,6 +2333,37 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
 #endif
                     }
                 }
+
+#if defined(TIDES)
+                /************************************************************************/
+                // Calculate MikkTSpace Tangents
+                /************************************************************************/
+                // TODO: We can define this interface globally
+                SMikkTSpaceInterface mikktInterface{};
+                mikktInterface.m_getNumFaces = mikkt_get_num_faces;
+                mikktInterface.m_getNumVerticesOfFace = mikkt_get_num_vertices_of_face;
+                mikktInterface.m_getPosition = mikkt_get_position;
+                mikktInterface.m_getNormal = mikkt_get_normal;
+                mikktInterface.m_getTexCoord = mikkt_get_tex_coord;
+                mikktInterface.m_setTSpaceBasic = mikkt_set_tspace_basic;
+
+                GeometryContext geomContext{};
+                geomContext.geom = geom;
+                geomContext.geomData = geomData;
+                geomContext.primIndexCount = (uint32_t)(prim->indices->count);
+                // TODO: We should pick the position attribute, for now we're assuming it's the first one
+                geomContext.primVertexCount = (uint32_t)(prim->attributes[0].data->count);
+                geomContext.primIndexOffset = indexCount;
+                geomContext.primVertexOffset = vertexCount;
+
+                SMikkTSpaceContext mikktContext{};
+                mikktContext.m_pUserData = (void*)&geomContext;
+                mikktContext.m_pInterface = &mikktInterface;
+
+                // TODO: Ensure we have allocated space for tangents?
+
+                genTangSpaceDefault(&mikktContext);
+#endif
 
                 /************************************************************************/
                 // Optimize mesh
@@ -2288,7 +2496,6 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
         float radiusZ = (geom->mAabbMax[2] - geom->mAabbMin[2]) * 0.5f;
         geom->mRadius = TF_MAX(radiusX, TF_MAX(radiusY, radiusZ));
 #endif
-
 
         geom->mIndexCount = indexCount;
         geom->mVertexCount = vertexCount;
@@ -2749,7 +2956,8 @@ int AssetPipelineRun(AssetPipelineParams* assetParams)
             vertexLayout.mAttribs[0].mLocation = 0;
             vertexLayout.mAttribs[0].mOffset = 0;
             vertexLayout.mAttribs[1].mSemantic = SEMANTIC_NORMAL;
-            vertexLayout.mAttribs[1].mFormat = TinyImageFormat_R32_UINT;
+            // vertexLayout.mAttribs[1].mFormat = TinyImageFormat_R32_UINT;
+            vertexLayout.mAttribs[1].mFormat = TinyImageFormat_R32G32B32_SFLOAT;
             vertexLayout.mAttribs[1].mBinding = 1;
             vertexLayout.mAttribs[1].mLocation = 1;
             vertexLayout.mAttribs[1].mOffset = 0;
@@ -2765,7 +2973,8 @@ int AssetPipelineRun(AssetPipelineParams* assetParams)
             vertexLayout.mAttribs[3].mLocation = 3;
             vertexLayout.mAttribs[3].mOffset = 0;
             vertexLayout.mAttribs[4].mSemantic = SEMANTIC_TEXCOORD0;
-            vertexLayout.mAttribs[4].mFormat = TinyImageFormat_R32_UINT;
+            // vertexLayout.mAttribs[4].mFormat = TinyImageFormat_R32_UINT;
+            vertexLayout.mAttribs[4].mFormat = TinyImageFormat_R32G32_SFLOAT;
             vertexLayout.mAttribs[4].mBinding = 4;
             vertexLayout.mAttribs[4].mLocation = 4;
             vertexLayout.mAttribs[4].mOffset = 0;
