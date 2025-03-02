@@ -848,6 +848,17 @@ pub const BufferBarrier = extern struct {
         /// Padding added by c2z
         _dummy_padding: u6,
     },
+
+    // TIDES: BEGIN MANUAL CHANGES
+    pub fn init(buffer: [*c]Buffer, current_state: ResourceState, new_state: ResourceState) BufferBarrier {
+        var barrier = std.mem.zeroes(BufferBarrier);
+        barrier.pBuffer = buffer;
+        barrier.mCurrentState = current_state;
+        barrier.mNewState = new_state;
+
+        return barrier;
+    }
+    // TIDES: END MANUAL CHANGES
 };
 
 pub const TextureBarrier = extern struct {
