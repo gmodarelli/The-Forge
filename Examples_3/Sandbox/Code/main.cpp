@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
+#include <Windows.h>
 
 #define STB_DS_IMPLEMENTATION
 #include "../../../Common_3/Utilities/Math/BStringHashMap.h"
@@ -11,61 +12,133 @@
 // TODO: Implement the following interfaces
 // IOperatingSystem.h
 
+typedef struct Window Window;
+struct Window
+{
+    HWND window;
+    uint32_t width;
+    uint32_t height;
+    bool     should_close;
+};
+
+static Window g_window;
+
+void window_create();
+void window_destroy();
+
 #define FRAMES_IN_FLIGHT_COUNT 2
 
-Renderer* g_renderer;
-Queue* g_graphicsQueue;
-Semaphore* g_imageAcquireSemaphore;
-CmdPool* g_cmdPools[FRAMES_IN_FLIGHT_COUNT] = { NULL };
-Cmd* g_cmds[FRAMES_IN_FLIGHT_COUNT] = { NULL };
-Fence* g_fences[FRAMES_IN_FLIGHT_COUNT] = { NULL };
-Semaphore* g_semaphores[FRAMES_IN_FLIGHT_COUNT] = { NULL };
-
-void initializeCommandPools()
+typedef struct Gpu Gpu;
+struct Gpu
 {
-    assert(g_renderer);
-    assert(g_graphicsQueue);
+    Renderer* renderer;
+    Queue* graphics_queue;
+    Semaphore* image_acquired_semaphore;
+    CmdPool* cmd_pools[FRAMES_IN_FLIGHT_COUNT] = { NULL };
+    Cmd* cmds[FRAMES_IN_FLIGHT_COUNT] = { NULL };
+    Fence* fences[FRAMES_IN_FLIGHT_COUNT] = { NULL };
+    Semaphore* semaphores[FRAMES_IN_FLIGHT_COUNT] = { NULL };
+    SwapChain* swapchain;
+};
 
-    CmdPoolDesc poolDesc = {};
-    poolDesc.mTransient = false;
-    poolDesc.pQueue = g_graphicsQueue;
+static Gpu g_gpu;
 
-    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT_COUNT; i++)
-    {
-        initCmdPool(g_renderer, &poolDesc, &g_cmdPools[i]);
-        CmdDesc cmdDesc = {};
-        cmdDesc.pPool = g_cmdPools[i];
-#if defined(ENABLE_GRAPHICS_DEBUG_ANNOTATION)
-        static char buffer[128];
-        snprintf(buffer, sizeof(buffer), "Pool %u Cmd %u", i, 0);
-        cmdDesc.pName = buffer;
-#endif
-
-        initCmd(g_renderer, &cmdDesc, &g_cmds[i]);
-        initFence(g_renderer, &g_fences[i]);
-        initSemaphore(g_renderer, &g_semaphores[i]);
-    }
-}
-
-void exitCommandPools()
-{
-    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT_COUNT; i++)
-    {
-        exitCmd(g_renderer, g_cmds[i]);
-        exitSemaphore(g_renderer, g_semaphores[i]);
-        exitFence(g_renderer, g_fences[i]);
-        exitCmdPool(g_renderer, g_cmdPools[i]);
-
-        g_cmds[i] = NULL;
-        g_semaphores[i] = NULL;
-        g_fences[i] = NULL;
-        g_cmdPools[i] = NULL;
-    }
-}
+void gpu_init();
+void gpu_exit();
+bool gpu_on_load(ReloadDesc reload_desc);
+void gpu_on_unload(ReloadDesc reload_desc);
 
 int main(int argc, char** argv)
 {
 	printf("Sandbox\n");
+
+    window_create();
+    gpu_init();
+    if (!gpu_on_load({ RELOAD_TYPE_ALL }))
+    {
+        assert(false);
+    }
+
+    while (!g_window.should_close)
+    {
+        MSG msg;
+        if (PeekMessage(&msg, g_window.window, 0, 0, PM_REMOVE))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        // render
+    }
+
+    gpu_on_unload({ RELOAD_TYPE_ALL });
+    gpu_exit();
+    window_destroy();
+	return 0;
+}
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+
+void window_create()
+{
+    HINSTANCE   hinstance = GetModuleHandleA(NULL);
+
+    g_window.width = 1920;
+    g_window.height = 1080;
+
+    // Register the window class.
+    WNDCLASSEXA wc = { 0 };
+    wc.cbSize = sizeof(wc);
+    wc.style = 0;
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = hinstance;
+    // wc.hCursor = LoadCursorA(NULL, IDC_ARROW);
+    wc.lpszClassName = "Ze Forge";
+
+    ATOM class_atom = RegisterClassExA(&wc);
+    assert(class_atom != 0);
+
+    HWND hwnd = CreateWindowExA(0, "Ze Forge", "Ze Forge", WS_OVERLAPPEDWINDOW,
+
+                                CW_USEDEFAULT, CW_USEDEFAULT, g_window.width, g_window.height,
+
+                                NULL, // Parent window
+                                NULL, // Menu
+                                hinstance,
+                                NULL // Additional application data
+    );
+
+    assert(hwnd);
+
+    ShowWindow(hwnd, true);
+
+    g_window.window = hwnd;
+    g_window.should_close = false;
+}
+
+void window_destroy() { DestroyWindow(g_window.window); }
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (Msg)
+    {
+    case WM_CLOSE:
+        g_window.should_close = true;
+        return 0;
+
+    default:
+        return DefWindowProcA(hwnd, Msg, wParam, lParam);
+    }
+}
+
+void command_pools_init();
+void command_pools_exit();
+bool swapchain_init();
+void swapchain_exit();
+
+void gpu_init()
+{
+    g_gpu = {};
 
     // Initialize Renderer
     {
@@ -74,9 +147,9 @@ int main(int argc, char** argv)
         desc.mShaderTarget = ::SHADER_TARGET_6_4;
         initGPUConfiguration(desc.pExtendedSettings);
 
-        initRenderer("Sandbox", &desc, &g_renderer);
-        assert(g_renderer);
-        setupGPUConfigurationPlatformParameters(g_renderer, desc.pExtendedSettings);
+        initRenderer("Sandbox", &desc, &g_gpu.renderer);
+        assert(g_gpu.renderer);
+        setupGPUConfigurationPlatformParameters(g_gpu.renderer, desc.pExtendedSettings);
     }
 
     // Initialize Graphics Queue
@@ -84,23 +157,124 @@ int main(int argc, char** argv)
         QueueDesc queueDesc = {};
         queueDesc.mType = QUEUE_TYPE_GRAPHICS;
         queueDesc.mFlag = QUEUE_FLAG_NONE;
-        initQueue(g_renderer, &queueDesc, &g_graphicsQueue);
+        initQueue(g_gpu.renderer, &queueDesc, &g_gpu.graphics_queue);
     }
 
-    initializeCommandPools();
-    
-    // Initialize Swapchain Semaphore
-    initSemaphore(g_renderer, &g_imageAcquireSemaphore);
+    command_pools_init();
 
-    exitSemaphore(g_renderer, g_imageAcquireSemaphore);
-    exitCommandPools();
-    exitQueue(g_renderer, g_graphicsQueue);
-    exitRenderer(g_renderer);
-	return 0;
+    // Initialize Swapchain Semaphore
+    initSemaphore(g_gpu.renderer, &g_gpu.image_acquired_semaphore);
 }
+
+void gpu_exit()
+{
+    exitSemaphore(g_gpu.renderer, g_gpu.image_acquired_semaphore);
+    command_pools_exit();
+    exitQueue(g_gpu.renderer, g_gpu.graphics_queue);
+    exitRenderer(g_gpu.renderer);
+}
+
+bool gpu_on_load(ReloadDesc reload_desc)
+{
+    assert(g_gpu.renderer);
+
+    if (reload_desc.mType & (RELOAD_TYPE_RESIZE | RELOAD_TYPE_RENDERTARGET))
+    {
+        if (!swapchain_init())
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void gpu_on_unload(ReloadDesc reload_desc)
+{
+    assert(g_gpu.renderer);
+
+    waitQueueIdle(g_gpu.graphics_queue);
+    if (reload_desc.mType & (RELOAD_TYPE_RESIZE | RELOAD_TYPE_RENDERTARGET))
+    {
+        swapchain_exit();
+    }
+}
+
+void command_pools_init()
+{
+    assert(g_gpu.renderer);
+    assert(g_gpu.graphics_queue);
+
+    CmdPoolDesc poolDesc = {};
+    poolDesc.mTransient = false;
+    poolDesc.pQueue = g_gpu.graphics_queue;
+
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT_COUNT; i++)
+    {
+        initCmdPool(g_gpu.renderer, &poolDesc, &g_gpu.cmd_pools[i]);
+        CmdDesc cmdDesc = {};
+        cmdDesc.pPool = g_gpu.cmd_pools[i];
+#if defined(ENABLE_GRAPHICS_DEBUG_ANNOTATION)
+        static char buffer[128];
+        snprintf(buffer, sizeof(buffer), "Pool %u Cmd %u", i, 0);
+        cmdDesc.pName = buffer;
+#endif
+
+        initCmd(g_gpu.renderer, &cmdDesc, &g_gpu.cmds[i]);
+        initFence(g_gpu.renderer, &g_gpu.fences[i]);
+        initSemaphore(g_gpu.renderer, &g_gpu.semaphores[i]);
+    }
+}
+
+void command_pools_exit()
+{
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT_COUNT; i++)
+    {
+        exitCmd(g_gpu.renderer, g_gpu.cmds[i]);
+        exitSemaphore(g_gpu.renderer, g_gpu.semaphores[i]);
+        exitFence(g_gpu.renderer, g_gpu.fences[i]);
+        exitCmdPool(g_gpu.renderer, g_gpu.cmd_pools[i]);
+
+        g_gpu.cmds[i] = NULL;
+        g_gpu.semaphores[i] = NULL;
+        g_gpu.fences[i] = NULL;
+        g_gpu.cmd_pools[i] = NULL;
+    }
+}
+
+bool swapchain_init()
+{
+    WindowHandle window_handle = { WINDOW_HANDLE_TYPE_WIN32, g_window.window };
+    RECT         rect;
+    if (!GetWindowRect(g_window.window, &rect))
+    {
+        assert(false);
+    }
+
+    uint32_t width = rect.right - rect.left;
+    uint32_t height = rect.bottom - rect.top;
+
+    SwapChainDesc desc = {};
+    desc.mWindowHandle = window_handle;
+    desc.mPresentQueueCount = 1;
+    desc.ppPresentQueues = &g_gpu.graphics_queue;
+    desc.mWidth = width;
+    desc.mHeight = height;
+    desc.mImageCount = ::getRecommendedSwapchainImageCount(g_gpu.renderer, &window_handle);
+    desc.mColorFormat = ::getSupportedSwapchainFormat(g_gpu.renderer, &desc, ::COLOR_SPACE_SDR_SRGB);
+    desc.mColorSpace = ::COLOR_SPACE_SDR_SRGB;
+    desc.mEnableVsync = true;
+    desc.mFlags = ::SWAP_CHAIN_CREATION_FLAG_NONE;
+    ::addSwapChain(g_gpu.renderer, &desc, &g_gpu.swapchain);
+
+    return g_gpu.swapchain != NULL;
+}
+
+void swapchain_exit() { removeSwapChain(g_gpu.renderer, g_gpu.swapchain); }
 
 // IOperatingSystem.h implementation
 void requestReset(const ResetDesc* pResetDesc)
 {
     (void)pResetDesc;
+    assert(false);
 }
