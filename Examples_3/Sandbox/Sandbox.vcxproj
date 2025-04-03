@@ -154,6 +154,10 @@ xcopy /Y /D "$(SolutionDir)GPUCfg\gpu.cfg" "$(OutDir)"
     <ClCompile Include="..\..\Common_3\Graphics\Direct3D12\Direct3D12Raytracing.c" />
     <ClCompile Include="..\..\Common_3\Graphics\Direct3D12\Direct3D12_cxx.cpp" />
     <ClCompile Include="..\..\Common_3\Graphics\GraphicsConfig.cpp" />
+    <ClCompile Include="..\..\Common_3\Tides\WindowsFileSystem.c" />
+    <ClCompile Include="..\..\Common_3\Tides\WindowsLog.c" />
+    <ClCompile Include="..\..\Common_3\Tides\WindowsMemory.c" />
+    <ClCompile Include="..\..\Common_3\Tides\WindowsThread.c" />
     <ClCompile Include="..\..\Common_3\Utilities\ThirdParty\OpenSource\bstrlib\bstrlib.c" />
     <ClCompile Include="Code\main.cpp" />
   </ItemGroup>
@@ -162,7 +166,7 @@ xcopy /Y /D "$(SolutionDir)GPUCfg\gpu.cfg" "$(OutDir)"
     <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IGraphics.h" />
     <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IRay.h" />
     <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IShaderReflection.h" />
-    <ClInclude Include="Code\ExternalConfigs.h" />
+    <ClInclude Include="Code\ExternalRendererConfig.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

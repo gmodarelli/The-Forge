@@ -1,57 +1,67 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
+    <Filter Include="The-Forge">
+      <UniqueIdentifier>{f719abbe-3b47-4aa4-8561-ccf0a8b20f0a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="InterfaceImplementations">
+      <UniqueIdentifier>{2146eccd-aa49-4abe-84ad-795c887ebddd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sandbox">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
-    </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Code\main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Common_3\Graphics\GraphicsConfig.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Sandbox</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Common_3\Utilities\ThirdParty\OpenSource\bstrlib\bstrlib.c">
-      <Filter>Source Files</Filter>
+      <Filter>The-Forge</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Common_3\Graphics\Direct3D12\Direct3D12.c">
-      <Filter>Source Files</Filter>
+      <Filter>The-Forge</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Common_3\Graphics\Direct3D12\Direct3D12_cxx.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>The-Forge</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Common_3\Graphics\Direct3D12\Direct3D12Hooks.c">
-      <Filter>Source Files</Filter>
+      <Filter>The-Forge</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Common_3\Graphics\Direct3D12\Direct3D12Raytracing.c">
-      <Filter>Source Files</Filter>
+      <Filter>The-Forge</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Common_3\Graphics\GraphicsConfig.cpp">
+      <Filter>The-Forge</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Common_3\Tides\WindowsFileSystem.c">
+      <Filter>InterfaceImplementations</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Common_3\Tides\WindowsMemory.c">
+      <Filter>InterfaceImplementations</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Common_3\Tides\WindowsThread.c">
+      <Filter>InterfaceImplementations</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Common_3\Tides\WindowsLog.c">
+      <Filter>InterfaceImplementations</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Common_3\Graphics\GraphicsConfig.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IGraphics.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IRay.h">
-      <Filter>Header Files</Filter>
+      <Filter>The-Forge</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IShaderReflection.h">
-      <Filter>Header Files</Filter>
+      <Filter>The-Forge</Filter>
     </ClInclude>
-    <ClInclude Include="Code\ExternalConfigs.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IRay.h">
+      <Filter>The-Forge</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IGraphics.h">
+      <Filter>The-Forge</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\ExternalRendererConfig.h">
+      <Filter>Sandbox</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
