@@ -230,23 +230,24 @@ void* tf_calloc_memalign_internal(size_t count, size_t align, size_t size, const
 // IThread.h implementation
 bool initMutex(Mutex* mutex)
 {
-    (void)mutex;
-    return true;
+    return InitializeCriticalSectionAndSpinCount((CRITICAL_SECTION*)&mutex->mHandle, (DWORD)MUTEX_DEFAULT_SPIN_COUNT);
 }
 
 void exitMutex(Mutex* mutex)
 {
-    (void)mutex;
+    CRITICAL_SECTION* cs = (CRITICAL_SECTION*)&mutex->mHandle;
+    DeleteCriticalSection(cs);
+    memset(&mutex->mHandle, 0, sizeof(mutex->mHandle));
 }
 
 void acquireMutex(Mutex* mutex)
 {
-    (void)mutex;
+    EnterCriticalSection((CRITICAL_SECTION*)&mutex->mHandle);
 }
 
 void releaseMutex(Mutex* mutex)
 {
-    (void)mutex;
+    LeaveCriticalSection((CRITICAL_SECTION*)&mutex->mHandle);
 }
 
 void threadSleep(unsigned mSec)
