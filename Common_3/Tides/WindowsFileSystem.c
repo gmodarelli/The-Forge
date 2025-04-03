@@ -28,7 +28,9 @@ bool fsOpen(IFileSystem* pIO, const ResourceDirectory resourceDir, const char* f
 {
     (void)pIO;
 
-    FILE* fp = fopen(filename, "rb");
+    FILE* fp;
+    errno_t err = fopen_s(&fp, filename, "rb");
+    assert(err == 0);
     assert(fp);
     pOut->mMode = mode;
     pOut->pIO = &g_fileSystemIO;
