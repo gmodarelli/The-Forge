@@ -48,7 +48,7 @@
 
 #include "Direct3D12CapBuilder.h"
 #include "Direct3D12Hooks.h"
-#include "Direct3D12_Cxx.h"
+#include "Direct3D12_cxx.h"
 
 #if defined(AUTOMATED_TESTING)
 #include "../../Application/Interfaces/IScreenshot.h"
