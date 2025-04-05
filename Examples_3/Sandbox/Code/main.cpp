@@ -3,10 +3,12 @@
 #include <assert.h>
 #include <Windows.h>
 
+//#define EXTERNAL_CONFIG_FILEPATH "../../Examples_3/Sandbox/Code/ExternalConfig.h"
+//#define EXTERNAL_RENDERER_CONFIG_FILEPATH "../../Examples_3/Sandbox/Code/ExternalRendererConfig.h"
+
 #define STB_DS_IMPLEMENTATION
 #include "../../../Common_3/Utilities/Math/BStringHashMap.h"
 
-#define EXTERNAL_RENDERER_CONFIG_FILEPATH "../../Examples_3/Sandbox/Code/ExternalRendererConfig.h"
 #include "../../../Common_3/Graphics/Interfaces/IGraphics.h"
 
 // TODO: Implement the following interfaces
@@ -39,6 +41,10 @@ struct Gpu
     Fence* fences[FRAMES_IN_FLIGHT_COUNT] = { NULL };
     Semaphore* semaphores[FRAMES_IN_FLIGHT_COUNT] = { NULL };
     SwapChain* swapchain;
+
+    // TODO: This should be part of a gpu_backend struct maybe, so we don't expose D3D12 resources
+    ID3D12RootSignature* graphics_rs = NULL;
+    ID3D12RootSignature* compute_rs = NULL;
 };
 
 static Gpu g_gpu;
@@ -135,6 +141,8 @@ void command_pools_init();
 void command_pools_exit();
 bool swapchain_init();
 void swapchain_exit();
+bool default_root_signatures_init();
+void default_root_signatures_exit();
 
 void gpu_init()
 {
@@ -162,12 +170,14 @@ void gpu_init()
 
     command_pools_init();
 
-    // Initialize Swapchain Semaphore
     initSemaphore(g_gpu.renderer, &g_gpu.image_acquired_semaphore);
+
+    default_root_signatures_init();
 }
 
 void gpu_exit()
 {
+    default_root_signatures_exit();
     exitSemaphore(g_gpu.renderer, g_gpu.image_acquired_semaphore);
     command_pools_exit();
     exitQueue(g_gpu.renderer, g_gpu.graphics_queue);
@@ -271,6 +281,54 @@ bool swapchain_init()
 }
 
 void swapchain_exit() { removeSwapChain(g_gpu.renderer, g_gpu.swapchain); }
+
+extern "C" void initRootSignatureImpl(Renderer*, const void*, uint32_t, ID3D12RootSignature**);
+extern "C" void exitRootSignatureImpl(Renderer*, ID3D12RootSignature*);
+
+bool load_root_signature(const char* path, ID3D12RootSignature** root_signature);
+
+bool default_root_signatures_init() 
+{
+    if (!load_root_signature("shaders/DefaultRootSignature.rs", &g_gpu.graphics_rs))
+    {
+        return false;
+    }
+
+    if (!load_root_signature("shaders/ComputeRootSignature.rs", &g_gpu.compute_rs))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+void default_root_signatures_exit()
+{
+    exitRootSignatureImpl(g_gpu.renderer, g_gpu.graphics_rs);
+    exitRootSignatureImpl(g_gpu.renderer, g_gpu.compute_rs);
+}
+
+bool load_root_signature(const char* path, ID3D12RootSignature** root_signature)
+{
+    FileStream binaryFS = {};
+    const bool result = fsOpenStreamFromPath(RD_SHADER_BINARIES, path, FM_READ, &binaryFS);
+    assert(result);
+    ssize_t size = fsGetStreamFileSize(&binaryFS);
+    assert(size > 0);
+
+    void* bytecode = tf_malloc_internal(size, "", 0, "");
+    assert(bytecode);
+    memset(bytecode, 0, size);
+    fsReadFromStream(&binaryFS, bytecode, size);
+
+    initRootSignatureImpl(g_gpu.renderer, bytecode, (uint32_t)size, root_signature);
+
+    tf_free(bytecode);
+
+    fsCloseStream(&binaryFS);
+
+    return true;
+}
 
 // IOperatingSystem.h implementation
 void requestReset(const ResetDesc* pResetDesc)

@@ -63,5 +63,8 @@
     <ClInclude Include="Code\ExternalRendererConfig.h">
       <Filter>Sandbox</Filter>
     </ClInclude>
+    <ClInclude Include="Code\ExternalConfig.h">
+      <Filter>Sandbox</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
