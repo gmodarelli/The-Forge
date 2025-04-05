@@ -2429,7 +2429,7 @@ static bool AddDevice(const RendererDesc* pDesc, Renderer* pRenderer)
 
         if (pRenderer->mDx.mUseDebugCallback)
         {
-            COM_CALL(SetMuteDebugOutput, pRenderer->mDx.pDebugValidation, true);
+            COM_CALL(SetMuteDebugOutput, pRenderer->mDx.pDebugValidation, false);
             // D3D12_MESSAGE_CALLBACK_IGNORE_FILTERS, will enable all message filtering in the callback function, no need to use Push/Pop,
             // but we stick with FLAG_NONE for failsafe
             HRESULT res = COM_CALL(RegisterMessageCallback, pRenderer->mDx.pDebugValidation, DebugMessageCallback,
