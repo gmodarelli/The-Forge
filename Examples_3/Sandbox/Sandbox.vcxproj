@@ -104,6 +104,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(SolutionDir)Code;$(SolutionDir)..\..\Common_3;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -132,6 +133,7 @@ $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompile
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(SolutionDir)Code;$(SolutionDir)..\..\Common_3;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -172,6 +174,7 @@ $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompile
     <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IGraphics.h" />
     <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IRay.h" />
     <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IShaderReflection.h" />
+    <ClInclude Include="Code\DescriptorSets.autogen.h" />
     <ClInclude Include="Code\ExternalConfig.h" />
     <ClInclude Include="Code\ExternalRendererConfig.h" />
     <ClInclude Include="Code\Shaders\ShaderGlobals.h" />

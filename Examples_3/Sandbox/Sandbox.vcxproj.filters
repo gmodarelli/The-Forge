@@ -66,5 +66,14 @@
     <ClInclude Include="Code\ExternalConfig.h">
       <Filter>Sandbox</Filter>
     </ClInclude>
+    <ClInclude Include="Code\Shaders\ShaderGlobals.h" />
+    <ClInclude Include="Code\DescriptorSets.autogen.h">
+      <Filter>Sandbox</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Code\Shaders\ClearScreen.comp.hlsl" />
+    <FxCompile Include="Code\Shaders\ComputeRootSignature.rs.hlsl" />
+    <FxCompile Include="Code\Shaders\DefaultRootSignature.rs.hlsl" />
   </ItemGroup>
 </Project>

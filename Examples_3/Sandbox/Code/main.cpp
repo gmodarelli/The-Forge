@@ -14,6 +14,8 @@
 // TODO: Implement the following interfaces
 // IOperatingSystem.h
 
+#include "DescriptorSets.autogen.h"
+
 typedef struct Window Window;
 struct Window
 {
@@ -42,11 +44,20 @@ struct Gpu
     Semaphore* semaphores[FRAMES_IN_FLIGHT_COUNT] = { NULL };
     SwapChain* swapchain;
 
+    // Render Targets
+    RenderTarget* scene_color = NULL;
+
+    // Samplers
+    Sampler* linear_repeat_sampler = NULL;
+    Sampler* linear_clamp_sampler = NULL;
+
     // TODO: This should be part of a gpu_backend struct maybe, so we don't expose D3D12 resources
     ID3D12RootSignature* graphics_rs = NULL;
     ID3D12RootSignature* compute_rs = NULL;
-
+    // TODO: All shaders here
     Shader* clear_screen_cs = NULL;
+
+    DescriptorSet* clear_screen_descriptor_set = NULL;
 };
 
 static Gpu g_gpu;
@@ -143,10 +154,15 @@ void command_pools_init();
 void command_pools_exit();
 bool swapchain_init();
 void swapchain_exit();
+bool render_targets_init();
+void render_targets_exit();
 bool default_root_signatures_init();
 void default_root_signatures_exit();
 void shaders_init();
 void shaders_exit();
+void descriptor_sets_init();
+void descriptor_sets_prepare();
+void descriptor_sets_exit();
 
 void gpu_init()
 {
@@ -177,10 +193,31 @@ void gpu_init()
     initSemaphore(g_gpu.renderer, &g_gpu.image_acquired_semaphore);
 
     default_root_signatures_init();
+
+    // Static Samplers
+    {
+        SamplerDesc sampler_desc = {
+            FILTER_LINEAR,
+            FILTER_LINEAR,
+            MIPMAP_MODE_LINEAR,
+            ADDRESS_MODE_REPEAT,
+            ADDRESS_MODE_REPEAT,
+            ADDRESS_MODE_REPEAT,
+        };
+        addSampler(g_gpu.renderer, &sampler_desc, &g_gpu.linear_repeat_sampler);
+
+        sampler_desc.mAddressU = ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler_desc.mAddressV = ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler_desc.mAddressW = ADDRESS_MODE_CLAMP_TO_EDGE;
+        addSampler(g_gpu.renderer, &sampler_desc, &g_gpu.linear_clamp_sampler);
+    }
 }
 
 void gpu_exit()
 {
+    removeSampler(g_gpu.renderer, g_gpu.linear_clamp_sampler);
+    removeSampler(g_gpu.renderer, g_gpu.linear_repeat_sampler);
+
     default_root_signatures_exit();
     exitSemaphore(g_gpu.renderer, g_gpu.image_acquired_semaphore);
     command_pools_exit();
@@ -195,6 +232,7 @@ bool gpu_on_load(ReloadDesc reload_desc)
     if (reload_desc.mType & RELOAD_TYPE_SHADER)
     {
         shaders_init();
+        descriptor_sets_init();
     }
 
     if (reload_desc.mType & (RELOAD_TYPE_RESIZE | RELOAD_TYPE_RENDERTARGET))
@@ -203,7 +241,14 @@ bool gpu_on_load(ReloadDesc reload_desc)
         {
             return false;
         }
+
+        if (!render_targets_init())
+        {
+            return false;
+        }
     }
+
+    descriptor_sets_prepare();
 
     return true;
 }
@@ -215,11 +260,13 @@ void gpu_on_unload(ReloadDesc reload_desc)
     waitQueueIdle(g_gpu.graphics_queue);
     if (reload_desc.mType & (RELOAD_TYPE_RESIZE | RELOAD_TYPE_RENDERTARGET))
     {
+        render_targets_exit();
         swapchain_exit();
     }
 
     if (reload_desc.mType & RELOAD_TYPE_SHADER)
     {
+        descriptor_sets_exit();
         shaders_exit();
     }
 }
@@ -295,6 +342,36 @@ bool swapchain_init()
 }
 
 void swapchain_exit() { removeSwapChain(g_gpu.renderer, g_gpu.swapchain); }
+
+bool render_targets_init()
+{
+    {
+        RenderTargetDesc desc = {};
+        desc.mWidth = g_gpu.swapchain->ppRenderTargets[0]->mWidth;
+        desc.mHeight = g_gpu.swapchain->ppRenderTargets[0]->mHeight;
+        desc.mDepth = 1;
+        desc.mArraySize = 1;
+        desc.mClearValue = { 0.0f, 0.0f, 0.0f, 0.0f };
+        desc.mFormat = TinyImageFormat_R8G8B8A8_SRGB;
+        desc.mStartState = RESOURCE_STATE_SHADER_RESOURCE;
+        desc.mSampleCount = SAMPLE_COUNT_1;
+        desc.mSampleQuality = 0;
+        desc.mFlags = TEXTURE_CREATION_FLAG_ON_TILE;
+        addRenderTarget(g_gpu.renderer, &desc, &g_gpu.scene_color);
+
+        if (!g_gpu.scene_color)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void render_targets_exit()
+{
+    removeRenderTarget(g_gpu.renderer, g_gpu.scene_color);
+}
 
 extern "C" void initRootSignatureImpl(Renderer*, const void*, uint32_t, ID3D12RootSignature**);
 extern "C" void exitRootSignatureImpl(Renderer*, ID3D12RootSignature*);
@@ -376,6 +453,35 @@ void shaders_init()
 void shaders_exit()
 {
     removeShader(g_gpu.renderer, g_gpu.clear_screen_cs);
+}
+
+void descriptor_sets_init()
+{
+    {
+        DescriptorSetDesc desc = {};
+        desc.mIndex = ROOT_PARAM_PerFrame;
+        desc.mMaxSets = FRAMES_IN_FLIGHT_COUNT;
+        desc.mNodeIndex = 0;
+        desc.mDescriptorCount = 1;
+        desc.pDescriptors = SRT_ClearScreenShaderData::per_frame_ptr();
+        addDescriptorSet(g_gpu.renderer, &desc, &g_gpu.clear_screen_descriptor_set);
+    }
+}
+
+void descriptor_sets_prepare()
+{
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT_COUNT; i++)
+    {
+        DescriptorData params[1] = {};
+        params[0].mIndex = (offsetof(SRT_ClearScreenShaderData::PerFrame, g_output)) / sizeof(Descriptor);
+        params[0].ppTextures = &g_gpu.scene_color->pTexture;
+        updateDescriptorSet(g_gpu.renderer, i, g_gpu.clear_screen_descriptor_set, 1, params);
+    }
+}
+
+void descriptor_sets_exit()
+{
+    removeDescriptorSet(g_gpu.renderer, g_gpu.clear_screen_descriptor_set);
 }
 
 void shader_load(const ShaderLoadDesc* shader_load_desc, Shader** out_shader)
