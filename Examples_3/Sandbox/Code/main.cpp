@@ -45,6 +45,8 @@ struct Gpu
     // TODO: This should be part of a gpu_backend struct maybe, so we don't expose D3D12 resources
     ID3D12RootSignature* graphics_rs = NULL;
     ID3D12RootSignature* compute_rs = NULL;
+
+    Shader* clear_screen_cs = NULL;
 };
 
 static Gpu g_gpu;
@@ -143,6 +145,8 @@ bool swapchain_init();
 void swapchain_exit();
 bool default_root_signatures_init();
 void default_root_signatures_exit();
+void shaders_init();
+void shaders_exit();
 
 void gpu_init()
 {
@@ -188,6 +192,11 @@ bool gpu_on_load(ReloadDesc reload_desc)
 {
     assert(g_gpu.renderer);
 
+    if (reload_desc.mType & RELOAD_TYPE_SHADER)
+    {
+        shaders_init();
+    }
+
     if (reload_desc.mType & (RELOAD_TYPE_RESIZE | RELOAD_TYPE_RENDERTARGET))
     {
         if (!swapchain_init())
@@ -207,6 +216,11 @@ void gpu_on_unload(ReloadDesc reload_desc)
     if (reload_desc.mType & (RELOAD_TYPE_RESIZE | RELOAD_TYPE_RENDERTARGET))
     {
         swapchain_exit();
+    }
+
+    if (reload_desc.mType & RELOAD_TYPE_SHADER)
+    {
+        shaders_exit();
     }
 }
 
@@ -328,6 +342,99 @@ bool load_root_signature(const char* path, ID3D12RootSignature** root_signature)
     fsCloseStream(&binaryFS);
 
     return true;
+}
+
+typedef struct ShaderStageLoadDesc ShaderStageLoadDesc;
+struct ShaderStageLoadDesc
+{
+    const char* path;
+    const char* entry;
+};
+
+typedef struct ShaderLoadDesc ShaderLoadDesc;
+struct ShaderLoadDesc
+{
+    ShaderStageLoadDesc vert;
+    ShaderStageLoadDesc frag;
+    ShaderStageLoadDesc comp;
+};
+
+void shader_load(const ShaderLoadDesc* shader_load_desc, Shader** out_shader);
+void shader_stage_load(const ShaderStageLoadDesc* shader_load_desc, BinaryShaderStageDesc* binary_shader_stage_desc);
+
+void shaders_init()
+{
+    {
+        ShaderLoadDesc shader_load_desc = {};
+        shader_load_desc.comp.entry = "main";
+        shader_load_desc.comp.path = "shaders/ClearScreen.comp";
+
+        shader_load(&shader_load_desc, &g_gpu.clear_screen_cs);
+    }
+}
+
+void shaders_exit()
+{
+    removeShader(g_gpu.renderer, g_gpu.clear_screen_cs);
+}
+
+void shader_load(const ShaderLoadDesc* shader_load_desc, Shader** out_shader)
+{
+    BinaryShaderDesc binary_shader_desc = {};
+
+    if (shader_load_desc->vert.path)
+    {
+        shader_stage_load(&shader_load_desc->vert, &binary_shader_desc.mVert);
+        binary_shader_desc.mStages |= SHADER_STAGE_VERT;
+    }
+
+    if (shader_load_desc->frag.path)
+    {
+        shader_stage_load(&shader_load_desc->frag, &binary_shader_desc.mFrag);
+        binary_shader_desc.mStages |= SHADER_STAGE_FRAG;
+    }
+
+    if (shader_load_desc->comp.path)
+    {
+        shader_stage_load(&shader_load_desc->comp, &binary_shader_desc.mComp);
+        binary_shader_desc.mStages |= SHADER_STAGE_COMP;
+    }
+
+    addShaderBinary(g_gpu.renderer, &binary_shader_desc, out_shader);
+
+    if (shader_load_desc->vert.path)
+    {
+        tf_free(binary_shader_desc.mVert.pByteCode);
+    }
+
+    if (shader_load_desc->frag.path)
+    {
+        tf_free(binary_shader_desc.mFrag.pByteCode);
+    }
+
+    if (shader_load_desc->comp.path)
+    {
+        tf_free(binary_shader_desc.mComp.pByteCode);
+    }
+}
+
+void shader_stage_load(const ShaderStageLoadDesc* shader_load_desc, BinaryShaderStageDesc* binary_shader_stage_desc)
+{
+    FileStream binary_fs = {};
+    const bool result = fsOpenStreamFromPath(RD_SHADER_BINARIES, shader_load_desc->path, FM_READ, &binary_fs);
+    assert(result);
+    ssize_t size = fsGetStreamFileSize(&binary_fs);
+    assert(size > 0);
+
+    binary_shader_stage_desc->pByteCode = tf_malloc_internal(size, "", 0, "");
+    assert(binary_shader_stage_desc->pByteCode);
+    memset(binary_shader_stage_desc->pByteCode, 0, size);
+    fsReadFromStream(&binary_fs, binary_shader_stage_desc->pByteCode, size);
+    binary_shader_stage_desc->mByteCodeSize = (uint32_t)size;
+    binary_shader_stage_desc->pEntryPoint = shader_load_desc->entry;
+    binary_shader_stage_desc->pName = shader_load_desc->path;
+
+    fsCloseStream(&binary_fs);
 }
 
 // IOperatingSystem.h implementation
