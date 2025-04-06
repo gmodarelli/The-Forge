@@ -793,6 +793,7 @@ pub const ResourceHeapDesc = extern struct {
 };
 
 pub const ResourceHeap = extern struct {
+    _: void align(64), // c2z: struct alignment
     mDx: __Struct0,
     mSize: u64,
 
@@ -800,6 +801,11 @@ pub const ResourceHeap = extern struct {
         pHeap: [*c]ID3D12Heap,
     };
 };
+
+comptime {
+    // manual test that align works as intended
+    std.debug.assert(@sizeOf(ResourceHeap) == 64);
+}
 
 pub const ResourceSizeAlign = extern struct {
     mSize: u64,
@@ -855,6 +861,7 @@ pub const BufferDesc = extern struct {
 
 /// Data structure holding necessary info to create a Buffer
 pub const Buffer = extern struct {
+    _: void align(64), // c2z: struct alignment
     /// CPU address of the mapped buffer (applicable to buffers created in CPU accessible heaps (CPU, CPU_TO_GPU, GPU_TO_CPU)
     pCpuMappedAddress: ?*anyopaque,
     mDx: __Struct0,
@@ -945,6 +952,7 @@ pub const TextureDesc = extern struct {
 
 /// Data structure holding necessary info to create a Texture
 pub const Texture = extern struct {
+    _: void align(64), // c2z: struct alignment
     mDx: __Struct0,
     bitfield_1: packed struct(u32) {
         // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
@@ -1041,6 +1049,7 @@ pub const RenderTargetDesc = extern struct {
 };
 
 pub const RenderTarget = extern struct {
+    _: void align(64), // c2z: struct alignment
     pTexture: [*c]Texture,
     mDx: __Struct0,
     mClearValue: ClearValue,
@@ -1106,6 +1115,7 @@ pub const SamplerDesc = extern struct {
 };
 
 pub const Sampler = extern struct {
+    _: void align(16), // c2z: struct alignment
     mDx: __Struct0,
 
     pub const __Struct0 = extern struct {
@@ -1182,6 +1192,7 @@ pub const DescriptorData = extern struct {
 };
 
 pub const DescriptorSet = extern struct {
+    _: void align(64), // c2z: struct alignment
     mDx: __Struct0,
 
     pub const __Struct0 = extern struct {
@@ -1247,6 +1258,7 @@ pub const MarkerDesc = extern struct {
 };
 
 pub const Cmd = extern struct {
+    _: void align(64), // c2z: struct alignment
     mDx: __Struct0,
     pRenderer: [*c]Renderer,
     pQueue: [*c]Queue,
@@ -1554,6 +1566,7 @@ pub const PipelineDesc = extern struct {
 };
 
 pub const Pipeline = extern struct {
+    _: void align(64), // c2z: struct alignment
     mDx: __Struct0,
 
     pub const __Struct0 = extern struct {
@@ -1902,6 +1915,7 @@ pub const GpuDesc = extern struct {
 };
 
 pub const Renderer = extern struct {
+    _: void align(64), // c2z: struct alignment
     mDx: __Struct0,
     pNullDescriptors: [*c]NullDescriptors,
     pContext: [*c]RendererContext,
