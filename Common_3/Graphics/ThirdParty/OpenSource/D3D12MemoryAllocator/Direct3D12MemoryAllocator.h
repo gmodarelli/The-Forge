@@ -8139,7 +8139,17 @@ HRESULT AllocatorPimpl::UpdateD3D12Budget()
 
 D3D12_RESOURCE_ALLOCATION_INFO AllocatorPimpl::GetResourceAllocationInfoNative(const D3D12_RESOURCE_DESC& resourceDesc) const
 {
+#ifdef TIDES
+#if defined(_MSC_VER) || !defined(_WIN32)
     return m_Device->GetResourceAllocationInfo(0, 1, &resourceDesc);
+#else
+    D3D12_RESOURCE_ALLOCATION_INFO resourceAllocationInfo;
+    m_Device->GetResourceAllocationInfo(&resourceAllocationInfo, 0, 1, &resourceDesc);
+    return resourceAllocationInfo;
+#endif
+#else // TIDES
+return m_Device->GetResourceAllocationInfo(0, 1, &resourceDesc);
+#endif // TIDES
 }
 
 #ifdef __ID3D12Device8_INTERFACE_DEFINED__
@@ -8147,7 +8157,17 @@ D3D12_RESOURCE_ALLOCATION_INFO AllocatorPimpl::GetResourceAllocationInfoNative(c
 {
     D3D12MA_ASSERT(m_Device8 != NULL);
     D3D12_RESOURCE_ALLOCATION_INFO1 info1Unused;
+#ifdef TIDES
+#if defined(_MSC_VER) || !defined(_WIN32)
     return m_Device8->GetResourceAllocationInfo2(0, 1, &resourceDesc, &info1Unused);
+#else
+    D3D12_RESOURCE_ALLOCATION_INFO resourceAllocationInfo;
+    m_Device8->GetResourceAllocationInfo2(&resourceAllocationInfo, 0, 1, &resourceDesc, &info1Unused);
+    return resourceAllocationInfo;
+#endif
+#else // TIDES
+    return m_Device8->GetResourceAllocationInfo2(0, 1, &resourceDesc, &info1Unused);
+#endif // TIDES
 }
 #endif // #ifdef __ID3D12Device8_INTERFACE_DEFINED__
 
@@ -9989,10 +10009,12 @@ size_t* Allocation::GetListIndex()
 
 void Allocation::ReleaseThis()
 {
+#if defined(_MSC_VER)
     if (this == NULL)
     {
         return;
     }
+#endif
 
     SAFE_RELEASE(m_Resource);
 
@@ -10006,6 +10028,9 @@ void Allocation::ReleaseThis()
         break;
     case TYPE_HEAP:
         m_Allocator->FreeHeapMemory(this);
+        break;
+    default: 
+        D3D12MA_ASSERT(false);
         break;
     }
 
@@ -10137,10 +10162,12 @@ void DefragmentationContext::GetStats(DEFRAGMENTATION_STATS* pStats)
 
 void DefragmentationContext::ReleaseThis()
 {
+#if defined(_MSC_VER)
     if (this == NULL)
     {
         return;
     }
+#endif
 
     D3D12MA_DELETE(m_Pimpl->GetAllocs(), this);
 }
@@ -10202,10 +10229,12 @@ HRESULT Pool::BeginDefragmentation(const DEFRAGMENTATION_DESC* pDesc, Defragment
 
 void Pool::ReleaseThis()
 {
+#if defined(_MSC_VER)
     if (this == NULL)
     {
         return;
     }
+#endif
 
     D3D12MA_DELETE(m_Pimpl->GetAllocator()->GetAllocs(), this);
 }

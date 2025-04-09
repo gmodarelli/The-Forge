@@ -1312,40 +1312,42 @@ AMD_AGS_API AGSReturnCode agsDriverExtensionsDX11_NotifyResourceEndAllAccess( AG
 /// List of function pointer typedefs for the API
 /// @{
 
-typedef AMD_AGS_API AGSDriverVersionResult  (*AGS_CHECKDRIVERVERSION)( const char*, unsigned int ); ///< \ref agsCheckDriverVersion
-typedef AMD_AGS_API int                     (*AGS_GETVERSIONNUMBER)(); ///< \ref agsGetVersionNumber
-typedef AMD_AGS_API AGSReturnCode           (*AGS_INITIALIZE)( int, const AGSConfiguration*, AGSContext**, AGSGPUInfo* ); ///< \ref agsInitialize
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DEINITIALIZE)( AGSContext* ); ///< \ref agsDeInitialize
-typedef AMD_AGS_API AGSReturnCode           (*AGS_SETDISPLAYMODE)( AGSContext*, int, int, const AGSDisplaySettings* ); ///< \ref agsSetDisplayMode
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX12_CREATEDEVICE)( AGSContext*, const AGSDX12DeviceCreationParams*, const AGSDX12ExtensionParams*, AGSDX12ReturnedParams* ); ///< \ref agsDriverExtensionsDX12_CreateDevice
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX12_DESTROYDEVICE)( AGSContext*, ID3D12Device*, unsigned int* ); ///< \ref agsDriverExtensionsDX12_DestroyDevice
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX12_PUSHMARKER)( AGSContext*, ID3D12GraphicsCommandList*, const char* ); ///< \ref agsDriverExtensionsDX12_PushMarker
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX12_POPMARKER)( AGSContext*, ID3D12GraphicsCommandList* ); ///< \ref agsDriverExtensionsDX12_PopMarker
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX12_SETMARKER)( AGSContext*, ID3D12GraphicsCommandList*, const char* ); ///< \ref agsDriverExtensionsDX12_SetMarker
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_CREATEDEVICE)( AGSContext*, const AGSDX11DeviceCreationParams*, const AGSDX11ExtensionParams*, AGSDX11ReturnedParams* ); ///< \ref agsDriverExtensionsDX11_CreateDevice
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_DESTROYDEVICE)( AGSContext*, ID3D11Device*, unsigned int*, ID3D11DeviceContext*, unsigned int* ); ///< \ref agsDriverExtensionsDX11_DestroyDevice
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_WRITEBREADCRUMB)( AGSContext*, const AGSBreadcrumbMarker* ); ///< \ref agsDriverExtensionsDX11_WriteBreadcrumb
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_IASETPRIMITIVETOPOLOGY)( AGSContext*, enum D3D_PRIMITIVE_TOPOLOGY ); ///< \ref agsDriverExtensionsDX11_IASetPrimitiveTopology
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_BEGINUAVOVERLAP)( AGSContext*, ID3D11DeviceContext* ); ///< \ref agsDriverExtensionsDX11_BeginUAVOverlap
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_ENDUAVOVERLAP)( AGSContext*, ID3D11DeviceContext* ); ///< \ref agsDriverExtensionsDX11_EndUAVOverlap
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_SETDEPTHBOUNDS)( AGSContext*, ID3D11DeviceContext*, bool, float, float ); ///< \ref agsDriverExtensionsDX11_SetDepthBounds
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_MULTIDRAWINSTANCEDINDIRECT)( AGSContext*, ID3D11DeviceContext*, unsigned int, ID3D11Buffer*, unsigned int, unsigned int ); ///< \ref agsDriverExtensionsDX11_MultiDrawInstancedIndirect
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_MULTIDRAWINDEXEDINSTANCEDINDIRECT)( AGSContext*, ID3D11DeviceContext*, unsigned int, ID3D11Buffer*, unsigned int, unsigned int ); ///< \ref agsDriverExtensionsDX11_MultiDrawIndexedInstancedIndirect
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_MULTIDRAWINSTANCEDINDIRECTCOUNTINDIRECT)( AGSContext*, ID3D11DeviceContext*, ID3D11Buffer*, unsigned int, ID3D11Buffer*, unsigned int, unsigned int ); ///< \ref agsDriverExtensionsDX11_MultiDrawInstancedIndirectCountIndirect
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_MULTIDRAWINDEXEDINSTANCEDINDIRECTCOUNTINDIRECT)( AGSContext*, ID3D11DeviceContext*, ID3D11Buffer*, unsigned int, ID3D11Buffer*, unsigned int, unsigned int ); ///< \ref agsDriverExtensionsDX11_MultiDrawIndexedInstancedIndirectCountIndirect
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_SETMAXASYNCCOMPILETHREADCOUNT)( AGSContext*, unsigned int ); ///< \ref agsDriverExtensionsDX11_SetMaxAsyncCompileThreadCount
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_NUMPENDINGASYNCOMPILEJOBS)( AGSContext*, unsigned int* ); ///< \ref agsDriverExtensionsDX11_NumPendingAsyncCompileJobs
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_SETDISKSHADERCACHEENABLED)( AGSContext*, int ); ///< \ref agsDriverExtensionsDX11_SetDiskShaderCacheEnabled
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_SETVIEWBROADCASTMASKS)( AGSContext*, unsigned long long, unsigned long long, int ); ///< \ref agsDriverExtensionsDX11_SetViewBroadcastMasks
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_GETMAXCLIPRECTS)( AGSContext*, unsigned int* ); ///< \ref agsDriverExtensionsDX11_GetMaxClipRects
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_SETCLIPRECTS)( AGSContext*, unsigned int, const AGSClipRect* ); ///< \ref agsDriverExtensionsDX11_SetClipRects
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_CREATEBUFFER)( AGSContext*, const D3D11_BUFFER_DESC*, const D3D11_SUBRESOURCE_DATA*, ID3D11Buffer**, AGSAfrTransferType, AGSAfrTransferEngine ); ///< \ref agsDriverExtensionsDX11_CreateBuffer
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_CREATETEXTURE1D)( AGSContext*, const D3D11_TEXTURE1D_DESC*, const D3D11_SUBRESOURCE_DATA*, ID3D11Texture1D**, AGSAfrTransferType, AGSAfrTransferEngine ); ///< \ref agsDriverExtensionsDX11_CreateTexture1D
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_CREATETEXTURE2D)( AGSContext*, const D3D11_TEXTURE2D_DESC*, const D3D11_SUBRESOURCE_DATA*, ID3D11Texture2D**, AGSAfrTransferType, AGSAfrTransferEngine ); ///< \ref agsDriverExtensionsDX11_CreateTexture2D
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_CREATETEXTURE3D)( AGSContext*, const D3D11_TEXTURE3D_DESC*, const D3D11_SUBRESOURCE_DATA*, ID3D11Texture3D**, AGSAfrTransferType, AGSAfrTransferEngine ); ///< \ref agsDriverExtensionsDX11_CreateTexture3D
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_NOTIFYRESOURCEENDWRITES)( AGSContext*, ID3D11Resource*, const D3D11_RECT*, const unsigned int*, unsigned int ); ///< \ref agsDriverExtensionsDX11_NotifyResourceEndWrites
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_NOTIFYRESOURCEBEGINALLACCESS)( AGSContext*, ID3D11Resource* ); ///< \ref agsDriverExtensionsDX11_NotifyResourceBeginAllAccess
-typedef AMD_AGS_API AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_NOTIFYRESOURCEENDALLACCESS)( AGSContext*, ID3D11Resource* ); ///< \ref agsDriverExtensionsDX11_NotifyResourceEndAllAccess
+#define AMD_AGS_API_TIDES
+
+typedef AMD_AGS_API_TIDES AGSDriverVersionResult  (*AGS_CHECKDRIVERVERSION)( const char*, unsigned int ); ///< \ref agsCheckDriverVersion
+typedef AMD_AGS_API_TIDES int                     (*AGS_GETVERSIONNUMBER)(); ///< \ref agsGetVersionNumber
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_INITIALIZE)( int, const AGSConfiguration*, AGSContext**, AGSGPUInfo* ); ///< \ref agsInitialize
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DEINITIALIZE)( AGSContext* ); ///< \ref agsDeInitialize
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_SETDISPLAYMODE)( AGSContext*, int, int, const AGSDisplaySettings* ); ///< \ref agsSetDisplayMode
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX12_CREATEDEVICE)( AGSContext*, const AGSDX12DeviceCreationParams*, const AGSDX12ExtensionParams*, AGSDX12ReturnedParams* ); ///< \ref agsDriverExtensionsDX12_CreateDevice
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX12_DESTROYDEVICE)( AGSContext*, ID3D12Device*, unsigned int* ); ///< \ref agsDriverExtensionsDX12_DestroyDevice
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX12_PUSHMARKER)( AGSContext*, ID3D12GraphicsCommandList*, const char* ); ///< \ref agsDriverExtensionsDX12_PushMarker
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX12_POPMARKER)( AGSContext*, ID3D12GraphicsCommandList* ); ///< \ref agsDriverExtensionsDX12_PopMarker
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX12_SETMARKER)( AGSContext*, ID3D12GraphicsCommandList*, const char* ); ///< \ref agsDriverExtensionsDX12_SetMarker
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_CREATEDEVICE)( AGSContext*, const AGSDX11DeviceCreationParams*, const AGSDX11ExtensionParams*, AGSDX11ReturnedParams* ); ///< \ref agsDriverExtensionsDX11_CreateDevice
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_DESTROYDEVICE)( AGSContext*, ID3D11Device*, unsigned int*, ID3D11DeviceContext*, unsigned int* ); ///< \ref agsDriverExtensionsDX11_DestroyDevice
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_WRITEBREADCRUMB)( AGSContext*, const AGSBreadcrumbMarker* ); ///< \ref agsDriverExtensionsDX11_WriteBreadcrumb
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_IASETPRIMITIVETOPOLOGY)( AGSContext*, enum D3D_PRIMITIVE_TOPOLOGY ); ///< \ref agsDriverExtensionsDX11_IASetPrimitiveTopology
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_BEGINUAVOVERLAP)( AGSContext*, ID3D11DeviceContext* ); ///< \ref agsDriverExtensionsDX11_BeginUAVOverlap
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_ENDUAVOVERLAP)( AGSContext*, ID3D11DeviceContext* ); ///< \ref agsDriverExtensionsDX11_EndUAVOverlap
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_SETDEPTHBOUNDS)( AGSContext*, ID3D11DeviceContext*, bool, float, float ); ///< \ref agsDriverExtensionsDX11_SetDepthBounds
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_MULTIDRAWINSTANCEDINDIRECT)( AGSContext*, ID3D11DeviceContext*, unsigned int, ID3D11Buffer*, unsigned int, unsigned int ); ///< \ref agsDriverExtensionsDX11_MultiDrawInstancedIndirect
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_MULTIDRAWINDEXEDINSTANCEDINDIRECT)( AGSContext*, ID3D11DeviceContext*, unsigned int, ID3D11Buffer*, unsigned int, unsigned int ); ///< \ref agsDriverExtensionsDX11_MultiDrawIndexedInstancedIndirect
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_MULTIDRAWINSTANCEDINDIRECTCOUNTINDIRECT)( AGSContext*, ID3D11DeviceContext*, ID3D11Buffer*, unsigned int, ID3D11Buffer*, unsigned int, unsigned int ); ///< \ref agsDriverExtensionsDX11_MultiDrawInstancedIndirectCountIndirect
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_MULTIDRAWINDEXEDINSTANCEDINDIRECTCOUNTINDIRECT)( AGSContext*, ID3D11DeviceContext*, ID3D11Buffer*, unsigned int, ID3D11Buffer*, unsigned int, unsigned int ); ///< \ref agsDriverExtensionsDX11_MultiDrawIndexedInstancedIndirectCountIndirect
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_SETMAXASYNCCOMPILETHREADCOUNT)( AGSContext*, unsigned int ); ///< \ref agsDriverExtensionsDX11_SetMaxAsyncCompileThreadCount
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_NUMPENDINGASYNCOMPILEJOBS)( AGSContext*, unsigned int* ); ///< \ref agsDriverExtensionsDX11_NumPendingAsyncCompileJobs
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_SETDISKSHADERCACHEENABLED)( AGSContext*, int ); ///< \ref agsDriverExtensionsDX11_SetDiskShaderCacheEnabled
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_SETVIEWBROADCASTMASKS)( AGSContext*, unsigned long long, unsigned long long, int ); ///< \ref agsDriverExtensionsDX11_SetViewBroadcastMasks
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_GETMAXCLIPRECTS)( AGSContext*, unsigned int* ); ///< \ref agsDriverExtensionsDX11_GetMaxClipRects
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_SETCLIPRECTS)( AGSContext*, unsigned int, const AGSClipRect* ); ///< \ref agsDriverExtensionsDX11_SetClipRects
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_CREATEBUFFER)( AGSContext*, const D3D11_BUFFER_DESC*, const D3D11_SUBRESOURCE_DATA*, ID3D11Buffer**, AGSAfrTransferType, AGSAfrTransferEngine ); ///< \ref agsDriverExtensionsDX11_CreateBuffer
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_CREATETEXTURE1D)( AGSContext*, const D3D11_TEXTURE1D_DESC*, const D3D11_SUBRESOURCE_DATA*, ID3D11Texture1D**, AGSAfrTransferType, AGSAfrTransferEngine ); ///< \ref agsDriverExtensionsDX11_CreateTexture1D
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_CREATETEXTURE2D)( AGSContext*, const D3D11_TEXTURE2D_DESC*, const D3D11_SUBRESOURCE_DATA*, ID3D11Texture2D**, AGSAfrTransferType, AGSAfrTransferEngine ); ///< \ref agsDriverExtensionsDX11_CreateTexture2D
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_CREATETEXTURE3D)( AGSContext*, const D3D11_TEXTURE3D_DESC*, const D3D11_SUBRESOURCE_DATA*, ID3D11Texture3D**, AGSAfrTransferType, AGSAfrTransferEngine ); ///< \ref agsDriverExtensionsDX11_CreateTexture3D
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_NOTIFYRESOURCEENDWRITES)( AGSContext*, ID3D11Resource*, const D3D11_RECT*, const unsigned int*, unsigned int ); ///< \ref agsDriverExtensionsDX11_NotifyResourceEndWrites
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_NOTIFYRESOURCEBEGINALLACCESS)( AGSContext*, ID3D11Resource* ); ///< \ref agsDriverExtensionsDX11_NotifyResourceBeginAllAccess
+typedef AMD_AGS_API_TIDES AGSReturnCode           (*AGS_DRIVEREXTENSIONSDX11_NOTIFYRESOURCEENDALLACCESS)( AGSContext*, ID3D11Resource* ); ///< \ref agsDriverExtensionsDX11_NotifyResourceEndAllAccess
 /// @}
 
 #ifdef __cplusplus

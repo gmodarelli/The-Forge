@@ -233,7 +233,7 @@ TinyImageFormat hook_get_recommended_swapchain_format(Renderer* pRenderer, const
     SAFE_RELEASE(dxgiAdapter);
 
     IDXGIOutput6* output6;
-    CHECK_HRESULT(COM_CALL(QueryInterface, bestOutput, IID_REF(IDXGIOutput6_Copy), &output6));
+    CHECK_HRESULT(COM_CALL(QueryInterface, bestOutput, IID_REF(IDXGIOutput6_Copy), (void**)&output6));
     DXGI_OUTPUT_DESC1 desc1;
     CHECK_HRESULT(COM_CALL(GetDesc1, output6, &desc1));
     SAFE_RELEASE(output6);

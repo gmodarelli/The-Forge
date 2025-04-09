@@ -2,7 +2,7 @@
 
 #include <Windows.h>
 #include <assert.h>
-#include <corecrt_io.h>
+#include <io.h>
 
 typedef struct WindowsFileStream WindowsFileStream;
 struct WindowsFileStream

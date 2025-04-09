@@ -27,6 +27,16 @@
 #ifndef FORGE_RENDERER_CONFIG_H
 #define FORGE_RENDERER_CONFIG_H
 
+#ifdef TIDES
+#ifndef min
+#define min(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef max
+#define max(a,b) (((a) > (b)) ? (a) : (b))
+#endif
+#endif // TIDES
+
 // Support external config file override
 #if defined(EXTERNAL_RENDERER_CONFIG_FILEPATH)
 #include EXTERNAL_RENDERER_CONFIG_FILEPATH

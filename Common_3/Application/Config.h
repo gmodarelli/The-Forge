@@ -234,16 +234,17 @@ COMPILE_ASSERT(sizeof(ssize_t) == sizeof(int64_t));
 
 #ifdef _WINDOWS
 // Restrict compilation to Windows 7 APIs
+#ifndef TIDES
 #define NTDDI_VERSION NTDDI_WIN7
 #define WINVER        _WIN32_WINNT_WIN7
 #define _WIN32_WINNT  _WIN32_WINNT_WIN7
-
 // Whitelist of compiler versions
-//#if (_MSC_VER == 1929) // VS 2019 all VC++ compilers
-//#else
-//#pragma message("Bad Visual Studio version: (" QUOTE(_MSC_VER) " " QUOTE(_MSC_FULL_VER) " " QUOTE(_MSC_BUILD) ").")
-//#error "Bad Visual Studio version"
-//#endif
+#if (_MSC_VER == 1929) // VS 2019 all VC++ compilers
+#else
+#pragma message("Bad Visual Studio version: (" QUOTE(_MSC_VER) " " QUOTE(_MSC_FULL_VER) " " QUOTE(_MSC_BUILD) ").")
+#error "Bad Visual Studio version"
+#endif
+#endif // TIDES
 
 #endif
 

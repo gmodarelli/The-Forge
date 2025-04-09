@@ -22,6 +22,8 @@
 # define PIX_XBOX
 #endif
 
+#ifdef TIDES
+#if defined(_MSC_VER)
 #if _MSC_VER < 1800
 # error This version of pix3.h is only supported on Visual Studio 2013 or higher
 #elif _MSC_VER < 1900
@@ -30,6 +32,8 @@
 #  define PIX3__DEFINED_CONSTEXPR
 # endif
 #endif
+#endif
+#endif // TIDES
 
 namespace PIXEventsDetail
 {

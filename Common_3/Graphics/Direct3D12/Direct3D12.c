@@ -39,6 +39,34 @@
 #include "../../Resources/ResourceLoader/ThirdParty/OpenSource/tinyimageformat/tinyimageformat_base.h"
 #include "../../Resources/ResourceLoader/ThirdParty/OpenSource/tinyimageformat/tinyimageformat_query.h"
 #include "../../../Common_3/Graphics/ThirdParty/OpenSource/ags/AgsHelper.h"
+
+#ifdef TIDES
+#if defined(__clang__)
+#ifndef __success
+#define __success(x)
+#endif
+#ifndef __in
+#define __in
+#endif
+#ifndef __out
+#define __out
+#endif
+#ifndef __inout
+#define __inout
+#endif
+#ifndef __deref_out
+#define __deref_out
+#endif
+#ifndef __inout_ecount_part_opt
+#define __inout_ecount_part_opt(x,y)
+#endif
+#ifndef __out_ecount_full_opt
+#define __out_ecount_full_opt(x)
+#endif
+
+#endif
+#endif // TIDES
+
 #include "../../../Common_3/Graphics/ThirdParty/OpenSource/nvapi/NvApiHelper.h"
 #include "../ThirdParty/OpenSource/renderdoc/renderdoc_app.h"
 
@@ -228,8 +256,18 @@ const D3D12_COMMAND_QUEUE_PRIORITY gDx12QueuePriorityTranslator[MAX_QUEUE_PRIORI
 // The GUIDs can be located in D3D headers (d3d12.h, dxgi.h, dxgi1_2.h, etc...), and are identical on all platforms.
 // In TheForge, all headers with DirectX GUIDs can be found in this folder (search for `DEFINE_GUID(`):
 // `Common_3/Graphics/ThirdParty/OpenSource/Direct3d12Agility/include`.
+#ifdef TIDES
+#if defined(__clang__)
+#define DO_DEFINE_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
+    const GUID name = { l, w1, w2, { b1, b2, b3, b4, b5, b6, b7, b8 } }
+#else
 #define DO_DEFINE_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
     EXTERN_C const GUID name = { l, w1, w2, { b1, b2, b3, b4, b5, b6, b7, b8 } }
+#endif
+#else // TIDES
+#define DO_DEFINE_GUID(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8) \
+    EXTERN_C const GUID name = { l, w1, w2, { b1, b2, b3, b4, b5, b6, b7, b8 } }
+#endif // TIDES
 #if defined(XBOX)
 // Missing from d3d12_x.lib/d3d12_xs.lib
 DO_DEFINE_GUID(IID_ID3D12CommandSignature, 0xc36a797c, 0xec80, 0x4f0a, 0x89, 0x85, 0xa7, 0xb2, 0x47, 0x50, 0x82, 0xd1);
@@ -1835,7 +1873,7 @@ void util_enumerate_gpus(IDXGIFactory6* dxgiFactory, uint32_t* pGpuCount, DXGPUI
     // Find number of usable GPUs
     // Use DXGI6 interface which lets us specify gpu preference so we dont need to use NVOptimus or AMDPowerExpress exports
     for (UINT i = 0; DXGI_ERROR_NOT_FOUND != COM_CALL(EnumAdapterByGpuPreference, dxgiFactory, i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-                                                      IID_REF(IDXGIAdapter4_Copy), &adapter);
+                                                      IID_REF(IDXGIAdapter4_Copy), (void**)&adapter);
          ++i)
     {
         if (gpuCount >= MAX_MULTIPLE_GPUS)
@@ -1856,7 +1894,7 @@ void util_enumerate_gpus(IDXGIFactory6* dxgiFactory, uint32_t* pGpuCount, DXGPUI
                 {
                     DXGPUInfo  gpuDescTmp = { 0 };
                     DXGPUInfo* pDXGPUInfo = gpuDesc ? &gpuDesc[gpuCount] : &gpuDescTmp;
-                    HRESULT    hres = COM_CALL(QueryInterface, adapter, IID_REF(IDXGIAdapter4_Copy), &pDXGPUInfo->pGpu);
+                    HRESULT    hres = COM_CALL(QueryInterface, adapter, IID_REF(IDXGIAdapter4_Copy), (void**)&pDXGPUInfo->pGpu);
                     if (SUCCEEDED(hres))
                     {
                         if (gpuDesc)
@@ -2377,7 +2415,7 @@ static bool AddDevice(const RendererDesc* pDesc, Renderer* pRenderer)
 #endif
 
 #if defined(_WINDOWS) && defined(ENABLE_GRAPHICS_VALIDATION)
-    HRESULT hr = COM_CALL(QueryInterface, pRenderer->mDx.pDevice, IID_REF(ID3D12InfoQueue1_Copy), &pRenderer->mDx.pDebugValidation);
+    HRESULT hr = COM_CALL(QueryInterface, pRenderer->mDx.pDevice, IID_REF(ID3D12InfoQueue1_Copy), (void**)&pRenderer->mDx.pDebugValidation);
     pRenderer->mDx.mUseDebugCallback = true;
     if (!SUCCEEDED(hr))
     {
@@ -2501,7 +2539,7 @@ void InitCommon(const RendererContextDesc* pDesc, RendererContext* pContext)
     flags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
-    CHECK_HRESULT(d3d12dll_CreateDXGIFactory2(flags, IID_REF(IDXGIFactory6_Copy), &pContext->mDx.pDXGIFactory));
+    CHECK_HRESULT(d3d12dll_CreateDXGIFactory2(flags, IID_REF(IDXGIFactory6_Copy), (void**)&pContext->mDx.pDXGIFactory));
 #endif
 
 #if defined(USE_DRED)
@@ -5195,7 +5233,7 @@ void addPipelineCache(Renderer* pRenderer, const PipelineCacheDesc* pDesc, Pipel
         if (feature.SupportFlags & D3D12_SHADER_CACHE_SUPPORT_LIBRARY)
         {
             ID3D12Device1* device1 = NULL;
-            result = COM_CALL(QueryInterface, pRenderer->mDx.pDevice, IID_REF(ID3D12Device1_Copy), &device1);
+            result = COM_CALL(QueryInterface, pRenderer->mDx.pDevice, IID_REF(ID3D12Device1_Copy), (void**)&device1);
             if (SUCCEEDED(result))
             {
                 result = hook_CreatePipelineLibrary(device1, pPipelineCache->mDx.pData, pDesc->mSize,
@@ -6372,7 +6410,7 @@ void initQueryPool(Renderer* pRenderer, const QueryPoolDesc* pDesc, QueryPool** 
         .NodeMask = util_calculate_node_mask(pRenderer, pDesc->mNodeIndex),
         .Type = ToDX12QueryHeapType(pDesc->mType),
     };
-    COM_CALL(CreateQueryHeap, pRenderer->mDx.pDevice, &desc, IID_REF(ID3D12QueryHeap_Copy), &pQueryPool->mDx.pQueryHeap);
+    COM_CALL(CreateQueryHeap, pRenderer->mDx.pDevice, &desc, IID_REF(ID3D12QueryHeap_Copy), (void**)&pQueryPool->mDx.pQueryHeap);
     SetObjectName((ID3D12Object*)pQueryPool->mDx.pQueryHeap, pDesc->pName); // -V1027
 
     BufferDesc bufDesc = {
