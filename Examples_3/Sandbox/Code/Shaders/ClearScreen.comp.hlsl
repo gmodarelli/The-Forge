@@ -1,6 +1,6 @@
 #include "ShaderGlobals.h"
 
-RWTexture2D<float4> g_output : register(u1, SPACE_PerDraw);
+RWTexture2D<float4> g_output : register(u1, SPACE_PerFrame);
 
 [RootSignature(ComputeRootSignature)]
 [numthreads(8, 8, 1)]
@@ -12,6 +12,6 @@ void main( uint3 DTid : SV_DispatchThreadID )
     
     if (DTid.x < width && DTid.y < height)
     {
-        g_output[DTid.xy] = float4(DTid.x / float(width), DTid.y / float(height), 0.0f, 1.0f);
+        g_output[DTid.xy] = float4(DTid.x / float(width), 1.0f - DTid.y / float(height), 0.0f, 1.0f);
     }
 }

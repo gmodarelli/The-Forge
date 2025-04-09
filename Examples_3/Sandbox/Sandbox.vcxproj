@@ -121,7 +121,9 @@ xcopy "$(SolutionDir)..\..\Common_3\OS\Windows\pc_gpu.data" "$(OutDir)gpu.data*"
 xcopy /Y /D "$(SolutionDir)GPUCfg\gpu.cfg" "$(OutDir)"
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\DefaultRootSignature.rs.hlsl -Fo $(OutDir)shaders\DefaultRootSignature.rs -E DefaultRootSignature -HV 2021 -WX -O0 -Zi -Qembed_debug -T rootsig_1_1
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ComputeRootSignature.rs.hlsl -Fo $(OutDir)shaders\ComputeRootSignature.rs -E ComputeRootSignature -HV 2021 -WX -O0 -Zi -Qembed_debug -T rootsig_1_1
-$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ClearScreen.comp.hlsl -Fo $(OutDir)shaders\ClearScreen.comp -E main -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T cs_6_8
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ClearScreen.comp.hlsl -Fo $(OutDir)shaders\ClearScreen.comp -E main -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T cs_6_6
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.vert -E FullscreenVertex -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T vs_6_6
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.frag -E BlitFragment -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T ps_6_6
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -152,7 +154,9 @@ xcopy "$(SolutionDir)..\..\Common_3\OS\Windows\pc_gpu.data" "$(OutDir)gpu.data*"
 xcopy /Y /D "$(SolutionDir)GPUCfg\gpu.cfg" "$(OutDir)"
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\DefaultRootSignature.rs.hlsl -Fo $(OutDir)shaders\DefaultRootSignature.rs -E DefaultRootSignature -HV 2021 -WX -O0 -Zi -Qembed_debug -T rootsig_1_1
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ComputeRootSignature.rs.hlsl -Fo $(OutDir)shaders\ComputeRootSignature.rs -E ComputeRootSignature -HV 2021 -WX -O0 -Zi -Qembed_debug -T rootsig_1_1
-$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ClearScreen.comp.hlsl -Fo $(OutDir)shaders\ClearScreen.comp -E main -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T cs_6_8
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ClearScreen.comp.hlsl -Fo $(OutDir)shaders\ClearScreen.comp -E main -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T cs_6_6
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.vert -E FullscreenVertex -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T vs_6_6
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.frag -E BlitFragment -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T ps_6_6
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -162,6 +166,7 @@ $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompile
     <ClCompile Include="..\..\Common_3\Graphics\Direct3D12\Direct3D12Raytracing.c" />
     <ClCompile Include="..\..\Common_3\Graphics\Direct3D12\Direct3D12_cxx.cpp" />
     <ClCompile Include="..\..\Common_3\Graphics\GraphicsConfig.cpp" />
+    <ClCompile Include="..\..\Common_3\Graphics\GraphicsTides.c" />
     <ClCompile Include="..\..\Common_3\Tides\WindowsFileSystem.c" />
     <ClCompile Include="..\..\Common_3\Tides\WindowsLog.c" />
     <ClCompile Include="..\..\Common_3\Tides\WindowsMemory.c" />
@@ -172,8 +177,8 @@ $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompile
   <ItemGroup>
     <ClInclude Include="..\..\Common_3\Graphics\GraphicsConfig.h" />
     <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IGraphics.h" />
+    <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IGraphicsTides.h" />
     <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IRay.h" />
-    <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IShaderReflection.h" />
     <ClInclude Include="Code\DescriptorSets.autogen.h" />
     <ClInclude Include="Code\ExternalConfig.h" />
     <ClInclude Include="Code\ExternalRendererConfig.h" />
@@ -205,6 +210,18 @@ $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompile
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="Code\Shaders\DefaultRootSignature.rs.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="Code\Shaders\Blit.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>

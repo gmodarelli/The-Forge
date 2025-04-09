@@ -11,11 +11,14 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="Sandbox\Code">
+      <UniqueIdentifier>{fdc4ec36-19ee-4e3a-a1e1-15953fa01df0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sandbox\Shaders">
+      <UniqueIdentifier>{b15e68e9-aabc-47bb-958f-2be71af48a22}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Code\main.cpp">
-      <Filter>Sandbox</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Common_3\Utilities\ThirdParty\OpenSource\bstrlib\bstrlib.c">
       <Filter>The-Forge</Filter>
     </ClCompile>
@@ -46,12 +49,15 @@
     <ClCompile Include="..\..\Common_3\Tides\WindowsLog.c">
       <Filter>InterfaceImplementations</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Common_3\Graphics\GraphicsTides.c">
+      <Filter>The-Forge</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\main.cpp">
+      <Filter>Sandbox\Code</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Common_3\Graphics\GraphicsConfig.h">
-      <Filter>The-Forge</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IShaderReflection.h">
       <Filter>The-Forge</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IRay.h">
@@ -60,20 +66,34 @@
     <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IGraphics.h">
       <Filter>The-Forge</Filter>
     </ClInclude>
-    <ClInclude Include="Code\ExternalRendererConfig.h">
-      <Filter>Sandbox</Filter>
+    <ClInclude Include="..\..\Common_3\Graphics\Interfaces\IGraphicsTides.h">
+      <Filter>The-Forge</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\DescriptorSets.autogen.h">
+      <Filter>Sandbox\Code</Filter>
     </ClInclude>
     <ClInclude Include="Code\ExternalConfig.h">
-      <Filter>Sandbox</Filter>
+      <Filter>Sandbox\Code</Filter>
     </ClInclude>
-    <ClInclude Include="Code\Shaders\ShaderGlobals.h" />
-    <ClInclude Include="Code\DescriptorSets.autogen.h">
-      <Filter>Sandbox</Filter>
+    <ClInclude Include="Code\ExternalRendererConfig.h">
+      <Filter>Sandbox\Code</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\Shaders\ShaderGlobals.h">
+      <Filter>Sandbox\Shaders</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Code\Shaders\ClearScreen.comp.hlsl" />
-    <FxCompile Include="Code\Shaders\ComputeRootSignature.rs.hlsl" />
-    <FxCompile Include="Code\Shaders\DefaultRootSignature.rs.hlsl" />
+    <FxCompile Include="Code\Shaders\ClearScreen.comp.hlsl">
+      <Filter>Sandbox\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Code\Shaders\ComputeRootSignature.rs.hlsl">
+      <Filter>Sandbox\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Code\Shaders\DefaultRootSignature.rs.hlsl">
+      <Filter>Sandbox\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Code\Shaders\Blit.hlsl">
+      <Filter>Sandbox\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

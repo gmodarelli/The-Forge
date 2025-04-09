@@ -9,7 +9,7 @@
 #define STB_DS_IMPLEMENTATION
 #include "../../../Common_3/Utilities/Math/BStringHashMap.h"
 
-#include "../../../Common_3/Graphics/Interfaces/IGraphics.h"
+#include "../../../Common_3/Graphics/Interfaces/IGraphicsTides.h"
 
 // TODO: Implement the following interfaces
 // IOperatingSystem.h
@@ -45,19 +45,23 @@ struct Gpu
     SwapChain* swapchain;
 
     // Render Targets
-    RenderTarget* scene_color = NULL;
+    Texture* scene_color = NULL;
 
     // Samplers
     Sampler* linear_repeat_sampler = NULL;
     Sampler* linear_clamp_sampler = NULL;
 
-    // TODO: This should be part of a gpu_backend struct maybe, so we don't expose D3D12 resources
-    ID3D12RootSignature* graphics_rs = NULL;
-    ID3D12RootSignature* compute_rs = NULL;
-    // TODO: All shaders here
+    // Engine Shaders
     Shader* clear_screen_cs = NULL;
+    DescriptorSet* clear_screen_per_frame_descriptor_set = NULL;
+    Pipeline* clear_screen_pso = NULL;
+    Shader* blit_shader = NULL;
+    DescriptorSet* blit_persistent_descriptor_set = NULL;
+    DescriptorSet* blit_per_frame_descriptor_set = NULL;
+    Pipeline* blit_pso = NULL;
 
-    DescriptorSet* clear_screen_descriptor_set = NULL;
+    bool has_started_frame = false;
+    uint32_t frame_index = 0;
 };
 
 static Gpu g_gpu;
@@ -66,6 +70,8 @@ void gpu_init();
 void gpu_exit();
 bool gpu_on_load(ReloadDesc reload_desc);
 void gpu_on_unload(ReloadDesc reload_desc);
+void gpu_frame_start();
+void gpu_frame_submit();
 
 int main(int argc, char** argv)
 {
@@ -88,6 +94,8 @@ int main(int argc, char** argv)
         }
 
         // render
+        gpu_frame_start();
+        gpu_frame_submit();
     }
 
     gpu_on_unload({ RELOAD_TYPE_ALL });
@@ -157,12 +165,13 @@ void swapchain_exit();
 bool render_targets_init();
 void render_targets_exit();
 bool default_root_signatures_init();
-void default_root_signatures_exit();
 void shaders_init();
 void shaders_exit();
 void descriptor_sets_init();
 void descriptor_sets_prepare();
 void descriptor_sets_exit();
+void pipelines_init();
+void pipelines_exit();
 
 void gpu_init()
 {
@@ -218,7 +227,6 @@ void gpu_exit()
     removeSampler(g_gpu.renderer, g_gpu.linear_clamp_sampler);
     removeSampler(g_gpu.renderer, g_gpu.linear_repeat_sampler);
 
-    default_root_signatures_exit();
     exitSemaphore(g_gpu.renderer, g_gpu.image_acquired_semaphore);
     command_pools_exit();
     exitQueue(g_gpu.renderer, g_gpu.graphics_queue);
@@ -248,6 +256,11 @@ bool gpu_on_load(ReloadDesc reload_desc)
         }
     }
 
+    if (reload_desc.mType & (RELOAD_TYPE_SHADER | RELOAD_TYPE_RENDERTARGET))
+    {
+        pipelines_init();
+    }
+
     descriptor_sets_prepare();
 
     return true;
@@ -258,6 +271,12 @@ void gpu_on_unload(ReloadDesc reload_desc)
     assert(g_gpu.renderer);
 
     waitQueueIdle(g_gpu.graphics_queue);
+    
+    if (reload_desc.mType & (RELOAD_TYPE_SHADER | RELOAD_TYPE_RENDERTARGET))
+    {
+        pipelines_exit();
+    }
+
     if (reload_desc.mType & (RELOAD_TYPE_RESIZE | RELOAD_TYPE_RENDERTARGET))
     {
         render_targets_exit();
@@ -269,6 +288,103 @@ void gpu_on_unload(ReloadDesc reload_desc)
         descriptor_sets_exit();
         shaders_exit();
     }
+}
+
+void gpu_frame_start()
+{
+    assert(!g_gpu.has_started_frame);
+    g_gpu.has_started_frame = true;
+        
+    Fence*      frame_fence = g_gpu.fences[g_gpu.frame_index];
+    FenceStatus fence_status;
+    getFenceStatus(g_gpu.renderer, frame_fence, &fence_status);
+    if (fence_status == FENCE_STATUS_INCOMPLETE)
+    {
+        waitForFences(g_gpu.renderer, 1, &frame_fence);
+    }
+
+    CmdPool* cmd_pool = g_gpu.cmd_pools[g_gpu.frame_index];
+    resetCmdPool(g_gpu.renderer, cmd_pool);
+    Cmd* cmd = g_gpu.cmds[g_gpu.frame_index];
+
+    beginCmd(cmd);
+
+    TextureBarrier texture_barriers[] = {
+        { g_gpu.scene_color, RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_UNORDERED_ACCESS },
+    };
+    cmdResourceBarrier(cmd, 0, NULL, 1, texture_barriers, 0, NULL);
+
+    cmdBindPipeline(cmd, g_gpu.clear_screen_pso);
+    cmdBindDescriptorSet(cmd, g_gpu.frame_index, g_gpu.clear_screen_per_frame_descriptor_set);
+    cmdDispatch(cmd, g_gpu.scene_color->mWidth / 8, g_gpu.scene_color->mHeight / 8, 1);
+
+    texture_barriers[0].mCurrentState = RESOURCE_STATE_UNORDERED_ACCESS;
+    texture_barriers[0].mNewState = RESOURCE_STATE_SHADER_RESOURCE;
+    cmdResourceBarrier(cmd, 0, NULL, 1, texture_barriers, 0, NULL);
+}
+
+void gpu_frame_submit()
+{
+    assert(g_gpu.has_started_frame);
+
+    uint32_t swapchain_image_index;
+    acquireNextImage(g_gpu.renderer, g_gpu.swapchain, g_gpu.image_acquired_semaphore, NULL, &swapchain_image_index);
+    RenderTarget* swapchain_buffer = g_gpu.swapchain->ppRenderTargets[swapchain_image_index];
+
+    Cmd* cmd = g_gpu.cmds[g_gpu.frame_index];
+
+    RenderTargetBarrier render_target_barriers[] = {
+        { swapchain_buffer, RESOURCE_STATE_PRESENT, RESOURCE_STATE_RENDER_TARGET },
+    };
+    cmdResourceBarrier(cmd, 0, NULL, 0, NULL, 1, render_target_barriers);
+
+    BindRenderTargetsDesc bind_render_targets_desc = {};
+    bind_render_targets_desc.mRenderTargetCount = 1;
+    bind_render_targets_desc.mRenderTargets[0] = {};
+    bind_render_targets_desc.mRenderTargets[0].pRenderTarget = swapchain_buffer;
+    bind_render_targets_desc.mRenderTargets[0].mLoadAction = LOAD_ACTION_CLEAR;
+    cmdBindRenderTargets(cmd, &bind_render_targets_desc);
+
+    cmdSetViewport(cmd, 0.0f, 0.0f, (float)swapchain_buffer->mWidth, (float)swapchain_buffer->mHeight, 0.0f, 1.0f);
+    cmdSetScissor(cmd, 0, 0, swapchain_buffer->mWidth, swapchain_buffer->mHeight);
+
+    cmdBindPipeline(cmd, g_gpu.blit_pso);
+    cmdBindDescriptorSet(cmd, 0, g_gpu.blit_persistent_descriptor_set);
+    cmdBindDescriptorSet(cmd, g_gpu.frame_index, g_gpu.blit_per_frame_descriptor_set);
+    cmdDraw(cmd, 3, 0);
+
+    render_target_barriers[0].mCurrentState = RESOURCE_STATE_RENDER_TARGET;
+    render_target_barriers[0].mNewState = RESOURCE_STATE_PRESENT;
+    cmdResourceBarrier(cmd, 0, NULL, 0, NULL, 1, render_target_barriers);
+
+    endCmd(cmd);
+
+    Semaphore* wait_semaphores[1] = { g_gpu.image_acquired_semaphore };
+    Semaphore* signal_semaphores[1] = { g_gpu.semaphores[g_gpu.frame_index] };
+
+    QueueSubmitDesc submit_desc = {};
+    submit_desc.mCmdCount = 1;
+    submit_desc.ppCmds = &cmd;
+    submit_desc.mSignalSemaphoreCount = 1;
+    submit_desc.ppSignalSemaphores = signal_semaphores;
+    submit_desc.mWaitSemaphoreCount = 1;
+    submit_desc.ppWaitSemaphores = wait_semaphores;
+    submit_desc.pSignalFence = g_gpu.fences[g_gpu.frame_index];
+    queueSubmit(g_gpu.graphics_queue, &submit_desc);
+
+    wait_semaphores[0] = { g_gpu.semaphores[g_gpu.frame_index] };
+
+    QueuePresentDesc present_desc = {};
+    present_desc.mIndex = (uint8_t)swapchain_image_index;
+    present_desc.pSwapChain = g_gpu.swapchain;
+    present_desc.mWaitSemaphoreCount = 1;
+    present_desc.ppWaitSemaphores = wait_semaphores;
+    present_desc.mSubmitDone = true;
+    queuePresent(g_gpu.graphics_queue, &present_desc);
+
+    g_gpu.frame_index += 1;
+    g_gpu.frame_index %= FRAMES_IN_FLIGHT_COUNT;
+    g_gpu.has_started_frame = false;
 }
 
 void command_pools_init()
@@ -336,7 +452,7 @@ bool swapchain_init()
     desc.mColorSpace = ::COLOR_SPACE_SDR_SRGB;
     desc.mEnableVsync = true;
     desc.mFlags = ::SWAP_CHAIN_CREATION_FLAG_NONE;
-    ::addSwapChain(g_gpu.renderer, &desc, &g_gpu.swapchain);
+    addSwapChain(g_gpu.renderer, &desc, &g_gpu.swapchain);
 
     return g_gpu.swapchain != NULL;
 }
@@ -346,18 +462,20 @@ void swapchain_exit() { removeSwapChain(g_gpu.renderer, g_gpu.swapchain); }
 bool render_targets_init()
 {
     {
-        RenderTargetDesc desc = {};
+        TextureDesc desc = {};
         desc.mWidth = g_gpu.swapchain->ppRenderTargets[0]->mWidth;
         desc.mHeight = g_gpu.swapchain->ppRenderTargets[0]->mHeight;
         desc.mDepth = 1;
         desc.mArraySize = 1;
+        desc.mMipLevels = 1;
         desc.mClearValue = { 0.0f, 0.0f, 0.0f, 0.0f };
         desc.mFormat = TinyImageFormat_R8G8B8A8_SRGB;
         desc.mStartState = RESOURCE_STATE_SHADER_RESOURCE;
+        desc.mDescriptors = DESCRIPTOR_TYPE_TEXTURE | DESCRIPTOR_TYPE_RW_TEXTURE;
         desc.mSampleCount = SAMPLE_COUNT_1;
         desc.mSampleQuality = 0;
         desc.mFlags = TEXTURE_CREATION_FLAG_ON_TILE;
-        addRenderTarget(g_gpu.renderer, &desc, &g_gpu.scene_color);
+        addTextureEx(g_gpu.renderer, &desc, &g_gpu.scene_color, false);
 
         if (!g_gpu.scene_color)
         {
@@ -370,7 +488,7 @@ bool render_targets_init()
 
 void render_targets_exit()
 {
-    removeRenderTarget(g_gpu.renderer, g_gpu.scene_color);
+    removeTextureEx(g_gpu.renderer, g_gpu.scene_color);
 }
 
 extern "C" void initRootSignatureImpl(Renderer*, const void*, uint32_t, ID3D12RootSignature**);
@@ -380,23 +498,17 @@ bool load_root_signature(const char* path, ID3D12RootSignature** root_signature)
 
 bool default_root_signatures_init() 
 {
-    if (!load_root_signature("shaders/DefaultRootSignature.rs", &g_gpu.graphics_rs))
+    if (!load_root_signature("shaders/DefaultRootSignature.rs", &g_gpu.renderer->mDx.pGraphicsRootSignature))
     {
         return false;
     }
 
-    if (!load_root_signature("shaders/ComputeRootSignature.rs", &g_gpu.compute_rs))
+    if (!load_root_signature("shaders/ComputeRootSignature.rs", &g_gpu.renderer->mDx.pComputeRootSignature))
     {
         return false;
     }
 
     return true;
-}
-
-void default_root_signatures_exit()
-{
-    exitRootSignatureImpl(g_gpu.renderer, g_gpu.graphics_rs);
-    exitRootSignatureImpl(g_gpu.renderer, g_gpu.compute_rs);
 }
 
 bool load_root_signature(const char* path, ID3D12RootSignature** root_signature)
@@ -448,15 +560,27 @@ void shaders_init()
 
         shader_load(&shader_load_desc, &g_gpu.clear_screen_cs);
     }
+
+    {
+        ShaderLoadDesc shader_load_desc = {};
+        shader_load_desc.vert.entry = "main";
+        shader_load_desc.vert.path = "shaders/Blit.vert";
+        shader_load_desc.frag.entry = "main";
+        shader_load_desc.frag.path = "shaders/Blit.frag";
+
+        shader_load(&shader_load_desc, &g_gpu.blit_shader);
+    }
 }
 
 void shaders_exit()
 {
     removeShader(g_gpu.renderer, g_gpu.clear_screen_cs);
+    removeShader(g_gpu.renderer, g_gpu.blit_shader);
 }
 
 void descriptor_sets_init()
 {
+    // Clear Screen
     {
         DescriptorSetDesc desc = {};
         desc.mIndex = ROOT_PARAM_PerFrame;
@@ -464,24 +588,111 @@ void descriptor_sets_init()
         desc.mNodeIndex = 0;
         desc.mDescriptorCount = 1;
         desc.pDescriptors = SRT_ClearScreenShaderData::per_frame_ptr();
-        addDescriptorSet(g_gpu.renderer, &desc, &g_gpu.clear_screen_descriptor_set);
+        addDescriptorSet(g_gpu.renderer, &desc, &g_gpu.clear_screen_per_frame_descriptor_set);
+    }
+
+    // Blit
+    {
+        DescriptorSetDesc desc = {};
+        desc.mIndex = ROOT_PARAM_Persistent_SAMPLER;
+        desc.mMaxSets = 1;
+        desc.mNodeIndex = 0;
+        desc.mDescriptorCount = 1;
+        desc.pDescriptors = SRT_BlitShaderData::persistent_ptr();
+        addDescriptorSet(g_gpu.renderer, &desc, &g_gpu.blit_persistent_descriptor_set);
+
+        desc.mIndex = ROOT_PARAM_PerFrame;
+        desc.mMaxSets = FRAMES_IN_FLIGHT_COUNT;
+        desc.mNodeIndex = 0;
+        desc.mDescriptorCount = 1;
+        desc.pDescriptors = SRT_BlitShaderData::per_frame_ptr();
+        addDescriptorSet(g_gpu.renderer, &desc, &g_gpu.blit_per_frame_descriptor_set);
     }
 }
 
 void descriptor_sets_prepare()
 {
+    // Per Frame
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT_COUNT; i++)
     {
+        // Clear screen
+        {
+            DescriptorData params[1] = {};
+            params[0].mIndex = (offsetof(SRT_ClearScreenShaderData::PerFrame, g_output)) / sizeof(Descriptor);
+            params[0].ppTextures = &g_gpu.scene_color;
+            updateDescriptorSet(g_gpu.renderer, i, g_gpu.clear_screen_per_frame_descriptor_set, 1, params);
+        }
+
+        // Blit
+        {
+            DescriptorData params[1] = {};
+            params[0].mIndex = (offsetof(SRT_BlitShaderData::PerFrame, g_source)) / sizeof(Descriptor);
+            params[0].ppTextures = &g_gpu.scene_color;
+            updateDescriptorSet(g_gpu.renderer, i, g_gpu.blit_per_frame_descriptor_set, 1, params);
+        }
+    }
+
+    // Persisten
+    // Blit
+    {
         DescriptorData params[1] = {};
-        params[0].mIndex = (offsetof(SRT_ClearScreenShaderData::PerFrame, g_output)) / sizeof(Descriptor);
-        params[0].ppTextures = &g_gpu.scene_color->pTexture;
-        updateDescriptorSet(g_gpu.renderer, i, g_gpu.clear_screen_descriptor_set, 1, params);
+        params[0].mIndex = (offsetof(SRT_BlitShaderData::Persistent, g_linear_repeat_sampler)) / sizeof(Descriptor);
+        params[0].ppSamplers = &g_gpu.linear_repeat_sampler;
+        updateDescriptorSet(g_gpu.renderer, 0, g_gpu.blit_persistent_descriptor_set, 1, params);
     }
 }
 
 void descriptor_sets_exit()
 {
-    removeDescriptorSet(g_gpu.renderer, g_gpu.clear_screen_descriptor_set);
+    // Clear screen
+    removeDescriptorSet(g_gpu.renderer, g_gpu.clear_screen_per_frame_descriptor_set);
+    // Blit
+    removeDescriptorSet(g_gpu.renderer, g_gpu.blit_per_frame_descriptor_set);
+    removeDescriptorSet(g_gpu.renderer, g_gpu.blit_persistent_descriptor_set);
+}
+
+void pipelines_init()
+{
+    // Clear screen
+    {
+        PipelineDesc desc = {};
+        desc.mType = PIPELINE_TYPE_COMPUTE;
+        ComputePipelineDesc* pipeline = &desc.mComputeDesc;
+        pipeline->pShaderProgram = g_gpu.clear_screen_cs;
+        addPipeline(g_gpu.renderer, &desc, &g_gpu.clear_screen_pso);
+    }
+
+    // Blit
+    {
+        PipelineDesc desc = {};
+        desc.mType = PIPELINE_TYPE_GRAPHICS;
+        GraphicsPipelineDesc* pipeline = &desc.mGraphicsDesc;
+
+        RasterizerStateDesc raster_state_desc = {};
+        raster_state_desc.mCullMode = CULL_MODE_NONE;
+
+        DepthStateDesc depth_state_desc = {};
+        depth_state_desc.mDepthTest = false;
+        depth_state_desc.mDepthWrite = false;
+
+        pipeline->mPrimitiveTopo = PRIMITIVE_TOPO_TRI_LIST;
+        pipeline->mRenderTargetCount = 1;
+        pipeline->pDepthState = &depth_state_desc;
+        pipeline->pColorFormats = &g_gpu.swapchain->ppRenderTargets[0]->mFormat;
+        pipeline->mSampleCount = g_gpu.swapchain->ppRenderTargets[0]->mSampleCount;
+        pipeline->mSampleQuality = g_gpu.swapchain->ppRenderTargets[0]->mSampleQuality;
+        pipeline->pShaderProgram = g_gpu.blit_shader;
+        pipeline->pVertexLayout = NULL;
+        pipeline->pRasterizerState = &raster_state_desc;
+        pipeline->mVRFoveatedRendering = false;
+        addPipeline(g_gpu.renderer, &desc, &g_gpu.blit_pso);
+    }
+}
+
+void pipelines_exit()
+{
+    removePipeline(g_gpu.renderer, g_gpu.clear_screen_pso);
+    removePipeline(g_gpu.renderer, g_gpu.blit_pso);
 }
 
 void shader_load(const ShaderLoadDesc* shader_load_desc, Shader** out_shader)
