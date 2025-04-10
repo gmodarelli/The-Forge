@@ -2,6 +2,259 @@
 const std = @import("std");
 //const cpp = @import("cpp");
 
+// TIDES: BEGIN MANUAL CHANGES
+const tiny_image_format = @import("TinyImageFormat.zig");
+pub const TinyImageFormat = tiny_image_format.TinyImageFormat;
+
+const DWORD = u32;
+const WCHAR = u16;
+const D3D_FEATURE_LEVEL = u32;
+const D3D12_GPU_VIRTUAL_ADDRESS = u64;
+const D3D12_QUERY_TYPE = u32;
+const HANDLE = *anyopaque;
+const ID3D12CommandAllocator = anyopaque;
+const ID3D12CommandQueue = anyopaque;
+const ID3D12CommandSignature = anyopaque;
+const ID3D12Debug = anyopaque;
+const ID3D12DescriptorHeap = anyopaque;
+const ID3D12Device = anyopaque;
+const ID3D12Fence = anyopaque;
+const ID3D12GraphicsCommandList1 = anyopaque;
+const ID3D12Heap = anyopaque;
+const ID3D12InfoQueue = anyopaque;
+const ID3D12InfoQueue1 = anyopaque;
+const ID3D12DebugCommandList = anyopaque;
+const ID3D12PipelineLibrary = anyopaque;
+const ID3D12PipelineState = anyopaque;
+const ID3D12QueryHeap = anyopaque;
+const ID3D12Resource = anyopaque;
+const ID3D12RootSignature = anyopaque;
+const ID3D12StateObject = anyopaque;
+const IDxcBlobEncoding = anyopaque;
+const IDXGIAdapter4 = anyopaque;
+const IDXGIFactory6 = anyopaque;
+const IDXGISwapChain3 = anyopaque;
+const LogLevel = u32;
+const LPCWSTR = *anyopaque;
+const Mutex = anyopaque;
+const PipelineReflection = anyopaque;
+const D3D12MAAllocation_ = anyopaque;
+
+pub const D3D12_CPU_DESCRIPTOR_HANDLE = extern struct {
+    ptr: u64,
+};
+
+pub const D3D12_GPU_DESCRIPTOR_HANDLE = extern struct {
+    ptr: u64,
+};
+
+pub const D3D12_PROGRAM_IDENTIFIER = extern struct {
+    opaque_data: [4]u64,
+};
+
+/// D3D structs definitions copied from zig-gamdev/zwin32/d3dcommon.zig
+pub const D3D_PRIMITIVE_TOPOLOGY = enum(u32) {
+    D3D_PRIMITIVE_TOPOLOGY_UNDEFINED = 0,
+    D3D_PRIMITIVE_TOPOLOGY_POINTLIST = 1,
+    D3D_PRIMITIVE_TOPOLOGY_LINELIST = 2,
+    D3D_PRIMITIVE_TOPOLOGY_LINESTRIP = 3,
+    D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST = 4,
+    D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP = 5,
+    D3D_PRIMITIVE_TOPOLOGY_LINELIST_ADJ = 10,
+    D3D_PRIMITIVE_TOPOLOGY_LINESTRIP_ADJ = 11,
+    D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST_ADJ = 12,
+    D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP_ADJ = 13,
+    D3D_PRIMITIVE_TOPOLOGY_CONTROL_POINT_PATCHLIST = 33,
+    D3D_PRIMITIVE_TOPOLOTY_2_CONTROL_POINT_PATCHLIST = 34,
+    D3D_PRIMITIVE_TOPOLOTY_3_CONTROL_POINT_PATCHLIST = 35,
+    D3D_PRIMITIVE_TOPOLOTY_4_CONTROL_POINT_PATCHLIST = 36,
+    D3D_PRIMITIVE_TOPOLOTY_5_CONTROL_POINT_PATCHLIST = 37,
+    D3D_PRIMITIVE_TOPOLOTY_6_CONTROL_POINT_PATCHLIST = 38,
+    D3D_PRIMITIVE_TOPOLOTY_7_CONTROL_POINT_PATCHLIST = 39,
+    D3D_PRIMITIVE_TOPOLOTY_8_CONTROL_POINT_PATCHLIST = 40,
+    D3D_PRIMITIVE_TOPOLOTY_9_CONTROL_POINT_PATCHLIST = 41,
+    D3D_PRIMITIVE_TOPOLOTY_10_CONTROL_POINT_PATCHLIST = 42,
+    D3D_PRIMITIVE_TOPOLOTY_11_CONTROL_POINT_PATCHLIST = 43,
+    D3D_PRIMITIVE_TOPOLOTY_12_CONTROL_POINT_PATCHLIST = 44,
+    D3D_PRIMITIVE_TOPOLOTY_13_CONTROL_POINT_PATCHLIST = 45,
+    D3D_PRIMITIVE_TOPOLOTY_14_CONTROL_POINT_PATCHLIST = 46,
+    D3D_PRIMITIVE_TOPOLOTY_15_CONTROL_POINT_PATCHLIST = 47,
+    D3D_PRIMITIVE_TOPOLOTY_16_CONTROL_POINT_PATCHLIST = 48,
+    D3D_PRIMITIVE_TOPOLOTY_17_CONTROL_POINT_PATCHLIST = 49,
+    D3D_PRIMITIVE_TOPOLOTY_18_CONTROL_POINT_PATCHLIST = 50,
+    D3D_PRIMITIVE_TOPOLOTY_19_CONTROL_POINT_PATCHLIST = 51,
+    D3D_PRIMITIVE_TOPOLOTY_20_CONTROL_POINT_PATCHLIST = 52,
+    D3D_PRIMITIVE_TOPOLOTY_21_CONTROL_POINT_PATCHLIST = 53,
+    D3D_PRIMITIVE_TOPOLOTY_22_CONTROL_POINT_PATCHLIST = 54,
+    D3D_PRIMITIVE_TOPOLOTY_23_CONTROL_POINT_PATCHLIST = 55,
+    D3D_PRIMITIVE_TOPOLOTY_24_CONTROL_POINT_PATCHLIST = 56,
+    D3D_PRIMITIVE_TOPOLOTY_25_CONTROL_POINT_PATCHLIST = 57,
+    D3D_PRIMITIVE_TOPOLOTY_26_CONTROL_POINT_PATCHLIST = 58,
+    D3D_PRIMITIVE_TOPOLOTY_27_CONTROL_POINT_PATCHLIST = 59,
+    D3D_PRIMITIVE_TOPOLOTY_28_CONTROL_POINT_PATCHLIST = 60,
+    D3D_PRIMITIVE_TOPOLOTY_29_CONTROL_POINT_PATCHLIST = 61,
+    D3D_PRIMITIVE_TOPOLOTY_30_CONTROL_POINT_PATCHLIST = 62,
+    D3D_PRIMITIVE_TOPOLOTY_31_CONTROL_POINT_PATCHLIST = 63,
+    D3D_PRIMITIVE_TOPOLOTY_32_CONTROL_POINT_PATCHLIST = 64,
+};
+
+pub const D3D12_SAMPLER_DESC = extern struct {
+    Filter: D3D12_FILTER,
+    AddressU: D3D12_TEXTURE_ADDRESS_MODE,
+    AddressV: D3D12_TEXTURE_ADDRESS_MODE,
+    AddressW: D3D12_TEXTURE_ADDRESS_MODE,
+    MipLODBias: f32,
+    MaxAnisotropy: u32,
+    ComparisonFunc: D3D12_COMPARISON_FUNC,
+    BorderColor: [4]f32,
+    MinLOD: f32,
+    MaxLOD: f32,
+};
+
+pub const D3D12_FILTER = enum(u32) {
+    MIN_MAG_MIP_POINT = 0,
+    MIN_MAG_POINT_MIP_LINEAR = 0x1,
+    MIN_POINT_MAG_LINEAR_MIP_POINT = 0x4,
+    MIN_POINT_MAG_MIP_LINEAR = 0x5,
+    MIN_LINEAR_MAG_MIP_POINT = 0x10,
+    MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x11,
+    MIN_MAG_LINEAR_MIP_POINT = 0x14,
+    MIN_MAG_MIP_LINEAR = 0x15,
+    ANISOTROPIC = 0x55,
+    COMPARISON_MIN_MAG_MIP_POINT = 0x80,
+    COMPARISON_MIN_MAG_POINT_MIP_LINEAR = 0x81,
+    COMPARISON_MIN_POINT_MAG_LINEAR_MIP_POINT = 0x84,
+    COMPARISON_MIN_POINT_MAG_MIP_LINEAR = 0x85,
+    COMPARISON_MIN_LINEAR_MAG_MIP_POINT = 0x90,
+    COMPARISON_MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x91,
+    COMPARISON_MIN_MAG_LINEAR_MIP_POINT = 0x94,
+    COMPARISON_MIN_MAG_MIP_LINEAR = 0x95,
+    COMPARISON_ANISOTROPIC = 0xd5,
+    MINIMUM_MIN_MAG_MIP_POINT = 0x100,
+    MINIMUM_MIN_MAG_POINT_MIP_LINEAR = 0x101,
+    MINIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT = 0x104,
+    MINIMUM_MIN_POINT_MAG_MIP_LINEAR = 0x105,
+    MINIMUM_MIN_LINEAR_MAG_MIP_POINT = 0x110,
+    MINIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x111,
+    MINIMUM_MIN_MAG_LINEAR_MIP_POINT = 0x114,
+    MINIMUM_MIN_MAG_MIP_LINEAR = 0x115,
+    MINIMUM_ANISOTROPIC = 0x155,
+    MAXIMUM_MIN_MAG_MIP_POINT = 0x180,
+    MAXIMUM_MIN_MAG_POINT_MIP_LINEAR = 0x181,
+    MAXIMUM_MIN_POINT_MAG_LINEAR_MIP_POINT = 0x184,
+    MAXIMUM_MIN_POINT_MAG_MIP_LINEAR = 0x185,
+    MAXIMUM_MIN_LINEAR_MAG_MIP_POINT = 0x190,
+    MAXIMUM_MIN_LINEAR_MAG_POINT_MIP_LINEAR = 0x191,
+    MAXIMUM_MIN_MAG_LINEAR_MIP_POINT = 0x194,
+    MAXIMUM_MIN_MAG_MIP_LINEAR = 0x195,
+    MAXIMUM_ANISOTROPIC = 0x1d5,
+};
+
+pub const D3D12_TEXTURE_ADDRESS_MODE = enum(u32) {
+    WRAP = 1,
+    MIRROR = 2,
+    CLAMP = 3,
+    BORDER = 4,
+    MIRROR_ONCE = 5,
+};
+
+pub const D3D12_COMPARISON_FUNC = enum(u32) {
+    NEVER = 1,
+    LESS = 2,
+    EQUAL = 3,
+    LESS_EQUAL = 4,
+    GREATER = 5,
+    NOT_EQUAL = 6,
+    GREATER_EQUAL = 7,
+    ALWAYS = 8,
+};
+
+pub const D3D12_DESCRIPTOR_HEAP_TYPE = enum(u32) {
+    D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+    D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,
+    D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+    D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+    D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES,
+};
+
+pub const DescriptorHeap = extern struct {
+    /// DX Heap
+    pHeap: *ID3D12DescriptorHeap,
+    /// Lock for multi-threaded descriptor allocations
+    mMutex: std.os.windows.CRITICAL_SECTION, // NOTE(gmodarelli): Windows-only
+    pDevice: *ID3D12Device,
+    /// Start position in the heap
+    mStartCpuHandle: D3D12_CPU_DESCRIPTOR_HANDLE,
+    mStartGpuHandle: D3D12_GPU_DESCRIPTOR_HANDLE,
+    // Bitmask to track free regions (set bit means occupied)
+    pFlags: *u32,
+    /// Description
+    mType: D3D12_DESCRIPTOR_HEAP_TYPE,
+    mNumDescriptors: u32,
+    /// Descriptor Increment Size
+    mDescriptorSize: u32,
+    // Usage
+    mUsedDescriptors: u32,
+};
+
+pub const ExtendedSettings = extern struct {
+    mNumSettings: u32,
+    pSettings: *u32,
+    ppSettingNames: [*c][*c]const u8,
+};
+
+pub const GPUPresetLevel = enum(u32) {
+    GPU_PRESET_NONE = 0,
+    GPU_PRESET_OFFICE, // This means unsupported
+    GPU_PRESET_VERYLOW, // Mostly for mobile GPU
+    GPU_PRESET_LOW,
+    GPU_PRESET_MEDIUM,
+    GPU_PRESET_HIGH,
+    GPU_PRESET_ULTRA,
+    GPU_PRESET_COUNT,
+};
+
+/// Taken from IOperatingSystem.h
+pub const ReloadType = packed struct(u32) {
+    RESIZE: bool = false, // 0x1
+    SHADER: bool = false, // 0x2
+    RENDERTARGET: bool = false, // 0x4,
+    __unused: u28 = 0,
+    ALL: bool = false, // 0xffffffff
+
+    pub const RESIZE_RENDERTARGET = ReloadType{
+        .RESIZE = true,
+        .RENDERTARGET = true,
+    };
+
+    pub const RESIZE_SHADER_RENDERTARGET = ReloadType{
+        .RESIZE = true,
+        .SHADER = true,
+        .RENDERTARGET = true,
+    };
+};
+
+pub const ReloadDesc = struct {
+    mType: ReloadType,
+};
+
+// NOTE(gmodarelli): I've only manually written the bindings for Win32
+pub const WindowHandle = extern struct {
+    type: WindowHandleType,
+    window: std.os.windows.HWND,
+};
+
+pub const WindowHandleType = enum(u32) {
+    UNKNOWN,
+    WIN32,
+    XLIB,
+    XCB,
+    WAYLAND,
+    ANDROID,
+    VI_NN,
+};
+// TIDES: END MANUAL CHANGES
+
 pub const DxDescriptorID = i32;
 
 pub const RendererApi = extern struct {
@@ -71,7 +324,7 @@ pub const StoreActionType = extern struct {
     // pub usingnamespace cpp.FlagsMixin(StoreActionType);
 };
 
-pub const LogFn = ?*const fn (LogLevel, [*c]const u8, [*c]const u8) callconv(.C) void;
+// pub const LogFn = ?*const fn (LogLevel, [*c]const u8, [*c]const u8) callconv(.C) void;
 
 pub const ResourceState = extern struct {
     bits: c_int = 0,
@@ -132,9 +385,6 @@ pub const GPUSelection = extern struct {
     /// Could add swap chain size, render target format, ...
     mPreferedGpuId: u32,
 };
-
-/// Forward declarations
-pub const Renderer = Renderer;
 
 /// Raytracing
 pub const IndirectDrawArguments = extern struct {
@@ -798,7 +1048,7 @@ pub const ResourceHeap = extern struct {
     mSize: u64,
 
     pub const __Struct0 = extern struct {
-        pHeap: [*c]ID3D12Heap,
+        pHeap: *ID3D12Heap,
     };
 };
 
@@ -901,10 +1151,6 @@ pub const Buffer = extern struct {
             pMarkerBufferHeap: [*c]ID3D12Heap,
             /// Contains resource allocation info such as parent heap, offset in heap
             pAllocation: [*c]D3D12MAAllocation_,
-
-            // opaques
-
-            const D3D12MAAllocation_ = anyopaque;
         };
     };
 };
@@ -1216,10 +1462,6 @@ pub const DescriptorSet = extern struct {
             /// Padding added by c2z
             _dummy_padding: u1,
         },
-
-        // opaques
-
-        const Descriptor = anyopaque;
     };
 };
 
@@ -1283,10 +1525,6 @@ pub const Cmd = extern struct {
         },
 
         pCmdPool: [*c]CmdPool,
-
-        // opaques
-
-        const DescriptorHeap = anyopaque;
     };
 };
 
@@ -1417,10 +1655,6 @@ pub const Shader = extern struct {
         pGSBlob: [*c]IDxcBlobEncoding,
         pPSBlob: [*c]IDxcBlobEncoding,
         pCSBlob: [*c]IDxcBlobEncoding,
-
-        // opaques
-
-        const IDxcBlobEncoding = anyopaque;
     };
 };
 
@@ -1576,9 +1810,9 @@ pub const Pipeline = extern struct {
 
         pub const __Union0 = extern union {
             pPipelineState: [*c]ID3D12PipelineState,
-            __struct_field1: __Struct0,
+            __struct_field1: __Struct0_2,
 
-            pub const __Struct0 = extern struct {
+            pub const __Struct0_2 = extern struct {
                 pStateObject: [*c]ID3D12StateObject,
                 pWorkgraphName: [*c]WCHAR,
             };
@@ -1910,14 +2144,14 @@ pub const GpuDesc = extern struct {
     mGPUTarget: u32,
 
     pub const __Struct0 = extern struct {
-        pGpu: [*c]IDXGIAdapter4,
+        pGpu: *IDXGIAdapter4,
     };
 };
 
 pub const Renderer = extern struct {
     _: void align(64), // c2z: struct alignment
     mDx: __Struct0,
-    pNullDescriptors: [*c]NullDescriptors,
+    pNullDescriptors: *NullDescriptors,
     pContext: [*c]RendererContext,
     pGpu: [*c]const GpuDesc,
     pName: [*c]const u8,
@@ -1939,12 +2173,12 @@ pub const Renderer = extern struct {
         pCPUDescriptorHeaps: [*c][*c]DescriptorHeap,
         pCbvSrvUavHeaps: [*c][*c]DescriptorHeap,
         pSamplerHeaps: [*c][*c]DescriptorHeap,
-        pResourceAllocator: [*c]D3D12MAAllocator_,
+        pResourceAllocator: *D3D12MAAllocator_,
         /// Filled by user - See initGraphicsRootSignature, initComputeRootSignature
-        pGraphicsRootSignature: [*c]ID3D12RootSignature,
-        pComputeRootSignature: [*c]ID3D12RootSignature,
-        pDevice: [*c]ID3D12Device,
-        pDebugValidation: [*c]ID3D12InfoQueue1,
+        pGraphicsRootSignature: *ID3D12RootSignature,
+        pComputeRootSignature: *ID3D12RootSignature,
+        pDevice: *ID3D12Device,
+        pDebugValidation: *ID3D12InfoQueue1,
         mCallbackCookie: DWORD,
         mUseDebugCallback: bool,
         mSuppressMismatchingCommandListDuringPresent: bool,
@@ -1974,8 +2208,8 @@ pub const RendererContext = extern struct {
     mGpuCount: u32,
 
     pub const __Struct0 = extern struct {
-        pDXGIFactory: [*c]IDXGIFactory6,
-        pDebug: [*c]ID3D12Debug,
+        pDXGIFactory: *IDXGIFactory6,
+        pDebug: *ID3D12Debug,
     };
 };
 
