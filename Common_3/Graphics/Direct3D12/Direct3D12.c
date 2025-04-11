@@ -113,6 +113,10 @@ static inline size_t tf_mem_hash_uint8_t(const uint8_t* mem, size_t size, size_t
 extern void fillRaytracingDescriptorHandle(AccelerationStructure* pAccelerationStructure, DxDescriptorID* pOutId);
 #endif
 
+// TIDES
+extern void d3d12CapsBuilder(ID3D12Device* pDevice, GpuDesc* pGpuDesc);
+// TIDES
+
 // Enabling DRED
 #if defined(_WIN32) && defined(_DEBUG) && defined(DRED)
 #define USE_DRED 1

@@ -1,4 +1,5 @@
 #include "../Utilities/Interfaces/IFileSystem.h"
+#include "../OS/Interfaces/IOperatingSystem.h"
 
 #include <Windows.h>
 #include <assert.h>
@@ -82,3 +83,11 @@ bool fsOpenStreamFromPath(ResourceDirectory resourceDir, const char* fileName, F
 }
 
 FSErrorContext* __fs_err_ctx(void) { return NULL; }
+
+
+// IOperatingSystem.h implementation
+void requestReset(const ResetDesc* pResetDesc)
+{
+    (void)pResetDesc;
+    assert(false);
+}

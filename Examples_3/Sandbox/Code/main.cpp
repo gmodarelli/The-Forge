@@ -789,10 +789,3 @@ void shader_stage_load(const ShaderStageLoadDesc* shader_load_desc, BinaryShader
 
     fsCloseStream(&binary_fs);
 }
-
-// IOperatingSystem.h implementation
-void requestReset(const ResetDesc* pResetDesc)
-{
-    (void)pResetDesc;
-    assert(false);
-}
