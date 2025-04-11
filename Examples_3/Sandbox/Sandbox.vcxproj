@@ -115,14 +115,22 @@
     <PostBuildEvent>
       <Command>xcopy "$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\ags\ags_lib\lib\amd_ags_x64.dll" "$(OutDir)amd_ags_x64.dll"* /S /Y /D
 xcopy "$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxcompiler.dll" "$(OutDir)dxcompiler.dll"* /S /Y /D
+
 xcopy "$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\Direct3d12Agility\bin\x64\*.dll" "$(OutDir)"* /S /Y /D
 xcopy "$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\winpixeventruntime\bin\WinPixEventRuntime.dll" "$(OutDir)WinPixEventRunTime.dll"* /S /Y /D
+
 xcopy "$(SolutionDir)..\..\Common_3\OS\Windows\pc_gpu.data" "$(OutDir)gpu.data*" /Y /D
+
 xcopy /Y /D "$(SolutionDir)GPUCfg\gpu.cfg" "$(OutDir)"
+
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\DefaultRootSignature.rs.hlsl -Fo $(OutDir)shaders\DefaultRootSignature.rs -E DefaultRootSignature -HV 2021 -WX -O0 -Zi -Qembed_debug -T rootsig_1_1
+
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ComputeRootSignature.rs.hlsl -Fo $(OutDir)shaders\ComputeRootSignature.rs -E ComputeRootSignature -HV 2021 -WX -O0 -Zi -Qembed_debug -T rootsig_1_1
+
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ClearScreen.comp.hlsl -Fo $(OutDir)shaders\ClearScreen.comp -E main -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T cs_6_6
+
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.vert -E FullscreenVertex -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T vs_6_6
+
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.frag -E BlitFragment -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T ps_6_6
 </Command>
     </PostBuildEvent>
@@ -148,14 +156,22 @@ $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompile
     <PostBuildEvent>
       <Command>xcopy "$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\ags\ags_lib\lib\amd_ags_x64.dll" "$(OutDir)amd_ags_x64.dll"* /S /Y /D
 xcopy "$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxcompiler.dll" "$(OutDir)dxcompiler.dll"* /S /Y /D
+
 xcopy "$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\Direct3d12Agility\bin\x64\*.dll" "$(OutDir)"* /S /Y /D
 xcopy "$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\winpixeventruntime\bin\WinPixEventRuntime.dll" "$(OutDir)WinPixEventRunTime.dll"* /S /Y /D
+
 xcopy "$(SolutionDir)..\..\Common_3\OS\Windows\pc_gpu.data" "$(OutDir)gpu.data*" /Y /D
+
 xcopy /Y /D "$(SolutionDir)GPUCfg\gpu.cfg" "$(OutDir)"
+
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\DefaultRootSignature.rs.hlsl -Fo $(OutDir)shaders\DefaultRootSignature.rs -E DefaultRootSignature -HV 2021 -WX -O0 -Zi -Qembed_debug -T rootsig_1_1
+
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ComputeRootSignature.rs.hlsl -Fo $(OutDir)shaders\ComputeRootSignature.rs -E ComputeRootSignature -HV 2021 -WX -O0 -Zi -Qembed_debug -T rootsig_1_1
+
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ClearScreen.comp.hlsl -Fo $(OutDir)shaders\ClearScreen.comp -E main -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T cs_6_6
+
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.vert -E FullscreenVertex -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T vs_6_6
+
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.frag -E BlitFragment -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T ps_6_6
 </Command>
     </PostBuildEvent>
