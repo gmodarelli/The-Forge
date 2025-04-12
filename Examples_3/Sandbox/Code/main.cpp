@@ -30,6 +30,54 @@ static Window g_window;
 void window_create();
 void window_destroy();
 
+typedef struct Timer Timer;
+struct Timer
+{
+    LARGE_INTEGER start;
+    LARGE_INTEGER end;
+};
+
+LARGE_INTEGER g_ticks_per_second = { 1 };
+
+void timer_init()
+{
+    QueryPerformanceFrequency(&g_ticks_per_second);
+}
+
+Timer timer_start()
+{
+    assert(g_ticks_per_second.QuadPart != 1);
+
+    Timer timer;
+    QueryPerformanceCounter(&timer.start);
+    timer.end = timer.start;
+    return timer;
+}
+
+double timer_end(Timer* timer)
+{
+    assert(g_ticks_per_second.QuadPart != 1);
+
+    QueryPerformanceCounter(&timer->end);
+    return (timer->end.QuadPart - timer->start.QuadPart) / (double)g_ticks_per_second.QuadPart;
+}
+
+typedef struct App App;
+struct App
+{
+    Timer app_timer;
+    Timer frame_timer;
+    double delta_time;
+};
+
+App g_app;
+
+inline double app_elapsed_time_sec()
+{
+    assert(g_ticks_per_second.QuadPart != 1);
+    return (g_app.app_timer.end.QuadPart - g_app.app_timer.start.QuadPart) / (double)g_ticks_per_second.QuadPart;
+}
+
 #define FRAMES_IN_FLIGHT_COUNT 2
 
 typedef struct Gpu Gpu;
@@ -78,9 +126,11 @@ void gpu_frame_submit();
 
 int main(int argc, char** argv)
 {
-	printf("Sandbox\n");
+	timer_init();
+    g_app.app_timer = timer_start();
 
     window_create();
+
     gpu_init();
     if (!gpu_on_load({ RELOAD_TYPE_ALL }))
     {
@@ -89,6 +139,8 @@ int main(int argc, char** argv)
 
     while (!g_window.should_close)
     {
+        g_app.frame_timer = timer_start();
+
         MSG msg;
         if (PeekMessage(&msg, g_window.window, 0, 0, PM_REMOVE))
         {
@@ -99,6 +151,9 @@ int main(int argc, char** argv)
         // render
         gpu_frame_start();
         gpu_frame_submit();
+
+        g_app.delta_time = timer_end(&g_app.frame_timer);
+        timer_end(&g_app.app_timer);
     }
 
     gpu_on_unload({ RELOAD_TYPE_ALL });
@@ -338,10 +393,12 @@ void gpu_frame_start()
     // Update global frame data
     {
         Frame frame_data = {};
-        frame_data.time = 0.5f;
+        frame_data.time = (float)app_elapsed_time_sec();
 
         // TODO: Move to a dedicated update buffer function
         Buffer* buffer = g_gpu.global_frame_constant_buffers[g_gpu.frame_index];
+        assert(buffer->pCpuMappedAddress);
+        assert(buffer->mDescriptors & DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         uint64_t copy_size = sizeof(frame_data);
         assert(copy_size <= buffer->mSize);
         memcpy(buffer->pCpuMappedAddress, &frame_data, sizeof(frame_data));
