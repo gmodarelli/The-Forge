@@ -127,14 +127,22 @@ typedef struct SubresourceDataDesc
 
 void getBufferSizeAlign(Renderer* pRenderer, const BufferDesc* pDesc, ResourceSizeAlign* pOut);
 void getTextureSizeAlign(Renderer* pRenderer, const TextureDesc* pDesc, ResourceSizeAlign* pOut);
+#ifdef TIDES
+void addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, bool bBindless, Buffer** pp_buffer);
+#else
 void addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** pp_buffer);
+#endif
 void removeBuffer(Renderer* pRenderer, Buffer* pBuffer);
 void mapBuffer(Renderer* pRenderer, Buffer* pBuffer, ReadRange* pRange);
 void unmapBuffer(Renderer* pRenderer, Buffer* pBuffer);
 void cmdUpdateBuffer(Cmd* pCmd, Buffer* pBuffer, uint64_t dstOffset, Buffer* pSrcBuffer, uint64_t srcOffset, uint64_t size);
 void cmdUpdateSubresource(Cmd* pCmd, Texture* pTexture, Buffer* pSrcBuffer, const SubresourceDataDesc* pSubresourceDesc);
 void cmdCopySubresource(Cmd* pCmd, Buffer* pDstBuffer, Texture* pTexture, const SubresourceDataDesc* pSubresourceDesc);
+#ifdef TIDES
+void addTexture(Renderer* pRenderer, const TextureDesc* pDesc, bool bBindless, Texture** ppTexture);
+#else
 void addTexture(Renderer* pRenderer, const TextureDesc* pDesc, Texture** ppTexture);
+#endif
 void removeTexture(Renderer* pRenderer, Texture* pTexture);
 
 static void SetObjectName(ID3D12Object* pObject, const char* pName)
@@ -3449,8 +3457,11 @@ void getTextureSizeAlign(Renderer* pRenderer, const TextureDesc* pDesc, Resource
     pOut->mSize = allocInfo.SizeInBytes;
     pOut->mAlignment = allocInfo.Alignment;
 }
-
+#ifdef TIDES
+void addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, bool bBindless, Buffer** ppBuffer)
+#else
 void addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** ppBuffer)
+#endif
 {
     // verify renderer validity
     ASSERT(pRenderer);
@@ -3564,6 +3575,16 @@ void addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** ppBuffer)
     if (!(pDesc->mFlags & BUFFER_CREATION_FLAG_NO_DESCRIPTOR_VIEW_CREATION))
     {
         DescriptorHeap* pHeap = pRenderer->mDx.pCPUDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
+        DescriptorHeap* pOptionalHeap = NULL;
+
+#ifdef TIDES
+        if (bBindless)
+        {
+            pHeap = pRenderer->mDx.pCbvSrvUavHeaps[0];
+            pOptionalHeap = pHeap;
+        }
+#endif
+
         uint32_t        handleCount = ((pDesc->mDescriptors & DESCRIPTOR_TYPE_UNIFORM_BUFFER) ? 1 : 0) +
                                ((pDesc->mDescriptors & DESCRIPTOR_TYPE_BUFFER) ? 1 : 0) +
                                ((pDesc->mDescriptors & DESCRIPTOR_TYPE_RW_BUFFER) ? 1 : 0);
@@ -3577,7 +3598,7 @@ void addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** ppBuffer)
                 .BufferLocation = pBuffer->mDx.mGpuAddress,
                 .SizeInBytes = (UINT)desc.Width,
             };
-            AddCbv(pRenderer, NULL, &cbvDesc, &pBuffer->mDx.mDescriptors);
+            AddCbv(pRenderer, pOptionalHeap, &cbvDesc, &pBuffer->mDx.mDescriptors);
         }
 
         if (pDesc->mDescriptors & DESCRIPTOR_TYPE_BUFFER)
@@ -3586,13 +3607,15 @@ void addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** ppBuffer)
             pBuffer->mDx.mUavDescriptorOffset = pBuffer->mDx.mSrvDescriptorOffset + 1;
             if (pDesc->mFormat != TinyImageFormat_UNDEFINED)
             {
-                AddTypedBufferSrv(pRenderer, NULL, pBuffer->mDx.pResource, pDesc->mFirstElement, pDesc->mElementCount, pDesc->mFormat,
+                AddTypedBufferSrv(pRenderer, pOptionalHeap, pBuffer->mDx.pResource, pDesc->mFirstElement, pDesc->mElementCount,
+                                  pDesc->mFormat,
                                   &srv);
             }
             else
             {
                 const bool raw = DESCRIPTOR_TYPE_BUFFER_RAW == (pDesc->mDescriptors & DESCRIPTOR_TYPE_BUFFER_RAW);
-                AddBufferSrv(pRenderer, NULL, pBuffer->mDx.pResource, raw, pDesc->mFirstElement, pDesc->mElementCount, pDesc->mStructStride,
+                AddBufferSrv(pRenderer, pOptionalHeap, pBuffer->mDx.pResource, raw, pDesc->mFirstElement, pDesc->mElementCount,
+                             pDesc->mStructStride,
                              &srv);
             }
         }
@@ -3602,14 +3625,16 @@ void addBuffer(Renderer* pRenderer, const BufferDesc* pDesc, Buffer** ppBuffer)
             DxDescriptorID uav = pBuffer->mDx.mDescriptors + pBuffer->mDx.mUavDescriptorOffset;
             if (pDesc->mFormat != TinyImageFormat_UNDEFINED)
             {
-                AddTypedBufferUav(pRenderer, NULL, pBuffer->mDx.pResource, pDesc->mFirstElement, pDesc->mElementCount, pDesc->mFormat,
+                AddTypedBufferUav(pRenderer, pOptionalHeap, pBuffer->mDx.pResource, pDesc->mFirstElement, pDesc->mElementCount,
+                                  pDesc->mFormat,
                                   &uav);
             }
             else
             {
                 const bool      raw = DESCRIPTOR_TYPE_RW_BUFFER_RAW == (pDesc->mDescriptors & DESCRIPTOR_TYPE_RW_BUFFER_RAW);
                 ID3D12Resource* pCounterBuffer = pDesc->pCounterBuffer ? pDesc->pCounterBuffer->mDx.pResource : NULL;
-                AddBufferUav(pRenderer, NULL, pBuffer->mDx.pResource, pCounterBuffer, 0, raw, pDesc->mFirstElement, pDesc->mElementCount,
+                AddBufferUav(pRenderer, pOptionalHeap, pBuffer->mDx.pResource, pCounterBuffer, 0, raw, pDesc->mFirstElement,
+                             pDesc->mElementCount,
                              pDesc->mStructStride, &uav);
             }
         }
@@ -3681,7 +3706,11 @@ void unmapBuffer(Renderer* pRenderer, Buffer* pBuffer)
     pBuffer->pCpuMappedAddress = NULL;
 }
 
+#ifdef TIDES
+void addTexture(Renderer* pRenderer, const TextureDesc* pDesc, bool bBindless, Texture** ppTexture)
+#else
 void addTexture(Renderer* pRenderer, const TextureDesc* pDesc, Texture** ppTexture)
+#endif
 {
     ASSERT(pRenderer);
     ASSERT(pDesc && pDesc->mWidth && pDesc->mHeight && (pDesc->mDepth || pDesc->mArraySize));
@@ -3938,6 +3967,16 @@ void addTexture(Renderer* pRenderer, const TextureDesc* pDesc, Texture** ppTextu
     }
 
     DescriptorHeap* pHeap = pRenderer->mDx.pCPUDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
+    DescriptorHeap* pOptionalHeap = NULL;
+
+#ifdef TIDES
+    if (bBindless)
+    {
+        pHeap = pRenderer->mDx.pCbvSrvUavHeaps[0];
+        pOptionalHeap = pHeap;
+    }
+#endif
+
     uint32_t        handleCount = (descriptors & DESCRIPTOR_TYPE_TEXTURE) ? 1 : 0;
     handleCount += (descriptors & DESCRIPTOR_TYPE_RW_TEXTURE) ? pDesc->mMipLevels : 0;
     pTexture->mDx.mDescriptors = consume_descriptor_handles(pHeap, handleCount);
@@ -3949,7 +3988,7 @@ void addTexture(Renderer* pRenderer, const TextureDesc* pDesc, Texture** ppTextu
         srvDesc.Format = util_to_dx12_srv_format(dxFormat, false);
         ASSERTMSG(srvDesc.Format != DXGI_FORMAT_UNKNOWN,
                   "Attempted to create a depth buffer SRV with a format that doesn't support a depth component");
-        AddSrv(pRenderer, NULL, pTexture->mDx.pResource, &srvDesc, &pTexture->mDx.mDescriptors);
+        AddSrv(pRenderer, pOptionalHeap, pTexture->mDx.pResource, &srvDesc, &pTexture->mDx.mDescriptors);
         ++pTexture->mDx.mUavStartIndex;
 
         // Create Stencil texture SRV
@@ -3967,7 +4006,7 @@ void addTexture(Renderer* pRenderer, const TextureDesc* pDesc, Texture** ppTextu
             srvDesc.Texture2DArray.PlaneSlice = 1;
             srvDesc.Texture2D.PlaneSlice = 1;
             ++pTexture->mDx.mUavStartIndex;
-            AddSrv(pRenderer, NULL, pTexture->mDx.pResource, &srvDesc, &pTexture->mDx.mStencilDescriptor);
+            AddSrv(pRenderer, pOptionalHeap, pTexture->mDx.pResource, &srvDesc, &pTexture->mDx.mStencilDescriptor);
         }
     }
 
@@ -3981,7 +4020,7 @@ void addTexture(Renderer* pRenderer, const TextureDesc* pDesc, Texture** ppTextu
             uavDesc.Texture1DArray.MipSlice = i;
             if (desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D)
                 uavDesc.Texture3D.WSize = desc.DepthOrArraySize / (UINT)pow(2.0, (int)i);
-            AddUav(pRenderer, NULL, pTexture->mDx.pResource, NULL, &uavDesc, &handle);
+            AddUav(pRenderer, pOptionalHeap, pTexture->mDx.pResource, NULL, &uavDesc, &handle);
         }
     }
 
@@ -4078,7 +4117,11 @@ void addRenderTarget(Renderer* pRenderer, const RenderTargetDesc* pDesc, RenderT
         // Create SRV by default for a render target
         textureDesc.mDescriptors |= DESCRIPTOR_TYPE_TEXTURE;
     }
+#ifdef TIDES
+    addTexture(pRenderer, &textureDesc, false, &pRenderTarget->pTexture);
+#else
     addTexture(pRenderer, &textureDesc, &pRenderTarget->pTexture);
+#endif
 
     D3D12_RESOURCE_DESC desc = { 0 };
     COM_CALL(GetDesc, pRenderTarget->pTexture->mDx.pResource, &desc);
@@ -6303,7 +6346,11 @@ void addWorkgraph(Renderer* pRenderer, const WorkgraphDesc* pDesc, Workgraph** p
             .mStartState = RESOURCE_STATE_COMMON,
             .mSize = memReqs.MaxSizeInBytes,
         };
+#ifdef TIDES
+        addBuffer(pRenderer, &backingDesc, false, &workgraph->pBackingBuffer);
+#else
         addBuffer(pRenderer, &backingDesc, &workgraph->pBackingBuffer);
+#endif
     }
 
     workgraph->mId = id;
@@ -6423,7 +6470,12 @@ void initQueryPool(Renderer* pRenderer, const QueryPoolDesc* pDesc, QueryPool** 
         .mNodeIndex = pDesc->mNodeIndex,
         .mStartState = RESOURCE_STATE_COPY_DEST,
     };
+
+#ifdef TIDES
+    addBuffer(pRenderer, &bufDesc, false, &pQueryPool->mDx.pReadbackBuffer);
+#else
     addBuffer(pRenderer, &bufDesc, &pQueryPool->mDx.pReadbackBuffer);
+#endif
 
     *ppQueryPool = pQueryPool;
 }
