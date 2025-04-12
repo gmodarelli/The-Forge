@@ -13,6 +13,6 @@ void main( uint3 DTid : SV_DispatchThreadID )
     
     if (DTid.x < width && DTid.y < height)
     {
-        g_output[DTid.xy] = float4(DTid.x / float(width), 1.0f - DTid.y / float(height), 0.0f, 1.0f);
+        g_output[DTid.xy] = float4(DTid.x / float(width), 1.0f - DTid.y / float(height), g_frame.time, 1.0f);
     }
 }

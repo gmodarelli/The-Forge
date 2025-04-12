@@ -335,6 +335,18 @@ void gpu_frame_start()
 
     beginCmd(cmd);
 
+    // Update global frame data
+    {
+        Frame frame_data = {};
+        frame_data.time = 0.5f;
+
+        // TODO: Move to a dedicated update buffer function
+        Buffer* buffer = g_gpu.global_frame_constant_buffers[g_gpu.frame_index];
+        uint64_t copy_size = sizeof(frame_data);
+        assert(copy_size <= buffer->mSize);
+        memcpy(buffer->pCpuMappedAddress, &frame_data, sizeof(frame_data));
+    }
+
     TextureBarrier texture_barriers[] = {
         { g_gpu.scene_color, RESOURCE_STATE_SHADER_RESOURCE, RESOURCE_STATE_UNORDERED_ACCESS },
     };
