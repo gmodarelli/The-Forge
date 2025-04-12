@@ -5,6 +5,15 @@
 
 //#define EXTERNAL_CONFIG_FILEPATH "../../Examples_3/Sandbox/Code/ExternalConfig.h"
 //#define EXTERNAL_RENDERER_CONFIG_FILEPATH "../../Examples_3/Sandbox/Code/ExternalRendererConfig.h"
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+    __declspec(dllexport) extern const UINT  D3D12SDKVersion = 715;
+    __declspec(dllexport) extern const char* D3D12SDKPath = "";
+#ifdef __cplusplus
+}
+#endif
 
 #define STB_DS_IMPLEMENTATION
 #include "../../../Common_3/Utilities/Math/BStringHashMap.h"
@@ -240,7 +249,7 @@ void gpu_init()
     {
         RendererDesc desc = RendererDesc{};
         memset((void*)&desc, 0, sizeof(RendererDesc));
-        desc.mShaderTarget = ::SHADER_TARGET_6_4;
+        desc.mShaderTarget = ::SHADER_TARGET_6_8;
         initGPUConfiguration(desc.pExtendedSettings);
 
         initRenderer("Sandbox", &desc, &g_gpu.renderer);

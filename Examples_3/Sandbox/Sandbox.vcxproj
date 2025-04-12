@@ -130,11 +130,11 @@ $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompile
 
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ComputeRootSignature.rs.hlsl -Fo $(OutDir)shaders\ComputeRootSignature.rs -E ComputeRootSignature -HV 2021 -WX -O0 -Zi -Qembed_debug -T rootsig_1_1
 
-$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ClearScreen.comp.hlsl -Fo $(OutDir)shaders\ClearScreen.comp -E main -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T cs_6_6
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ClearScreen.comp.hlsl -Fo $(OutDir)shaders\ClearScreen.comp -E main -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T cs_6_8
 
-$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.vert -E FullscreenVertex -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T vs_6_6
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.vert -E FullscreenVertex -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T vs_6_8
 
-$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.frag -E BlitFragment -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T ps_6_6
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.frag -E BlitFragment -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T ps_6_8
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -174,11 +174,11 @@ $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompile
 
 $(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ComputeRootSignature.rs.hlsl -Fo $(OutDir)shaders\ComputeRootSignature.rs -E ComputeRootSignature -HV 2021 -WX -O0 -Zi -Qembed_debug -T rootsig_1_1
 
-$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ClearScreen.comp.hlsl -Fo $(OutDir)shaders\ClearScreen.comp -E main -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T cs_6_6
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\ClearScreen.comp.hlsl -Fo $(OutDir)shaders\ClearScreen.comp -E main -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T cs_6_8
 
-$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.vert -E FullscreenVertex -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T vs_6_6
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.vert -E FullscreenVertex -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T vs_6_8
 
-$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.frag -E BlitFragment -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T ps_6_6
+$(SolutionDir)..\..\Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\bin\x64\dxc.exe $(SolutionDir)Code\Shaders\Blit.hlsl -Fo $(OutDir)shaders\Blit.frag -E BlitFragment -HV 2021 -WX -O0 -Zi -Qembed_debug -Qstrip_rootsignature -T ps_6_8
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
