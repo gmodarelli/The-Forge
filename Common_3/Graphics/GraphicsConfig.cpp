@@ -34,6 +34,10 @@
 #include "../Utilities/Interfaces/IMemory.h"
 #include "../Resources/ResourceLoader/ThirdParty/OpenSource/tinyimageformat/tinyimageformat_query.h"
 
+// TIDES
+#define stricmp _stricmp
+// TIDES
+
 /* ------------------------ gpu.data ------------------------ */
 #define MAX_GPU_VENDOR_COUNT                64
 #define MAX_GPU_VENDOR_IDENTIFIER_LENGTH    20
