@@ -1,4 +1,5 @@
 #include "ShaderGlobals.h"
+#include "Globals.hlsli"
 
 SamplerState g_linear_repeat_sampler : register(s0, SPACE_Persistent);
 Texture2D<float4> g_source : register(t1, SPACE_PerFrame);

@@ -60,6 +60,9 @@ struct Gpu
     DescriptorSet* blit_per_frame_descriptor_set = NULL;
     Pipeline* blit_pso = NULL;
 
+    // Frame Constant Buffer
+    Buffer* global_frame_constant_buffers[FRAMES_IN_FLIGHT_COUNT] = { NULL };
+
     bool has_started_frame = false;
     uint32_t frame_index = 0;
 };
@@ -165,6 +168,7 @@ void swapchain_exit();
 bool render_targets_init();
 void render_targets_exit();
 bool default_root_signatures_init();
+void default_root_signatures_exit();
 void shaders_init();
 void shaders_exit();
 void descriptor_sets_init();
@@ -220,12 +224,34 @@ void gpu_init()
         sampler_desc.mAddressW = ADDRESS_MODE_CLAMP_TO_EDGE;
         addSampler(g_gpu.renderer, &sampler_desc, &g_gpu.linear_clamp_sampler);
     }
+
+    // Global Frame Constant Buffers
+    {
+        BufferDesc buffer_desc = {};
+        buffer_desc.mDescriptors = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        buffer_desc.mMemoryUsage = RESOURCE_MEMORY_USAGE_CPU_TO_GPU;
+        buffer_desc.mFlags = BUFFER_CREATION_FLAG_PERSISTENT_MAP_BIT;
+        buffer_desc.pName = "Global Frame Buffer";
+        buffer_desc.mSize = sizeof(Frame);
+
+        for (uint32_t i = 0; i < FRAMES_IN_FLIGHT_COUNT; i++)
+        {
+            addBufferEx(g_gpu.renderer, &buffer_desc, false, &g_gpu.global_frame_constant_buffers[i]);
+        }
+    }
 }
 
 void gpu_exit()
 {
     removeSampler(g_gpu.renderer, g_gpu.linear_clamp_sampler);
     removeSampler(g_gpu.renderer, g_gpu.linear_repeat_sampler);
+    
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT_COUNT; i++)
+    {
+        removeBufferEx(g_gpu.renderer, g_gpu.global_frame_constant_buffers[i]);
+    }
+
+    default_root_signatures_exit();
 
     exitSemaphore(g_gpu.renderer, g_gpu.image_acquired_semaphore);
     command_pools_exit();
@@ -475,7 +501,7 @@ bool render_targets_init()
         desc.mSampleCount = SAMPLE_COUNT_1;
         desc.mSampleQuality = 0;
         desc.mFlags = TEXTURE_CREATION_FLAG_ON_TILE;
-        addTextureEx(g_gpu.renderer, &desc, &g_gpu.scene_color, false);
+        addTextureEx(g_gpu.renderer, &desc, false, &g_gpu.scene_color);
 
         if (!g_gpu.scene_color)
         {
@@ -509,6 +535,12 @@ bool default_root_signatures_init()
     }
 
     return true;
+}
+
+void default_root_signatures_exit()
+{
+    exitRootSignatureImpl(g_gpu.renderer, g_gpu.renderer->mDx.pGraphicsRootSignature);
+    exitRootSignatureImpl(g_gpu.renderer, g_gpu.renderer->mDx.pComputeRootSignature);
 }
 
 bool load_root_signature(const char* path, ID3D12RootSignature** root_signature)
@@ -586,7 +618,7 @@ void descriptor_sets_init()
         desc.mIndex = ROOT_PARAM_PerFrame;
         desc.mMaxSets = FRAMES_IN_FLIGHT_COUNT;
         desc.mNodeIndex = 0;
-        desc.mDescriptorCount = 1;
+        desc.mDescriptorCount = 2;
         desc.pDescriptors = SRT_ClearScreenShaderData::per_frame_ptr();
         addDescriptorSet(g_gpu.renderer, &desc, &g_gpu.clear_screen_per_frame_descriptor_set);
     }
@@ -604,7 +636,7 @@ void descriptor_sets_init()
         desc.mIndex = ROOT_PARAM_PerFrame;
         desc.mMaxSets = FRAMES_IN_FLIGHT_COUNT;
         desc.mNodeIndex = 0;
-        desc.mDescriptorCount = 1;
+        desc.mDescriptorCount = 2;
         desc.pDescriptors = SRT_BlitShaderData::per_frame_ptr();
         addDescriptorSet(g_gpu.renderer, &desc, &g_gpu.blit_per_frame_descriptor_set);
     }
@@ -617,18 +649,22 @@ void descriptor_sets_prepare()
     {
         // Clear screen
         {
-            DescriptorData params[1] = {};
-            params[0].mIndex = (offsetof(SRT_ClearScreenShaderData::PerFrame, g_output)) / sizeof(Descriptor);
-            params[0].ppTextures = &g_gpu.scene_color;
-            updateDescriptorSet(g_gpu.renderer, i, g_gpu.clear_screen_per_frame_descriptor_set, 1, params);
+            DescriptorData params[2] = {};
+            params[0].mIndex = (offsetof(SRT_ClearScreenShaderData::PerFrame, g_CB0)) / sizeof(Descriptor);
+            params[0].ppBuffers = &g_gpu.global_frame_constant_buffers[i];
+            params[1].mIndex = (offsetof(SRT_ClearScreenShaderData::PerFrame, g_output)) / sizeof(Descriptor);
+            params[1].ppTextures = &g_gpu.scene_color;
+            updateDescriptorSet(g_gpu.renderer, i, g_gpu.clear_screen_per_frame_descriptor_set, 2, params);
         }
 
         // Blit
         {
-            DescriptorData params[1] = {};
-            params[0].mIndex = (offsetof(SRT_BlitShaderData::PerFrame, g_source)) / sizeof(Descriptor);
-            params[0].ppTextures = &g_gpu.scene_color;
-            updateDescriptorSet(g_gpu.renderer, i, g_gpu.blit_per_frame_descriptor_set, 1, params);
+            DescriptorData params[2] = {};
+            params[0].mIndex = (offsetof(SRT_BlitShaderData::PerFrame, g_CB0)) / sizeof(Descriptor);
+            params[0].ppBuffers = &g_gpu.global_frame_constant_buffers[i];
+            params[1].mIndex = (offsetof(SRT_BlitShaderData::PerFrame, g_source)) / sizeof(Descriptor);
+            params[1].ppTextures = &g_gpu.scene_color;
+            updateDescriptorSet(g_gpu.renderer, i, g_gpu.blit_per_frame_descriptor_set, 2, params);
         }
     }
 

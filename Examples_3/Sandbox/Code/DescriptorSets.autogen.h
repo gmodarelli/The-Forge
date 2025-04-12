@@ -7,12 +7,21 @@ struct SRT_ClearScreenShaderData
 {
 	struct PerFrame
 	{
+        const Descriptor g_CB0 =
+        {
+#if defined IF_VALIDATE_DESCRIPTOR
+            "g_CB0",
+            ROOT_PARAM_PerFrame,
+#endif
+            DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 0
+        };
+
         const Descriptor g_output =
 		{
 #if defined IF_VALIDATE_DESCRIPTOR
 			"g_output", ROOT_PARAM_PerFrame,
 #endif
-			DESCRIPTOR_TYPE_RW_TEXTURE, 1, 0
+			DESCRIPTOR_TYPE_RW_TEXTURE, 1, 1
 		};
 	}*per_frame;
 
@@ -55,11 +64,18 @@ struct SRT_BlitShaderData
 
     struct PerFrame
     {
+        const Descriptor g_CB0 = {
+#if defined IF_VALIDATE_DESCRIPTOR
+            "g_CB0", ROOT_PARAM_PerFrame,
+#endif
+            DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 0
+        };
+
         const Descriptor g_source = {
 #if defined IF_VALIDATE_DESCRIPTOR
             "g_source", ROOT_PARAM_PerFrame,
 #endif
-            DESCRIPTOR_TYPE_TEXTURE, 1, 0
+            DESCRIPTOR_TYPE_TEXTURE, 1, 1
         };
     }* per_frame;
 

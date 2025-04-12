@@ -108,4 +108,12 @@
 
 #endif
 
+#if defined(__cplusplus)
+typedef struct Frame Frame;
+#endif
+struct Frame
+{
+    float time;
+};
+
 #endif // _SHADER_GLOBALS

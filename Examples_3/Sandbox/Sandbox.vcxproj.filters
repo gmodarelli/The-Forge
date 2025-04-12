@@ -96,4 +96,9 @@
       <Filter>Sandbox\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Code\Shaders\Globals.hlsli">
+      <Filter>Sandbox\Shaders</Filter>
+    </None>
+  </ItemGroup>
 </Project>
