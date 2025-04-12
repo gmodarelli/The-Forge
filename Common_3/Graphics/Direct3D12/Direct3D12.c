@@ -2765,10 +2765,18 @@ void initRenderer(const char* appName, const RendererDesc* pDesc, Renderer** ppR
             return;
         }
 
+#ifdef TIDES
+        if (pRenderer->mShaderTarget >= SHADER_TARGET_6_8)
+#else
         if (pRenderer->mShaderTarget >= SHADER_TARGET_6_0)
+#endif
         {
             // Query the level of support of Shader Model.
-            D3D12_FEATURE_DATA_SHADER_MODEL   shaderModelSupport = { D3D_SHADER_MODEL_6_0 };
+#ifdef TIDES
+            D3D12_FEATURE_DATA_SHADER_MODEL   shaderModelSupport = { D3D_SHADER_MODEL_6_8 };
+#else
+            D3D12_FEATURE_DATA_SHADER_MODEL shaderModelSupport = { D3D_SHADER_MODEL_6_0 };
+#endif
             D3D12_FEATURE_DATA_D3D12_OPTIONS1 waveIntrinsicsSupport = { 0 };
             if (!SUCCEEDED(COM_CALL(CheckFeatureSupport, pRenderer->mDx.pDevice, (D3D12_FEATURE)D3D12_FEATURE_SHADER_MODEL,
                                     &shaderModelSupport, sizeof(shaderModelSupport))))
@@ -2784,7 +2792,11 @@ void initRenderer(const char* appName, const RendererDesc* pDesc, Renderer** ppR
 
             // If the device doesn't support SM6 or Wave Intrinsics, try enabling the experimental feature for Shader Model 6 and creating
             // the device again.
+#ifdef TIDES
+            if (shaderModelSupport.HighestShaderModel != D3D_SHADER_MODEL_6_8 || waveIntrinsicsSupport.WaveOps == FALSE)
+#else
             if (shaderModelSupport.HighestShaderModel != D3D_SHADER_MODEL_6_0 || waveIntrinsicsSupport.WaveOps == FALSE)
+#endif
             {
                 RENDERDOC_API_1_1_2* rdoc_api = NULL;
                 // At init, on windows
