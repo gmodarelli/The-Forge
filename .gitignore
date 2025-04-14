@@ -258,3 +258,4 @@ Common_3/Application/ThirdParty/noesisgui/SDK/_build/**/build
 #clang-format
 **/clang-tools/clang-format-files.txt
 **/clang-tools/out-files.txt
+.zig-cache
