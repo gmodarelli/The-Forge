@@ -290,9 +290,11 @@ DO_DEFINE_GUID(IID_ID3D12PipelineLibrary, 0xc64226a8, 0x9201, 0x46af, 0xb4, 0xcc
 #endif
 #endif
 // Missing from both dxguid.lib and d3d12_x.lib/d3d12_xs.lib
+#ifndef TIDES
 DO_DEFINE_GUID(IID_ID3D12StateObjectProperties1, 0x460caac7, 0x1d24, 0x446a, 0xa1, 0x84, 0xca, 0x67, 0xdb, 0x49, 0x41, 0x38);
 DO_DEFINE_GUID(IID_ID3D12WorkGraphProperties, 0x065acf71, 0xf863, 0x4b89, 0x82, 0xf4, 0x02, 0xe4, 0xd5, 0x88, 0x67, 0x57);
 DO_DEFINE_GUID(IID_ID3D12GraphicsCommandList10, 0x7013c015, 0xd161, 0x4b63, 0xa0, 0x8c, 0x23, 0x85, 0x52, 0xdd, 0x8a, 0xcc);
+#endif
 // On Xbox, `IID_XXX` definitions are marked as `__declspec(dllimport)`, but on PC they are just regular extern variables.
 // If you want to use PC headers (COM C-interface), but link Xbox libs, then the `IID` definitions must be marked correctly
 // in the PC headers which is done via a small tweak to the DirectX Agility SDK header. This works for the majority of types,
