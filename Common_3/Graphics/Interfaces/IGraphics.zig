@@ -1240,9 +1240,9 @@ pub const Texture = extern struct {
         /// mBindStencilResource)
         mStencilDescriptor: DxDescriptorID,
         /// Native handle of the underlying resource
-        pResource: [*c]ID3D12Resource,
+        pResource: *ID3D12Resource,
         /// Contains resource allocation info such as parent heap, offset in heap
-        pAllocation: [*c]D3D12MAAllocation_,
+        pAllocation: *D3D12MAAllocation_,
         bitfield_1: packed struct(u32) {
             // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
 
@@ -1471,7 +1471,7 @@ pub const CmdPoolDesc = extern struct {
 };
 
 pub const CmdPool = extern struct {
-    pCmdAlloc: [*c]ID3D12CommandAllocator,
+    pCmdAlloc: *ID3D12CommandAllocator,
     pQueue: [*c]Queue,
 };
 
@@ -1506,9 +1506,9 @@ pub const Cmd = extern struct {
     pQueue: [*c]Queue,
 
     pub const __Struct0 = extern struct {
-        pCmdList: [*c]ID3D12GraphicsCommandList1,
+        pCmdList: *ID3D12GraphicsCommandList1,
         /// For resource state validation
-        pDebugCmdList: [*c]ID3D12DebugCommandList,
+        pDebugCmdList: *ID3D12DebugCommandList,
         /// Cached in beginCmd to avoid fetching them during rendering
         pBoundHeaps: [2][*c]DescriptorHeap,
         mBoundHeapStartHandles: [2]D3D12_GPU_DESCRIPTOR_HANDLE,
@@ -1542,7 +1542,7 @@ pub const Fence = extern struct {
     mDx: __Struct0,
 
     pub const __Struct0 = extern struct {
-        pFence: [*c]ID3D12Fence,
+        pFence: *ID3D12Fence,
         pWaitIdleFenceEvent: HANDLE,
         mFenceValue: u64,
     };
@@ -1554,7 +1554,7 @@ pub const Semaphore = extern struct {
     /// queuePresent does not use the wait semaphore since the swapchain Present function
     /// already does the synchronization in this case
     pub const __Struct0 = extern struct {
-        pFence: [*c]ID3D12Fence,
+        pFence: *ID3D12Fence,
         pWaitIdleFenceEvent: HANDLE,
         mFenceValue: u64,
     };
@@ -1580,7 +1580,7 @@ pub const Queue = extern struct {
     },
 
     pub const __Struct0 = extern struct {
-        pQueue: [*c]ID3D12CommandQueue,
+        pQueue: *ID3D12CommandQueue,
         pFence: [*c]Fence,
         /// To silence mismatching command list on Windows 11 multi GPU
         pRenderer: [*c]Renderer,
@@ -1942,7 +1942,7 @@ pub const SwapChain = extern struct {
     pub const __Struct0 = extern struct {
         /// Use IDXGISwapChain3 for now since IDXGISwapChain4
         /// isn't supported by older devices.
-        pSwapChain: [*c]IDXGISwapChain3,
+        pSwapChain: *IDXGISwapChain3,
         bitfield_1: packed struct(u32) {
             // NOTE: Bitfield generation not guaranteed to work on all platforms, use with caution.
 
@@ -1970,6 +1970,12 @@ pub const ShaderTarget = extern struct {
     pub const SHADER_TARGET_6_3: ShaderTarget = .{ .bits = 4 };
     /// required for VRS
     pub const SHADER_TARGET_6_4: ShaderTarget = .{ .bits = 5 };
+    pub const SHADER_TARGET_6_5: ShaderTarget = .{ .bits = 6 };
+    /// required for Dynamic Resources
+    pub const SHADER_TARGET_6_6: ShaderTarget = .{ .bits = 7 };
+    pub const SHADER_TARGET_6_7: ShaderTarget = .{ .bits = 8 };
+    /// required for Extended Command Information
+    pub const SHADER_TARGET_6_8: ShaderTarget = .{ .bits = 9 };
 
     // pub usingnamespace cpp.FlagsMixin(ShaderTarget);
 };
