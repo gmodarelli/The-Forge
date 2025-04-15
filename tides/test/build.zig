@@ -76,6 +76,10 @@ pub fn buildExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     install_file = b.addInstallFile(b.path(ze_forge_base_path ++ "tides/gpu.cfg"), test_exe_bin_path ++ "gpu.cfg");
     exe.step.dependOn(&install_file.step);
 
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    compileShaders(&exe.step, allocator);
+
     {
         const run_cmd = b.addRunArtifact(exe);
         if (b.args) |args| {
@@ -91,4 +95,57 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     buildExe(b, target, optimize);
+}
+
+pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void {
+    const b = step.owner;
+    const output_shaders_path = std.fs.path.join(allocator, &[_][]const u8{ b.install_path, "bin", "shaders" }) catch unreachable;
+    defer allocator.free(output_shaders_path);
+
+    const graphics_root_signature_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "GraphicsRootSignature.rs"}) catch unreachable;
+    defer allocator.free(graphics_root_signature_output_path);
+    const compute_root_signature_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ComputeRootSignature.rs"}) catch unreachable;
+    defer allocator.free(compute_root_signature_output_path);
+
+    compileShader(step, "shaders/GraphicsRootSignature.hlsl", graphics_root_signature_output_path, "DefaultRootSignature", .root_signature);
+    compileShader(step, "shaders/ComputeRootSignature.hlsl", compute_root_signature_output_path, "ComputeRootSignature", .root_signature);
+}
+
+const ShaderType = enum {
+    vertex,
+    pixel,
+    compute,
+    root_signature,
+};
+
+fn compileShader(step: *std.Build.Step, input: []const u8, output: []const u8, entry: []const u8, shader_type: ShaderType) void {
+    const profile = switch(shader_type) {
+        .vertex => "vs_6_8",
+        .pixel => "ps_6_8",
+        .compute => "cs_6_8",
+        .root_signature => "rootsig_1_1",
+    };
+
+    const qstrip_root_signature = switch(shader_type) {
+        .vertex, .pixel, .compute => "-Qstrip_rootsignature",
+        .root_signature => "",
+    };
+
+    const b = step.owner;
+    const dxc_command = [_][]const u8{
+        "../../Common_3/Graphics/ThirdParty/OpenSource/DirectXShaderCompiler/bin/x64/dxc.exe",
+        input,
+        b.fmt("-Fo {s}", .{output}),
+        b.fmt("-E {s}", .{entry}),
+        b.fmt("-T {s}", .{profile}),
+        qstrip_root_signature,
+        "-Qembed_debug",
+        "-HV 2021",
+        "-WX",
+        "-O0",
+        "-Zi",
+    };
+
+    const cmd_step = b.addSystemCommand(&dxc_command);
+    step.dependOn(&cmd_step.step);
 }
