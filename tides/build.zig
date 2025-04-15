@@ -31,10 +31,6 @@ pub fn buildLib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     });
 
     std.debug.assert(target.result.abi == .msvc);
-    // ze_forge_c_cpp.linkLibC();
-    // if (target.result.abi != .msvc) {
-    //     ze_forge_c_cpp.linkLibCpp();
-    // }
 
     const cflags = &.{
         "-DTIDES",
@@ -62,6 +58,7 @@ pub fn buildLib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
             the_forge_base_path ++ "Common_3/Graphics/Direct3D12/Direct3D12Hooks.c",
             the_forge_base_path ++ "Common_3/Graphics/Direct3D12/Direct3D12Raytracing.c",
             the_forge_base_path ++ "Common_3/Utilities/ThirdParty/OpenSource/bstrlib/bstrlib.c",
+
             // Glue
             the_forge_base_path ++ "Common_3/Graphics/Interfaces/IGraphics_glue.cpp",
             the_forge_base_path ++ "Common_3/Graphics/Interfaces/IRay_glue.cpp",

@@ -47,11 +47,12 @@ pub fn buildExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     exe.linkSystemLibrary("d3d12");
     exe.linkSystemLibrary("legacy_stdio_definitions");
 
+    exe.rdynamic = true;
+
     b.installArtifact(exe);
 
     const ze_forge_base_path = "../../";
-    const the_forge_base_path = ze_forge_base_path ++ "./";
-    const the_forge_open_source_path = the_forge_base_path ++ "Common_3/Graphics/ThirdParty/OpenSource/";
+    const the_forge_open_source_path = ze_forge_base_path ++ "Common_3/Graphics/ThirdParty/OpenSource/";
     const test_exe_bin_path = "bin/";
 
     var install_file = b.addInstallFile(b.path(the_forge_open_source_path ++ "ags/ags_lib/lib/amd_ags_x64.dll"), test_exe_bin_path ++ "amd_ags_x64.dll");
@@ -69,7 +70,7 @@ pub fn buildExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     install_file = b.addInstallFile(b.path(the_forge_open_source_path ++ "Direct3d12Agility/bin/x64/d3d12SDKLayers.dll"), test_exe_bin_path ++ "d3d12SDKLayers.dll");
     exe.step.dependOn(&install_file.step);
 
-    install_file = b.addInstallFile(b.path(the_forge_base_path ++ "Common_3/OS/Windows/pc_gpu.data"), test_exe_bin_path ++ "gpu.data");
+    install_file = b.addInstallFile(b.path(ze_forge_base_path ++ "Common_3/OS/Windows/pc_gpu.data"), test_exe_bin_path ++ "gpu.data");
     exe.step.dependOn(&install_file.step);
 
     install_file = b.addInstallFile(b.path(ze_forge_base_path ++ "tides/gpu.cfg"), test_exe_bin_path ++ "gpu.cfg");
