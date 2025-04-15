@@ -14,6 +14,9 @@ void removeTextureEx(Renderer* pRenderer, Texture* pTexture);
 void addBufferEx(Renderer* pRenderer, const BufferDesc* pDesc, bool bBindless, Buffer** ppBuffer);
 void removeBufferEx(Renderer* pRenderer, Buffer* pBuffer);
 
+bool loadDefaultRootSignatures(Renderer* pRenderer, const char* graphicsRootSignaturePath, const char* computeRootSignaturePath);
+void releaseDefaultRootSignatures(Renderer* pRenderer);
+
 #ifdef __cplusplus
 }
 #endif

@@ -12,6 +12,9 @@ extern void cmdCopySubresource(Cmd* pCmd, Buffer* pDstBuffer, Texture* pTexture,
 extern void addTexture(Renderer* pRenderer, const TextureDesc* pDesc, bool bBindless, Texture** ppTexture);
 extern void removeTexture(Renderer* pRenderer, Texture* pTexture);
 
+extern void initRootSignatureImpl(Renderer*, const void*, uint32_t, ID3D12RootSignature**);
+extern void exitRootSignatureImpl(Renderer*, ID3D12RootSignature*);
+
 void initGPUConfigurationEx(ExtendedSettings* pExtendedSettings)
 {
 	addGPUConfigurationRules(pExtendedSettings);
@@ -40,4 +43,49 @@ void addBufferEx(Renderer* pRenderer, const BufferDesc* pDesc, bool bBindless, B
 void removeBufferEx(Renderer* pRenderer, Buffer* pBuffer)
 {
 	removeBuffer(pRenderer, pBuffer);
+}
+
+bool loadRootSignature(Renderer* pRenderer, const char* path, ID3D12RootSignature** ppRootSignature);
+
+bool loadDefaultRootSignatures(Renderer* pRenderer, const char* graphicsRootSignaturePath, const char* computeRootSignaturePath)
+{
+	if (!loadRootSignature(pRenderer, graphicsRootSignaturePath, &pRenderer->mDx.pGraphicsRootSignature))
+    {
+        return false;
+    }
+
+    if (!loadRootSignature(pRenderer, computeRootSignaturePath, &pRenderer->mDx.pComputeRootSignature))
+    {
+        return false;
+    }
+
+	return true;
+}
+
+void releaseDefaultRootSignatures(Renderer* pRenderer)
+{
+	exitRootSignatureImpl(pRenderer, pRenderer->mDx.pGraphicsRootSignature);
+    exitRootSignatureImpl(pRenderer, pRenderer->mDx.pComputeRootSignature);
+}
+
+bool loadRootSignature(Renderer* pRenderer, const char* path, ID3D12RootSignature** ppRootSignature)
+{
+    FileStream binaryFS = { 0 };
+    const bool result = fsOpenStreamFromPath(RD_SHADER_BINARIES, path, FM_READ, &binaryFS);
+    assert(result);
+    ssize_t size = fsGetStreamFileSize(&binaryFS);
+    assert(size > 0);
+
+    void* bytecode = tf_malloc_internal(size, "", 0, "");
+    assert(bytecode);
+    memset(bytecode, 0, size);
+    fsReadFromStream(&binaryFS, bytecode, size);
+
+    initRootSignatureImpl(pRenderer, bytecode, (uint32_t)size, ppRootSignature);
+
+    tf_free(bytecode);
+
+    fsCloseStream(&binaryFS);
+
+    return true;
 }
