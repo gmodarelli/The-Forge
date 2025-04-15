@@ -1144,13 +1144,13 @@ pub const Buffer = extern struct {
         },
 
         /// Native handle of the underlying resource
-        pResource: [*c]ID3D12Resource,
+        pResource: *ID3D12Resource,
         __union_field1: __Union0,
 
         pub const __Union0 = extern union {
-            pMarkerBufferHeap: [*c]ID3D12Heap,
+            pMarkerBufferHeap: *ID3D12Heap,
             /// Contains resource allocation info such as parent heap, offset in heap
-            pAllocation: [*c]D3D12MAAllocation_,
+            pAllocation: *D3D12MAAllocation_,
         };
     };
 };
