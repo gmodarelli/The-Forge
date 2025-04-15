@@ -12,6 +12,16 @@ extern void cmdCopySubresource(Cmd* pCmd, Buffer* pDstBuffer, Texture* pTexture,
 extern void addTexture(Renderer* pRenderer, const TextureDesc* pDesc, bool bBindless, Texture** ppTexture);
 extern void removeTexture(Renderer* pRenderer, Texture* pTexture);
 
+void initGPUConfigurationEx(ExtendedSettings* pExtendedSettings)
+{
+	addGPUConfigurationRules(pExtendedSettings);
+}
+
+void exitGPUConfigurationEx()
+{
+	exitGPUConfiguration();
+}
+
 void addTextureEx(Renderer* pRenderer, const TextureDesc* pTextureDesc, bool bBindless, Texture** ppTexture)
 {
     addTexture(pRenderer, pTextureDesc, bBindless, ppTexture);

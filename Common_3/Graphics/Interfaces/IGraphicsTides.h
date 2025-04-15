@@ -7,6 +7,8 @@ extern "C"
 {
 #endif
 
+void initGPUConfigurationEx(ExtendedSettings* pExtendedSettings);
+void exitGPUConfigurationEx();
 void addTextureEx(Renderer* pRenderer, const TextureDesc* pTextureDesc, bool bBindless, Texture** texture);
 void removeTextureEx(Renderer* pRenderer, Texture* pTexture);
 void addBufferEx(Renderer* pRenderer, const BufferDesc* pDesc, bool bBindless, Buffer** ppBuffer);
