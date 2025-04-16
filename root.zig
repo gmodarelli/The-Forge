@@ -9,6 +9,7 @@ pub export const D3D12SDKPath: [*:0]const u8 = ".\\";
 pub const GpuDesc = struct {
     graphics_root_signature_path: []const u8,
     compute_root_signature_path: []const u8,
+    hwnd: std.os.windows.HWND,
 };
 
 pub const frames_in_flight_count: u32 = 2;
@@ -24,10 +25,15 @@ const Gpu = struct {
     semaphores: [frames_in_flight_count][*c]IGraphics.Semaphore = undefined,
 
     image_acquired_semaphore: [*c]IGraphics.Semaphore = null,
-    // swapchain: [*c]IGraphics.SwapChain = null,
+    swapchain: [*c]IGraphics.SwapChain = null,
+
+    linear_repeat_sampler: [*c]IGraphics.Sampler = null,
+    linear_clamp_sampler: [*c]IGraphics.Sampler = null,
 
     frame_started: bool = false,
     frame_index: u32 = 0,
+
+    hwnd: std.os.windows.HWND,
 };
 
 var gpu: Gpu = undefined;
@@ -69,11 +75,37 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
         @panic("Failed to load default root signatures");
     }
 
+    // Static samplers
+    var sampler_desc = std.mem.zeroes(IGraphics.SamplerDesc);
+    sampler_desc.mMinFilter = IGraphics.FilterType.FILTER_LINEAR;
+    sampler_desc.mMagFilter = IGraphics.FilterType.FILTER_LINEAR;
+    sampler_desc.mMipMapMode = IGraphics.MipMapMode.MIPMAP_MODE_LINEAR;
+    sampler_desc.mAddressU = IGraphics.AddressMode.ADDRESS_MODE_REPEAT;
+    sampler_desc.mAddressV = IGraphics.AddressMode.ADDRESS_MODE_REPEAT;
+    sampler_desc.mAddressW = IGraphics.AddressMode.ADDRESS_MODE_REPEAT;
+    IGraphics.addSampler(gpu.renderer, &sampler_desc, &gpu.linear_repeat_sampler);
+
+    sampler_desc.mAddressW = IGraphics.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_desc.mAddressV = IGraphics.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_desc.mAddressU = IGraphics.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
+    IGraphics.addSampler(gpu.renderer, &sampler_desc, &gpu.linear_clamp_sampler);
+
     gpu.frame_started = false;
     gpu.frame_index = 0;
+
+    gpu.hwnd = gpu_desc.hwnd;
+
+    const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .RESIZE = true, .RENDERTARGET = true } };
+    onLoad(reload_desc);
 }
 
 pub fn shutdownGpu() void {
+    const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .RESIZE = true, .RENDERTARGET = true } };
+    onUnload(reload_desc);
+
+    IGraphics.removeSampler(gpu.renderer, gpu.linear_clamp_sampler);
+    IGraphics.removeSampler(gpu.renderer, gpu.linear_repeat_sampler);
+
     IGraphicsTides.releaseDefaultRootSignatures(gpu.renderer);
     IGraphics.exitSemaphore(gpu.renderer, gpu.image_acquired_semaphore);
 
@@ -87,4 +119,133 @@ pub fn shutdownGpu() void {
     IGraphics.exitQueue(gpu.renderer, gpu.graphics_queue);
     IGraphicsTides.exitGPUConfigurationEx();
     IGraphics.exitRenderer(gpu.renderer);
+}
+
+pub fn frameStart() u32 {
+    std.debug.assert(!gpu.frame_started);
+    gpu.frame_started = true;
+
+    var frame_fence = gpu.fences[gpu.frame_index];
+    var fence_status: IGraphics.FenceStatus = undefined;
+    IGraphics.getFenceStatus(gpu.renderer, frame_fence, &fence_status);
+    if (fence_status.bits == IGraphics.FenceStatus.FENCE_STATUS_INCOMPLETE.bits) {
+        IGraphics.waitForFences(gpu.renderer, 1, &frame_fence);
+    }
+
+    const cmd_pool = gpu.cmd_pools[gpu.frame_index];
+    IGraphics.resetCmdPool(gpu.renderer, cmd_pool);
+    const cmd = gpu.cmds[gpu.frame_index];
+
+    IGraphics.beginCmd(cmd);
+    return gpu.frame_index;
+}
+
+pub fn frameSubmit() void {
+    std.debug.assert(gpu.frame_started);
+
+    var swapchain_image_index: u32 = 0;
+    IGraphics.acquireNextImage(gpu.renderer, gpu.swapchain, gpu.image_acquired_semaphore, null, &swapchain_image_index);
+    const swapchain_buffer = gpu.swapchain.*.ppRenderTargets[swapchain_image_index];
+
+    var cmd = gpu.cmds[gpu.frame_index];
+
+    var render_target_barriers = [1]IGraphics.RenderTargetBarrier{ undefined };
+    render_target_barriers[0] = std.mem.zeroes(IGraphics.RenderTargetBarrier);
+    render_target_barriers[0].pRenderTarget = swapchain_buffer;
+    render_target_barriers[0].mCurrentState = IGraphics.ResourceState.RESOURCE_STATE_PRESENT;
+    render_target_barriers[0].mNewState = IGraphics.ResourceState.RESOURCE_STATE_RENDER_TARGET;
+    IGraphics.cmdResourceBarrier(cmd, 0, null, 0, null, 1, @ptrCast(&render_target_barriers));
+
+    var bind_render_targets_desc = std.mem.zeroes(IGraphics.BindRenderTargetsDesc);
+    bind_render_targets_desc.mRenderTargetCount = 1;
+    bind_render_targets_desc.mRenderTargets[0] = std.mem.zeroes(IGraphics.BindRenderTargetDesc);
+    bind_render_targets_desc.mRenderTargets[0].pRenderTarget = swapchain_buffer;
+    bind_render_targets_desc.mRenderTargets[0].mLoadAction = IGraphics.LoadActionType.LOAD_ACTION_CLEAR;
+    IGraphics.cmdBindRenderTargets(cmd, &bind_render_targets_desc);
+
+    IGraphics.cmdSetViewport(cmd, 0.0, 0.0, @floatFromInt(swapchain_buffer.*.bitfield_2.mWidth), @floatFromInt(swapchain_buffer.*.bitfield_2.mHeight), 0.0, 1.0);
+    IGraphics.cmdSetScissor(cmd, 0, 0, swapchain_buffer.*.bitfield_2.mWidth, swapchain_buffer.*.bitfield_2.mHeight);
+
+    render_target_barriers[0] = std.mem.zeroes(IGraphics.RenderTargetBarrier);
+    render_target_barriers[0].pRenderTarget = swapchain_buffer;
+    render_target_barriers[0].mCurrentState = IGraphics.ResourceState.RESOURCE_STATE_RENDER_TARGET;
+    render_target_barriers[0].mNewState = IGraphics.ResourceState.RESOURCE_STATE_PRESENT;
+    IGraphics.cmdResourceBarrier(cmd, 0, null, 0, null, 1, @ptrCast(&render_target_barriers));
+
+    IGraphics.endCmd(cmd);
+
+    var wait_semaphores = [1]*IGraphics.Semaphore{ gpu.image_acquired_semaphore };
+    var signal_semaphores = [1]*IGraphics.Semaphore{ gpu.semaphores[gpu.frame_index] };
+
+    var submit_desc = std.mem.zeroes(IGraphics.QueueSubmitDesc);
+    submit_desc.mCmdCount = 1;
+    submit_desc.ppCmds = &cmd;
+    submit_desc.mSignalSemaphoreCount = 1;
+    submit_desc.ppSignalSemaphores = @ptrCast(&signal_semaphores);
+    submit_desc.mWaitSemaphoreCount = 1;
+    submit_desc.ppWaitSemaphores = @ptrCast(&wait_semaphores);
+    submit_desc.pSignalFence = gpu.fences[gpu.frame_index];
+    IGraphics.queueSubmit(gpu.graphics_queue, &submit_desc);
+
+    wait_semaphores[0] = gpu.semaphores[gpu.frame_index];
+    var present_desc = std.mem.zeroes(IGraphics.QueuePresentDesc);
+    present_desc.mIndex = @intCast(swapchain_image_index);
+    present_desc.pSwapChain = gpu.swapchain;
+    present_desc.mWaitSemaphoreCount = 1;
+    present_desc.ppWaitSemaphores = @ptrCast(&wait_semaphores);
+    present_desc.mSubmitDone = true;
+    IGraphics.queuePresent(gpu.graphics_queue, &present_desc);
+
+    gpu.frame_index += 1;
+    gpu.frame_index %= frames_in_flight_count;
+    gpu.frame_started = false;
+}
+
+pub fn requestReload(reload_desc: IGraphics.ReloadDesc) void {
+    onUnload(reload_desc);
+    onLoad(reload_desc);
+}
+
+fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
+    std.debug.assert(gpu.renderer != null);
+
+    if (reload_desc.mType.RESIZE or reload_desc.mType.RENDERTARGET) {
+        swapchainCreate();
+    }
+}
+
+fn onUnload(reload_desc: IGraphics.ReloadDesc) void {
+    std.debug.assert(gpu.renderer != null);
+
+    IGraphics.waitQueueIdle(gpu.graphics_queue);
+
+    if (reload_desc.mType.RESIZE or reload_desc.mType.RENDERTARGET) {
+        swapchainDestroy();
+    }
+}
+
+fn swapchainCreate() void {
+    const window_handle = IGraphics.WindowHandle{
+        .type = .WIN32,
+        .window = gpu.hwnd,
+    };
+
+    var window_width: u32 = 0;
+    var window_height: u32 = 0;
+    IGraphicsTides.getWindowSize(window_handle, &window_width, &window_height);
+
+    var desc = std.mem.zeroes(IGraphics.SwapChainDesc);
+    desc.mWindowHandle = window_handle;
+    desc.mPresentQueueCount = 1;
+    desc.ppPresentQueues = &gpu.graphics_queue;
+    desc.mWidth = window_width;
+    desc.mHeight = window_height;
+    desc.mImageCount = IGraphics.getRecommendedSwapchainImageCount(gpu.renderer, &window_handle);
+    desc.mColorFormat = IGraphics.getSupportedSwapchainFormat(gpu.renderer, &desc, IGraphics.ColorSpace.COLOR_SPACE_SDR_SRGB);
+    desc.mEnableVsync = true;
+    IGraphics.addSwapChain(gpu.renderer, &desc, &gpu.swapchain);
+}
+
+fn swapchainDestroy() void {
+    IGraphics.removeSwapChain(gpu.renderer, gpu.swapchain);
 }
