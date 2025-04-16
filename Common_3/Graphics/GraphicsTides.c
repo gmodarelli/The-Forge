@@ -89,3 +89,15 @@ bool loadRootSignature(Renderer* pRenderer, const char* path, ID3D12RootSignatur
 
     return true;
 }
+
+void getWindowSize(WindowHandle windowHandle, uint32_t* pWidth, uint32_t* pHeight)
+{
+    RECT rect;
+    if (!GetWindowRect(windowHandle.window, &rect))
+    {
+        assert(false);
+    }
+
+    *pWidth = rect.right - rect.left;
+    *pHeight = rect.bottom - rect.top;
+}

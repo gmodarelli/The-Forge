@@ -17,6 +17,8 @@ void removeBufferEx(Renderer* pRenderer, Buffer* pBuffer);
 bool loadDefaultRootSignatures(Renderer* pRenderer, const char* graphicsRootSignaturePath, const char* computeRootSignaturePath);
 void releaseDefaultRootSignatures(Renderer* pRenderer);
 
+void getWindowSize(WindowHandle windowHandle, uint32_t* pWidth, uint32_t* pHeight);
+
 #ifdef __cplusplus
 }
 #endif
