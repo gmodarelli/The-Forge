@@ -7,8 +7,11 @@ pub fn main() !void {
     zglfw.init() catch unreachable;
     defer zglfw.terminate();
 
+    var window_width: c_int = 1920;
+    var window_height: c_int = 1080;
+
     zglfw.windowHint(.client_api, .no_api);
-    const window = zglfw.Window.create(1920, 1080, "Ze-Forge Test", null) catch unreachable;
+    const window = zglfw.Window.create(window_width, window_height, "Ze-Forge Test", null) catch unreachable;
     defer zglfw.Window.destroy(window);
 
     const gpu_desc = zf.GpuDesc{
@@ -22,7 +25,19 @@ pub fn main() !void {
     while (!window.shouldClose()) {
         zglfw.pollEvents();
 
-        // render your things here
+        const frame_buffer_size = window.getFramebufferSize();
+        if (frame_buffer_size[0] != window_width or frame_buffer_size[1] != window_height) {
+            window_width = frame_buffer_size[0];
+            window_height = frame_buffer_size[1];
+
+            std.log.info(
+                "Window resized to {d}x{d}",
+                .{ window_width, window_height },
+            );
+
+            zf.requestResize();
+        }
+
         _ = zf.frameStart();
         zf.frameSubmit();
     }

@@ -201,7 +201,8 @@ pub fn frameSubmit() void {
     gpu.frame_started = false;
 }
 
-pub fn requestReload(reload_desc: IGraphics.ReloadDesc) void {
+pub fn requestResize() void {
+    const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .RESIZE = true, .RENDERTARGET = true } };
     onUnload(reload_desc);
     onLoad(reload_desc);
 }
