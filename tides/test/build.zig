@@ -14,6 +14,15 @@ pub fn buildExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
         exe.linkLibCpp();
     }
 
+    // zglfw
+    const zglfw = b.dependency("zglfw", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("zglfw", zglfw.module("root"));
+    exe.linkLibrary(zglfw.artifact("glfw"));
+
+    // ze-forge
     const ze_forge = b.dependency("ze_forge", .{
         .target = target,
         .optimize = optimize,
