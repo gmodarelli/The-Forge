@@ -1649,12 +1649,12 @@ pub const Shader = extern struct {
 
     pub const __Struct0 = extern struct {
         pEntryNames: [*c]LPCWSTR,
-        pVSBlob: [*c]IDxcBlobEncoding,
-        pHSBlob: [*c]IDxcBlobEncoding,
-        pDSBlob: [*c]IDxcBlobEncoding,
-        pGSBlob: [*c]IDxcBlobEncoding,
-        pPSBlob: [*c]IDxcBlobEncoding,
-        pCSBlob: [*c]IDxcBlobEncoding,
+        pVSBlob: *IDxcBlobEncoding,
+        pHSBlob: *IDxcBlobEncoding,
+        pDSBlob: *IDxcBlobEncoding,
+        pGSBlob: *IDxcBlobEncoding,
+        pPSBlob: *IDxcBlobEncoding,
+        pCSBlob: *IDxcBlobEncoding,
     };
 };
 
