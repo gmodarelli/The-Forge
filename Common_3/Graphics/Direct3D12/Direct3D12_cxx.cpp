@@ -49,6 +49,15 @@
 #undef PROFILE_BUILD
 #endif
 
+
+#ifdef TIDES
+#ifdef IID_PPV_ARGS_Helper
+#undef IID_PPV_ARGS_Helper
+#endif
+
+#define IID_PPV_ARGS_Helper(t) (void**)(t)
+#endif
+
 extern "C" void PIX_BeginEvent(ID3D12GraphicsCommandList1* context, float r, float g, float b, const char* pName)
 {
     // note: USE_PIX isn't the ideal test because we might be doing a debug build where pix
