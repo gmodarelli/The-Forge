@@ -86,6 +86,9 @@ pub fn buildLib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     });
 
     ze_forge.linkLibrary(ze_forge_c_cpp);
+
+    const zpool = b.dependency("zpool", .{});
+    ze_forge.addImport("zpool", zpool.module("root"));
 }
 
 pub fn build(b: *std.Build) void {

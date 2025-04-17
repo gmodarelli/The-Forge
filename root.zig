@@ -3,6 +3,8 @@ const IGraphics = @import("Common_3/Graphics/Interfaces/IGraphics.zig");
 const IGraphicsTides = @import("Common_3/Graphics/Interfaces/IGraphicsTides.zig");
 // pub const IRay = @import("Common_3/Graphics/Interfaces/IRay.zig");
 
+const Pool = @import("zpool").Pool;
+
 pub export const D3D12SDKVersion: u32 = 715;
 pub export const D3D12SDKPath: [*:0]const u8 = ".\\";
 
@@ -23,7 +25,11 @@ pub const ShaderLoadDesc = struct {
     compute: ?ShaderStageLoadDesc,
 };
 
-pub const ShaderHandle = u32;
+const ShaderPool = Pool(8, 8, [*c]IGraphics.Shader, struct {
+    ptr: [*c]IGraphics.Shader,
+    // TODO: Store BinaryShaderDesc to allow for shader recompilation
+});
+pub const ShaderHandle = ShaderPool.Handle;
 
 pub const frames_in_flight_count: u32 = 2;
 
@@ -47,12 +53,17 @@ const Gpu = struct {
     frame_index: u32 = 0,
 
     hwnd: std.os.windows.HWND,
+
+    // Resources
+    shaders: ShaderPool = undefined,
 };
 
 var gpu: Gpu = undefined;
 
 pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
     gpu.allocator = allocator;
+
+    gpu.shaders = ShaderPool.initMaxCapacity(gpu.allocator) catch unreachable;
 
     // Initialize renderer
     var renderer_desc = std.mem.zeroes(IGraphics.RendererDesc);
@@ -115,6 +126,8 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
 pub fn shutdownGpu() void {
     const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .RESIZE = true, .RENDERTARGET = true } };
     onUnload(reload_desc);
+
+    gpu.shaders.deinit();
 
     IGraphics.removeSampler(gpu.renderer, gpu.linear_clamp_sampler);
     IGraphics.removeSampler(gpu.renderer, gpu.linear_repeat_sampler);
@@ -262,7 +275,8 @@ pub fn compileShader(shader_load_desc: *const ShaderLoadDesc) !ShaderHandle {
         }
     }
 
-    return 0;
+    return gpu.shaders.add(.{ .ptr = shader }) catch unreachable;
+
 }
 
 fn loadShaderStage(shader_stage_load_desc: *const ShaderStageLoadDesc, binary_shader_stage_desc: [*c]IGraphics.BinaryShaderStageDesc) void {

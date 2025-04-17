@@ -2,6 +2,12 @@ const std = @import("std");
 const zf = @import("ze_forge");
 const zglfw = @import("zglfw");
 
+pub const Gfx = struct {
+    // Shaders
+    blit_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    clear_screen_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+};
+
 pub fn main() !void {
     // Create a window
     zglfw.init() catch unreachable;
@@ -22,6 +28,8 @@ pub fn main() !void {
     zf.initializeGpu(gpu_desc, std.heap.page_allocator) catch unreachable;
     defer zf.shutdownGpu();
 
+    var gfx = Gfx{};
+
     {
         const shader_load_desc = zf.ShaderLoadDesc{
             .vertex = .{
@@ -34,7 +42,7 @@ pub fn main() !void {
             },
             .compute = null,
         };
-        _ = zf.compileShader(&shader_load_desc) catch unreachable;
+        gfx.blit_shader = zf.compileShader(&shader_load_desc) catch unreachable;
     }
 
     {
@@ -42,7 +50,7 @@ pub fn main() !void {
             .path = "shaders/ClearScreen.comp",
             .entry = "main",
         }, .vertex = null, .pixel = null };
-        _ = zf.compileShader(&shader_load_desc) catch unreachable;
+        gfx.clear_screen_shader = zf.compileShader(&shader_load_desc) catch unreachable;
     }
 
     while (!window.shouldClose()) {
