@@ -115,9 +115,15 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     defer allocator.free(graphics_root_signature_output_path);
     const compute_root_signature_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ComputeRootSignature.rs"}) catch unreachable;
     defer allocator.free(compute_root_signature_output_path);
-
     compileShader(step, "shaders/GraphicsRootSignature.hlsl", graphics_root_signature_output_path, "DefaultRootSignature", .root_signature);
     compileShader(step, "shaders/ComputeRootSignature.hlsl", compute_root_signature_output_path, "ComputeRootSignature", .root_signature);
+
+    const blit_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Blit.vert"}) catch unreachable;
+    defer allocator.free(blit_vertex_output_path);
+    const blit_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Blit.frag"}) catch unreachable;
+    defer allocator.free(blit_pixel_output_path);
+    compileShader(step, "shaders/Blit.hlsl", blit_vertex_output_path, "FullscreenVertex", .vertex);
+    compileShader(step, "shaders/Blit.hlsl", blit_pixel_output_path, "BlitFragment", .pixel);
 }
 
 const ShaderType = enum {

@@ -25,11 +25,11 @@ pub fn main() !void {
     const shader_load_desc = zf.ShaderLoadDesc{
         .vertex = .{
             .path = "shaders/Blit.vert",
-            .entry = "main",
+            .entry = "FullscreenVertex",
         },
         .pixel = .{
             .path = "shaders/Blit.frag",
-            .entry = "main",
+            .entry = "BlitFragment",
         },
         .compute = null,
     };

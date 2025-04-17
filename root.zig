@@ -223,18 +223,18 @@ pub fn requestResize() void {
 pub fn compileShader(shader_load_desc: *const ShaderLoadDesc) !ShaderHandle {
     var binary_shader_desc = std.mem.zeroes(IGraphics.BinaryShaderDesc);
 
-    if (shader_load_desc.vertex) |vertex| {
-        loadShaderStage(&vertex, &binary_shader_desc.mVert);
+    if (shader_load_desc.vertex) |*vertex| {
+        loadShaderStage(vertex, &binary_shader_desc.mVert);
         binary_shader_desc.mStages.bits |= IGraphics.ShaderStage.SHADER_STAGE_VERT.bits;
     }
 
-    if (shader_load_desc.pixel) |pixel| {
-        loadShaderStage(&pixel, &binary_shader_desc.mFrag);
+    if (shader_load_desc.pixel) |*pixel| {
+        loadShaderStage(pixel, &binary_shader_desc.mFrag);
         binary_shader_desc.mStages.bits |= IGraphics.ShaderStage.SHADER_STAGE_FRAG.bits;
     }
 
-    if (shader_load_desc.compute) |compute| {
-        loadShaderStage(&compute, &binary_shader_desc.mComp);
+    if (shader_load_desc.compute) |*compute| {
+        loadShaderStage(compute, &binary_shader_desc.mComp);
         binary_shader_desc.mStages.bits |= IGraphics.ShaderStage.SHADER_STAGE_COMP.bits;
     }
 
@@ -242,15 +242,24 @@ pub fn compileShader(shader_load_desc: *const ShaderLoadDesc) !ShaderHandle {
     IGraphics.addShaderBinary(gpu.renderer, &binary_shader_desc, &shader);
 
     if (shader_load_desc.vertex) |_| {
-        gpu.allocator.free(binary_shader_desc.mVert.pByteCode);
+        if (binary_shader_desc.mVert.pByteCode) |byte_code| {
+            const slice = @as([*]u8, @ptrCast(byte_code))[0..binary_shader_desc.mVert.mByteCodeSize];
+            gpu.allocator.free(slice);
+        }
     }
 
     if (shader_load_desc.pixel) |_| {
-        gpu.allocator.free(binary_shader_desc.mFrag.pByteCode);
+        if (binary_shader_desc.mFrag.pByteCode) |byte_code| {
+            const slice = @as([*]u8, @ptrCast(byte_code))[0..binary_shader_desc.mFrag.mByteCodeSize];
+            gpu.allocator.free(slice);
+        }
     }
 
     if (shader_load_desc.compute) |_| {
-        gpu.allocator.free(binary_shader_desc.mComp.pByteCode);
+        if (binary_shader_desc.mComp.pByteCode) |byte_code| {
+            const slice = @as([*]u8, @ptrCast(byte_code))[0..binary_shader_desc.mComp.mByteCodeSize];
+            gpu.allocator.free(slice);
+        }
     }
 
     return 0;
@@ -263,10 +272,11 @@ fn loadShaderStage(shader_stage_load_desc: *const ShaderStageLoadDesc, binary_sh
     const stats = file.stat() catch unreachable;
     std.debug.assert(stats.size > 0);
 
-    var buffer = gpu.allocator.alloc(u8, stats.size) catch unreachable;
-    _ = file.readAll(buffer) catch unreachable;
+    const buffer = gpu.allocator.alloc(u8, stats.size) catch unreachable;
+    const read_size = file.readAll(buffer) catch unreachable;
+    std.debug.assert(read_size == stats.size);
 
-    binary_shader_stage_desc.*.pByteCode = @ptrCast(&buffer);
+    binary_shader_stage_desc.*.pByteCode = @ptrCast(buffer.ptr);
     binary_shader_stage_desc.*.mByteCodeSize = @intCast(stats.size);
     binary_shader_stage_desc.*.pEntryPoint = @ptrCast(shader_stage_load_desc.entry);
     binary_shader_stage_desc.*.pName = @ptrCast(shader_stage_load_desc.path);

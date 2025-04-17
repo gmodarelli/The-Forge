@@ -1,7 +1,7 @@
 #ifndef _GLOBALS_HLSLI
 #define _GLOBALS_HLSLI
 
-#include "ShaderGlobals.h"
+#include "ShaderInterop.h"
 
 cbuffer g_CBO : register(b0, SPACE_PerFrame)
 {
