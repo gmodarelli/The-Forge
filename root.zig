@@ -38,7 +38,7 @@ const Gpu = struct {
     semaphores: [frames_in_flight_count][*c]IGraphics.Semaphore = undefined,
 
     image_acquired_semaphore: [*c]IGraphics.Semaphore = null,
-    swapchain: [*c]IGraphics.SwapChain = null,
+    swap_chain: [*c]IGraphics.SwapChain = null,
 
     linear_repeat_sampler: [*c]IGraphics.Sampler = null,
     linear_clamp_sampler: [*c]IGraphics.Sampler = null,
@@ -156,15 +156,15 @@ pub fn frameStart() u32 {
 pub fn frameSubmit() void {
     std.debug.assert(gpu.frame_started);
 
-    var swapchain_image_index: u32 = 0;
-    IGraphics.acquireNextImage(gpu.renderer, gpu.swapchain, gpu.image_acquired_semaphore, null, &swapchain_image_index);
-    const swapchain_buffer = gpu.swapchain.*.ppRenderTargets[swapchain_image_index];
+    var swap_chain_image_index: u32 = 0;
+    IGraphics.acquireNextImage(gpu.renderer, gpu.swap_chain, gpu.image_acquired_semaphore, null, &swap_chain_image_index);
+    const swap_chain_buffer = gpu.swap_chain.*.ppRenderTargets[swap_chain_image_index];
 
     var cmd = gpu.cmds[gpu.frame_index];
 
     var render_target_barriers = [1]IGraphics.RenderTargetBarrier{undefined};
     render_target_barriers[0] = std.mem.zeroes(IGraphics.RenderTargetBarrier);
-    render_target_barriers[0].pRenderTarget = swapchain_buffer;
+    render_target_barriers[0].pRenderTarget = swap_chain_buffer;
     render_target_barriers[0].mCurrentState = IGraphics.ResourceState.RESOURCE_STATE_PRESENT;
     render_target_barriers[0].mNewState = IGraphics.ResourceState.RESOURCE_STATE_RENDER_TARGET;
     IGraphics.cmdResourceBarrier(cmd, 0, null, 0, null, 1, @ptrCast(&render_target_barriers));
@@ -172,15 +172,15 @@ pub fn frameSubmit() void {
     var bind_render_targets_desc = std.mem.zeroes(IGraphics.BindRenderTargetsDesc);
     bind_render_targets_desc.mRenderTargetCount = 1;
     bind_render_targets_desc.mRenderTargets[0] = std.mem.zeroes(IGraphics.BindRenderTargetDesc);
-    bind_render_targets_desc.mRenderTargets[0].pRenderTarget = swapchain_buffer;
+    bind_render_targets_desc.mRenderTargets[0].pRenderTarget = swap_chain_buffer;
     bind_render_targets_desc.mRenderTargets[0].mLoadAction = IGraphics.LoadActionType.LOAD_ACTION_CLEAR;
     IGraphics.cmdBindRenderTargets(cmd, &bind_render_targets_desc);
 
-    IGraphics.cmdSetViewport(cmd, 0.0, 0.0, @floatFromInt(swapchain_buffer.*.bitfield_2.mWidth), @floatFromInt(swapchain_buffer.*.bitfield_2.mHeight), 0.0, 1.0);
-    IGraphics.cmdSetScissor(cmd, 0, 0, swapchain_buffer.*.bitfield_2.mWidth, swapchain_buffer.*.bitfield_2.mHeight);
+    IGraphics.cmdSetViewport(cmd, 0.0, 0.0, @floatFromInt(swap_chain_buffer.*.bitfield_2.mWidth), @floatFromInt(swap_chain_buffer.*.bitfield_2.mHeight), 0.0, 1.0);
+    IGraphics.cmdSetScissor(cmd, 0, 0, swap_chain_buffer.*.bitfield_2.mWidth, swap_chain_buffer.*.bitfield_2.mHeight);
 
     render_target_barriers[0] = std.mem.zeroes(IGraphics.RenderTargetBarrier);
-    render_target_barriers[0].pRenderTarget = swapchain_buffer;
+    render_target_barriers[0].pRenderTarget = swap_chain_buffer;
     render_target_barriers[0].mCurrentState = IGraphics.ResourceState.RESOURCE_STATE_RENDER_TARGET;
     render_target_barriers[0].mNewState = IGraphics.ResourceState.RESOURCE_STATE_PRESENT;
     IGraphics.cmdResourceBarrier(cmd, 0, null, 0, null, 1, @ptrCast(&render_target_barriers));
@@ -202,8 +202,8 @@ pub fn frameSubmit() void {
 
     wait_semaphores[0] = gpu.semaphores[gpu.frame_index];
     var present_desc = std.mem.zeroes(IGraphics.QueuePresentDesc);
-    present_desc.mIndex = @intCast(swapchain_image_index);
-    present_desc.pSwapChain = gpu.swapchain;
+    present_desc.mIndex = @intCast(swap_chain_image_index);
+    present_desc.pSwapChain = gpu.swap_chain;
     present_desc.mWaitSemaphoreCount = 1;
     present_desc.ppWaitSemaphores = @ptrCast(&wait_semaphores);
     present_desc.mSubmitDone = true;
@@ -319,9 +319,9 @@ fn swapchainCreate() void {
     desc.mImageCount = IGraphics.getRecommendedSwapchainImageCount(gpu.renderer, &window_handle);
     desc.mColorFormat = IGraphics.getSupportedSwapchainFormat(gpu.renderer, &desc, IGraphics.ColorSpace.COLOR_SPACE_SDR_SRGB);
     desc.mEnableVsync = true;
-    IGraphics.addSwapChain(gpu.renderer, &desc, &gpu.swapchain);
+    IGraphics.addSwapChain(gpu.renderer, &desc, &gpu.swap_chain);
 }
 
 fn swapchainDestroy() void {
-    IGraphics.removeSwapChain(gpu.renderer, gpu.swapchain);
+    IGraphics.removeSwapChain(gpu.renderer, gpu.swap_chain);
 }
