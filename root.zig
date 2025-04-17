@@ -12,6 +12,19 @@ pub const GpuDesc = struct {
     hwnd: std.os.windows.HWND,
 };
 
+pub const ShaderStageLoadDesc = struct {
+    path: []const u8,
+    entry: []const u8,
+};
+
+pub const ShaderLoadDesc = struct {
+    vertex: ?ShaderStageLoadDesc,
+    pixel: ?ShaderStageLoadDesc,
+    compute: ?ShaderStageLoadDesc,
+};
+
+pub const ShaderHandle = u32;
+
 pub const frames_in_flight_count: u32 = 2;
 
 const Gpu = struct {
@@ -149,7 +162,7 @@ pub fn frameSubmit() void {
 
     var cmd = gpu.cmds[gpu.frame_index];
 
-    var render_target_barriers = [1]IGraphics.RenderTargetBarrier{ undefined };
+    var render_target_barriers = [1]IGraphics.RenderTargetBarrier{undefined};
     render_target_barriers[0] = std.mem.zeroes(IGraphics.RenderTargetBarrier);
     render_target_barriers[0].pRenderTarget = swapchain_buffer;
     render_target_barriers[0].mCurrentState = IGraphics.ResourceState.RESOURCE_STATE_PRESENT;
@@ -174,8 +187,8 @@ pub fn frameSubmit() void {
 
     IGraphics.endCmd(cmd);
 
-    var wait_semaphores = [1]*IGraphics.Semaphore{ gpu.image_acquired_semaphore };
-    var signal_semaphores = [1]*IGraphics.Semaphore{ gpu.semaphores[gpu.frame_index] };
+    var wait_semaphores = [1]*IGraphics.Semaphore{gpu.image_acquired_semaphore};
+    var signal_semaphores = [1]*IGraphics.Semaphore{gpu.semaphores[gpu.frame_index]};
 
     var submit_desc = std.mem.zeroes(IGraphics.QueueSubmitDesc);
     submit_desc.mCmdCount = 1;
@@ -205,6 +218,58 @@ pub fn requestResize() void {
     const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .RESIZE = true, .RENDERTARGET = true } };
     onUnload(reload_desc);
     onLoad(reload_desc);
+}
+
+pub fn compileShader(shader_load_desc: *const ShaderLoadDesc) !ShaderHandle {
+    var binary_shader_desc = std.mem.zeroes(IGraphics.BinaryShaderDesc);
+
+    if (shader_load_desc.vertex) |vertex| {
+        loadShaderStage(&vertex, &binary_shader_desc.mVert);
+        binary_shader_desc.mStages.bits |= IGraphics.ShaderStage.SHADER_STAGE_VERT.bits;
+    }
+
+    if (shader_load_desc.pixel) |pixel| {
+        loadShaderStage(&pixel, &binary_shader_desc.mFrag);
+        binary_shader_desc.mStages.bits |= IGraphics.ShaderStage.SHADER_STAGE_FRAG.bits;
+    }
+
+    if (shader_load_desc.compute) |compute| {
+        loadShaderStage(&compute, &binary_shader_desc.mComp);
+        binary_shader_desc.mStages.bits |= IGraphics.ShaderStage.SHADER_STAGE_COMP.bits;
+    }
+
+    var shader: [*c]IGraphics.Shader = null;
+    IGraphics.addShaderBinary(gpu.renderer, &binary_shader_desc, &shader);
+
+    if (shader_load_desc.vertex) |_| {
+        gpu.allocator.free(binary_shader_desc.mVert.pByteCode);
+    }
+
+    if (shader_load_desc.pixel) |_| {
+        gpu.allocator.free(binary_shader_desc.mFrag.pByteCode);
+    }
+
+    if (shader_load_desc.compute) |_| {
+        gpu.allocator.free(binary_shader_desc.mComp.pByteCode);
+    }
+
+    return 0;
+}
+
+fn loadShaderStage(shader_stage_load_desc: *const ShaderStageLoadDesc, binary_shader_stage_desc: [*c]IGraphics.BinaryShaderStageDesc) void {
+    var file = std.fs.cwd().openFile(shader_stage_load_desc.path, .{}) catch unreachable;
+    defer file.close();
+
+    const stats = file.stat() catch unreachable;
+    std.debug.assert(stats.size > 0);
+
+    var buffer = gpu.allocator.alloc(u8, stats.size) catch unreachable;
+    _ = file.readAll(buffer) catch unreachable;
+
+    binary_shader_stage_desc.*.pByteCode = @ptrCast(&buffer);
+    binary_shader_stage_desc.*.mByteCodeSize = @intCast(stats.size);
+    binary_shader_stage_desc.*.pEntryPoint = @ptrCast(shader_stage_load_desc.entry);
+    binary_shader_stage_desc.*.pName = @ptrCast(shader_stage_load_desc.path);
 }
 
 fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
