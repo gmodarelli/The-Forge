@@ -1,0 +1,73 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build_lib",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/d",
+                "/c",
+                "..\\..\\..\\..\\tools\\external\\msvc_BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat",
+                "'&'",
+                "zig",
+                "build",
+                "-Dtarget=native-native-msvc",
+            ],
+            "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "clear": true,
+                // "revealProblems": "onProblem"
+            }
+        },
+        {
+            "label": "build_test_exe",
+            "type": "shell",
+            "command": "cmd",
+            "args": [
+                "/d",
+                "/c",
+                "..\\..\\..\\..\\tools\\external\\msvc_BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat",
+                "'&'",
+                "zig",
+                "build",
+                "-Dtarget=native-native-msvc"
+            ],
+            "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/tides/test"
+            },
+            "presentation": {
+                "clear": true,
+                // "revealProblems": "onProblem"
+            }
+        },
+        {
+            "label": "build_c2z",
+            "type": "shell",
+            "command": "zig build",
+            "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/../c2z/"
+            },
+            "presentation": {
+                "clear": true,
+                // "revealProblems": "onProblem"
+            }
+        },
+    ]
+}

@@ -33,7 +33,6 @@
 
 # Visual Studio
 **/.vs/
-**/.vscode/
 **/x64/
 **.vcxproj.user
 **.user
