@@ -27,15 +27,7 @@
 
 #ifndef CROSS_PLATFORM_UUIDOF
 // Warning: This macro exists in WinAdapter.h as well
-#ifdef TIDES
-#if defined(_MSC_VER)
 #define CROSS_PLATFORM_UUIDOF(interface, spec) struct __declspec(uuid(spec)) interface;
-#else
-#define CROSS_PLATFORM_UUIDOF(interface, spec) struct interface;
-#endif
-#else // TIDES
-#define CROSS_PLATFORM_UUIDOF(interface, spec) struct __declspec(uuid(spec)) interface;
-#endif // TIDES
 #endif // CROSS_PLATFORM_UUIDOF
 
 

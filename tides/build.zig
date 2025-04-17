@@ -37,6 +37,7 @@ pub fn buildLib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
         "-DD3D12_AGILITY_SDK=1",
         "-DD3D12_AGILITY_SDK_VERSION=715",
         "-msse2",
+        "-fms-extensions",
     };
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
