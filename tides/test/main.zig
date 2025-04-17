@@ -22,18 +22,28 @@ pub fn main() !void {
     zf.initializeGpu(gpu_desc, std.heap.page_allocator) catch unreachable;
     defer zf.shutdownGpu();
 
-    const shader_load_desc = zf.ShaderLoadDesc{
-        .vertex = .{
-            .path = "shaders/Blit.vert",
-            .entry = "FullscreenVertex",
-        },
-        .pixel = .{
-            .path = "shaders/Blit.frag",
-            .entry = "BlitFragment",
-        },
-        .compute = null,
-    };
-    _ = zf.compileShader(&shader_load_desc) catch unreachable;
+    {
+        const shader_load_desc = zf.ShaderLoadDesc{
+            .vertex = .{
+                .path = "shaders/Blit.vert",
+                .entry = "FullscreenVertex",
+            },
+            .pixel = .{
+                .path = "shaders/Blit.frag",
+                .entry = "BlitFragment",
+            },
+            .compute = null,
+        };
+        _ = zf.compileShader(&shader_load_desc) catch unreachable;
+    }
+
+    {
+        const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
+            .path = "shaders/ClearScreen.comp",
+            .entry = "main",
+        }, .vertex = null, .pixel = null };
+        _ = zf.compileShader(&shader_load_desc) catch unreachable;
+    }
 
     while (!window.shouldClose()) {
         zglfw.pollEvents();
