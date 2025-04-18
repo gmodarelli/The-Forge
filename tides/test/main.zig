@@ -7,6 +7,9 @@ pub const Gfx = struct {
     blit_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     clear_screen_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
 
+    // PSOs
+    clear_screen_pso: zf.PsoHandle = zf.PsoHandle.nil,
+
     // Render Targets and Render Textures
     depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     scene_color: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
@@ -55,6 +58,10 @@ pub fn main() !void {
             .entry = "main",
         }, .vertex = null, .pixel = null };
         gfx.clear_screen_shader = zf.compileShader(shader_load_desc) catch unreachable;
+    }
+
+    {
+        gfx.clear_screen_pso = zf.createComputePso(gfx.clear_screen_shader) catch unreachable;
     }
 
     {

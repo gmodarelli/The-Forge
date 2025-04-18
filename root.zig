@@ -45,6 +45,14 @@ const ShaderPool = Pool(8, 8, [*c]IGraphics.Shader, struct {
 });
 pub const ShaderHandle = ShaderPool.Handle;
 
+const PsoPool = Pool(8, 8, [*c]IGraphics.Pipeline, struct {
+    ptr: [*c]IGraphics.Pipeline,
+    desc: IGraphics.PipelineDesc,
+    shader: ShaderHandle,
+    // TODO: Store handles to render targets?
+});
+pub const PsoHandle = PsoPool.Handle;
+
 const RenderTargetPool = Pool(8, 8, [*c]IGraphics.RenderTarget, struct {
     ptr: [*c]IGraphics.RenderTarget,
     desc: IGraphics.RenderTargetDesc,
@@ -89,6 +97,7 @@ const Gpu = struct {
 
     // Resource Pools
     shaders: ShaderPool = undefined,
+    psos: PsoPool = undefined,
     render_targets: RenderTargetPool = undefined,
     render_textures: RenderTexturePool = undefined,
 };
@@ -99,6 +108,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
     gpu.allocator = allocator;
 
     gpu.shaders = ShaderPool.initMaxCapacity(gpu.allocator) catch unreachable;
+    gpu.psos = PsoPool.initMaxCapacity(gpu.allocator) catch unreachable;
     gpu.render_targets = RenderTargetPool.initMaxCapacity(gpu.allocator) catch unreachable;
     gpu.render_textures = RenderTexturePool.initMaxCapacity(gpu.allocator) catch unreachable;
 
@@ -165,6 +175,7 @@ pub fn shutdownGpu() void {
     onUnload(reload_desc);
 
     gpu.shaders.deinit();
+    gpu.psos.deinit();
     gpu.render_targets.deinit();
     gpu.render_textures.deinit();
 
@@ -273,10 +284,26 @@ pub fn requestResize() void {
 }
 
 pub fn requestShadersReload() void {
-    std.log.debug("Reloading shaders", .{});
     const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .SHADER = true } };
     onUnload(reload_desc);
     onLoad(reload_desc);
+}
+
+pub fn createComputePso(shader_handle: ShaderHandle) !PsoHandle {
+    const shader = gpu.shaders.getColumn(shader_handle, .ptr) catch unreachable;
+
+    var desc = std.mem.zeroes(IGraphics.PipelineDesc);
+    desc.mType = IGraphics.PipelineType.PIPELINE_TYPE_COMPUTE;
+    desc.__union_field1.mComputeDesc.pShaderProgram = shader;
+
+    var pso: [*c]IGraphics.Pipeline = null;
+    IGraphics.addPipeline(gpu.renderer, &desc, @ptrCast(&pso));
+
+    return gpu.psos.add(.{
+        .ptr = pso,
+        .desc = desc,
+        .shader = shader_handle,
+    }) catch unreachable;
 }
 
 pub fn compileShader(shader_load_desc: ShaderLoadDesc) !ShaderHandle {
@@ -361,6 +388,23 @@ fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) ![*c]IGraphics.Shader
     return shader;
 }
 
+fn loadShaderStage(shader_stage_load_desc: *const ShaderStageLoadDesc, binary_shader_stage_desc: [*c]IGraphics.BinaryShaderStageDesc) void {
+    var file = std.fs.cwd().openFile(shader_stage_load_desc.path, .{}) catch unreachable;
+    defer file.close();
+
+    const stats = file.stat() catch unreachable;
+    std.debug.assert(stats.size > 0);
+
+    const buffer = gpu.allocator.alloc(u8, stats.size) catch unreachable;
+    const read_size = file.readAll(buffer) catch unreachable;
+    std.debug.assert(read_size == stats.size);
+
+    binary_shader_stage_desc.*.pByteCode = @ptrCast(buffer.ptr);
+    binary_shader_stage_desc.*.mByteCodeSize = @intCast(stats.size);
+    binary_shader_stage_desc.*.pEntryPoint = @ptrCast(shader_stage_load_desc.entry);
+    binary_shader_stage_desc.*.pName = @ptrCast(shader_stage_load_desc.path);
+}
+
 pub fn createRenderTexture(desc: IGraphics.TextureDesc) !RenderTextureHandle {
     var texture: [*c]IGraphics.Texture = null;
     IGraphicsTides.addTextureEx(gpu.renderer, @ptrCast(&desc), false, &texture);
@@ -379,23 +423,6 @@ pub fn createRenderTarget(desc: IGraphics.RenderTargetDesc) !RenderTargetHandle 
         .ptr = render_target,
         .desc = desc,
     });
-}
-
-fn loadShaderStage(shader_stage_load_desc: *const ShaderStageLoadDesc, binary_shader_stage_desc: [*c]IGraphics.BinaryShaderStageDesc) void {
-    var file = std.fs.cwd().openFile(shader_stage_load_desc.path, .{}) catch unreachable;
-    defer file.close();
-
-    const stats = file.stat() catch unreachable;
-    std.debug.assert(stats.size > 0);
-
-    const buffer = gpu.allocator.alloc(u8, stats.size) catch unreachable;
-    const read_size = file.readAll(buffer) catch unreachable;
-    std.debug.assert(read_size == stats.size);
-
-    binary_shader_stage_desc.*.pByteCode = @ptrCast(buffer.ptr);
-    binary_shader_stage_desc.*.mByteCodeSize = @intCast(stats.size);
-    binary_shader_stage_desc.*.pEntryPoint = @ptrCast(shader_stage_load_desc.entry);
-    binary_shader_stage_desc.*.pName = @ptrCast(shader_stage_load_desc.path);
 }
 
 fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
@@ -440,6 +467,24 @@ fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
             shader.* = compileShaderInternal(desc.*) catch unreachable;
         }
     }
+
+    if (reload_desc.mType.SHADER or reload_desc.mType.RENDERTARGET) {
+        var pso_handles = gpu.psos.liveHandles();
+        while (pso_handles.next()) |handle| {
+            const pso = gpu.psos.getColumnPtr(handle, .ptr) catch unreachable;
+            const desc = gpu.psos.getColumnPtr(handle, .desc) catch unreachable;
+            const shader_handle = gpu.psos.getColumn(handle, .shader) catch unreachable;
+            const shader = gpu.shaders.getColumn(shader_handle, .ptr) catch unreachable;
+
+            if (desc.*.mType.bits == IGraphics.PipelineType.PIPELINE_TYPE_COMPUTE.bits) {
+                desc.*.__union_field1.mComputeDesc.pShaderProgram = shader;
+            } else {
+                desc.*.__union_field1.mGraphicsDesc.pShaderProgram = shader;
+            }
+
+            IGraphics.addPipeline(gpu.renderer, desc, @ptrCast(&pso.*));
+        }
+    }
 }
 
 fn onUnload(reload_desc: IGraphics.ReloadDesc) void {
@@ -471,6 +516,15 @@ fn onUnload(reload_desc: IGraphics.ReloadDesc) void {
             const shader = gpu.shaders.getColumnPtr(handle, .ptr) catch unreachable;
             IGraphics.removeShader(gpu.renderer, shader.*);
             shader.* = null;
+        }
+    }
+
+    if (reload_desc.mType.SHADER or reload_desc.mType.RENDERTARGET) {
+        var pso_handles = gpu.psos.liveHandles();
+        while (pso_handles.next()) |handle| {
+            const pso = gpu.psos.getColumnPtr(handle, .ptr) catch unreachable;
+            IGraphics.removePipeline(gpu.renderer, pso.*);
+            pso.* = null;
         }
     }
 }
