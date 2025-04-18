@@ -45,6 +45,12 @@ const ShaderPool = Pool(8, 8, [*c]IGraphics.Shader, struct {
 });
 pub const ShaderHandle = ShaderPool.Handle;
 
+const RenderTargetPool = Pool(8, 8, [*c]IGraphics.RenderTarget, struct {
+    ptr: [*c]IGraphics.RenderTarget,
+    desc: IGraphics.RenderTargetDesc,
+});
+pub const RenderTargetHandle = RenderTargetPool.Handle;
+
 const RenderTexturePool = Pool(8, 8, [*c]IGraphics.Texture, struct {
     ptr: [*c]IGraphics.Texture,
     desc: IGraphics.TextureDesc,
@@ -84,6 +90,7 @@ const Gpu = struct {
 
     // Resource Pools
     shaders: ShaderPool = undefined,
+    render_targets: RenderTargetPool = undefined,
     render_textures: RenderTexturePool = undefined,
 };
 
@@ -93,6 +100,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
     gpu.allocator = allocator;
 
     gpu.shaders = ShaderPool.initMaxCapacity(gpu.allocator) catch unreachable;
+    gpu.render_targets = RenderTargetPool.initMaxCapacity(gpu.allocator) catch unreachable;
     gpu.render_textures = RenderTexturePool.initMaxCapacity(gpu.allocator) catch unreachable;
 
     // Initialize renderer
@@ -158,6 +166,7 @@ pub fn shutdownGpu() void {
     onUnload(reload_desc);
 
     gpu.shaders.deinit();
+    gpu.render_targets.deinit();
     gpu.render_textures.deinit();
 
     IGraphics.removeSampler(gpu.renderer, gpu.linear_clamp_sampler);
@@ -309,13 +318,23 @@ pub fn compileShader(shader_load_desc: *const ShaderLoadDesc) !ShaderHandle {
     return gpu.shaders.add(.{ .ptr = shader }) catch unreachable;
 }
 
-pub fn createRenderTexture(texture_desc: IGraphics.TextureDesc) !RenderTextureHandle {
+pub fn createRenderTexture(desc: IGraphics.TextureDesc) !RenderTextureHandle {
     var texture: [*c]IGraphics.Texture = null;
-    IGraphicsTides.addTextureEx(gpu.renderer, @ptrCast(&texture_desc), false, &texture);
+    IGraphicsTides.addTextureEx(gpu.renderer, @ptrCast(&desc), false, &texture);
 
     return gpu.render_textures.add(.{
         .ptr = texture,
-        .desc = texture_desc,
+        .desc = desc,
+    });
+}
+
+pub fn createRenderTarget(desc: IGraphics.RenderTargetDesc) !RenderTargetHandle {
+    var render_target: [*c]IGraphics.RenderTarget = null;
+    IGraphics.addRenderTarget(gpu.renderer, @ptrCast(&desc), &render_target);
+
+    return gpu.render_targets.add(.{
+        .ptr = render_target,
+        .desc = desc,
     });
 }
 
@@ -351,6 +370,15 @@ fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
         var window_height: u32 = 0;
         IGraphicsTides.getWindowSize(window_handle, &window_width, &window_height);
 
+        var render_target_handles = gpu.render_targets.liveHandles();
+        while (render_target_handles.next()) |handle| {
+            const render_target = gpu.render_targets.getColumnPtr(handle, .ptr) catch unreachable;
+            var render_target_desc = gpu.render_targets.getColumnPtr(handle, .desc) catch unreachable;
+            render_target_desc.mWidth = window_width;
+            render_target_desc.mHeight = window_height;
+            IGraphics.addRenderTarget(gpu.renderer, render_target_desc, &render_target.*);
+        }
+
         var render_texture_handles = gpu.render_textures.liveHandles();
         while (render_texture_handles.next()) |handle| {
             const texture = gpu.render_textures.getColumnPtr(handle, .ptr) catch unreachable;
@@ -369,6 +397,13 @@ fn onUnload(reload_desc: IGraphics.ReloadDesc) void {
 
     if (reload_desc.mType.RESIZE or reload_desc.mType.RENDERTARGET) {
         swapchainDestroy();
+
+        var render_target_handles = gpu.render_targets.liveHandles();
+        while (render_target_handles.next()) |handle| {
+            const render_target = gpu.render_targets.getColumnPtr(handle, .ptr) catch unreachable;
+            IGraphics.removeRenderTarget(gpu.renderer, render_target.*);
+            render_target.* = null;
+        }
 
         var render_texture_handles = gpu.render_textures.liveHandles();
         while (render_texture_handles.next()) |handle| {
