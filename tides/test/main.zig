@@ -46,7 +46,7 @@ pub fn main() !void {
             },
             .compute = null,
         };
-        gfx.blit_shader = zf.compileShader(&shader_load_desc) catch unreachable;
+        gfx.blit_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
     {
@@ -54,7 +54,7 @@ pub fn main() !void {
             .path = "shaders/ClearScreen.comp",
             .entry = "main",
         }, .vertex = null, .pixel = null };
-        gfx.clear_screen_shader = zf.compileShader(&shader_load_desc) catch unreachable;
+        gfx.clear_screen_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
     {

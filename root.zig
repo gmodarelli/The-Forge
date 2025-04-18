@@ -41,7 +41,7 @@ pub const ShaderLoadDesc = struct {
 
 const ShaderPool = Pool(8, 8, [*c]IGraphics.Shader, struct {
     ptr: [*c]IGraphics.Shader,
-    // TODO: Store BinaryShaderDesc to allow for shader recompilation
+    desc: ShaderLoadDesc,
 });
 pub const ShaderHandle = ShaderPool.Handle;
 
@@ -63,7 +63,6 @@ pub const RenderTextureHandle = RenderTexturePool.Handle;
 // ██║   ██║██╔═══╝ ██║   ██║    ██║  ██║██╔══██║   ██║   ██╔══██║
 // ╚██████╔╝██║     ╚██████╔╝    ██████╔╝██║  ██║   ██║   ██║  ██║
 //  ╚═════╝ ╚═╝      ╚═════╝     ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
-
 
 pub const frames_in_flight_count: u32 = 2;
 
@@ -162,7 +161,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
 }
 
 pub fn shutdownGpu() void {
-    const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .RESIZE = true, .RENDERTARGET = true } };
+    const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .RESIZE = true, .RENDERTARGET = true, .SHADER = true } };
     onUnload(reload_desc);
 
     gpu.shaders.deinit();
@@ -273,7 +272,51 @@ pub fn requestResize() void {
     onLoad(reload_desc);
 }
 
-pub fn compileShader(shader_load_desc: *const ShaderLoadDesc) !ShaderHandle {
+pub fn requestShadersReload() void {
+    std.log.debug("Reloading shaders", .{});
+    const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .SHADER = true } };
+    onUnload(reload_desc);
+    onLoad(reload_desc);
+}
+
+pub fn compileShader(shader_load_desc: ShaderLoadDesc) !ShaderHandle {
+    const shader: [*c]IGraphics.Shader = compileShaderInternal(shader_load_desc) catch unreachable;
+
+    var desc: ShaderLoadDesc = undefined;
+    if (shader_load_desc.vertex) |vertex| {
+        desc.vertex = .{
+            .entry = gpu.allocator.dupe(u8, vertex.entry) catch unreachable,
+            .path = gpu.allocator.dupe(u8, vertex.path) catch unreachable,
+        };
+    } else {
+        desc.vertex = null;
+    }
+
+    if (shader_load_desc.pixel) |pixel| {
+        desc.pixel = .{
+            .entry = gpu.allocator.dupe(u8, pixel.entry) catch unreachable,
+            .path = gpu.allocator.dupe(u8, pixel.path) catch unreachable,
+        };
+    } else {
+        desc.pixel = null;
+    }
+
+    if (shader_load_desc.compute) |compute| {
+        desc.compute = .{
+            .entry = gpu.allocator.dupe(u8, compute.entry) catch unreachable,
+            .path = gpu.allocator.dupe(u8, compute.path) catch unreachable,
+        };
+    } else {
+        desc.compute = null;
+    }
+
+    return gpu.shaders.add(.{
+        .ptr = shader,
+        .desc = desc,
+    }) catch unreachable;
+}
+
+fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) ![*c]IGraphics.Shader {
     var binary_shader_desc = std.mem.zeroes(IGraphics.BinaryShaderDesc);
 
     if (shader_load_desc.vertex) |*vertex| {
@@ -315,7 +358,7 @@ pub fn compileShader(shader_load_desc: *const ShaderLoadDesc) !ShaderHandle {
         }
     }
 
-    return gpu.shaders.add(.{ .ptr = shader }) catch unreachable;
+    return shader;
 }
 
 pub fn createRenderTexture(desc: IGraphics.TextureDesc) !RenderTextureHandle {
@@ -388,6 +431,15 @@ fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
             IGraphicsTides.addTextureEx(gpu.renderer, texture_desc, false, &texture.*);
         }
     }
+
+    if (reload_desc.mType.SHADER) {
+        var shader_handles = gpu.shaders.liveHandles();
+        while (shader_handles.next()) |handle| {
+            const shader = gpu.shaders.getColumnPtr(handle, .ptr) catch unreachable;
+            const desc = gpu.shaders.getColumnPtr(handle, .desc) catch unreachable;
+            shader.* = compileShaderInternal(desc.*) catch unreachable;
+        }
+    }
 }
 
 fn onUnload(reload_desc: IGraphics.ReloadDesc) void {
@@ -410,6 +462,15 @@ fn onUnload(reload_desc: IGraphics.ReloadDesc) void {
             const texture = gpu.render_textures.getColumnPtr(handle, .ptr) catch unreachable;
             IGraphicsTides.removeTextureEx(gpu.renderer, texture.*);
             texture.* = null;
+        }
+    }
+
+    if (reload_desc.mType.SHADER) {
+        var shader_handles = gpu.shaders.liveHandles();
+        while (shader_handles.next()) |handle| {
+            const shader = gpu.shaders.getColumnPtr(handle, .ptr) catch unreachable;
+            IGraphics.removeShader(gpu.renderer, shader.*);
+            shader.* = null;
         }
     }
 }
