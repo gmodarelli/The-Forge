@@ -5,7 +5,7 @@ const zgraphics = @import("IGraphics.zig");
 
 pub extern fn initGPUConfigurationEx(pExtendedSettings: [*c]zgraphics.ExtendedSettings) void;
 pub extern fn exitGPUConfigurationEx() void;
-pub extern fn addTextureEx(pRenderer: [*c]zgraphics.Renderer, pTextureDesc: [*c]const zgraphics.TextureDesc, texture: [*c][*c]zgraphics.Texture, bBindless: bool) void;
+pub extern fn addTextureEx(pRenderer: [*c]zgraphics.Renderer, pTextureDesc: [*c]const zgraphics.TextureDesc, bBindless: bool, texture: [*c][*c]zgraphics.Texture) void;
 pub extern fn removeTextureEx(pRenderer: [*c]zgraphics.Renderer, ppTexture: [*c]zgraphics.Texture) void;
 pub extern fn loadDefaultRootSignatures(pRenderer: [*c]zgraphics.Renderer, graphicsRootSignaturePath: [*c]const u8, computeRootSignaturePath: [*c]const u8) bool;
 pub extern fn releaseDefaultRootSignatures(pRenderer: [*c]zgraphics.Renderer) void;
