@@ -6,6 +6,9 @@ pub const Gfx = struct {
     // Shaders
     blit_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     clear_screen_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+
+    // Render Targets and Render Textures
+    scene_color: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
 };
 
 pub fn main() !void {
@@ -51,6 +54,27 @@ pub fn main() !void {
             .entry = "main",
         }, .vertex = null, .pixel = null };
         gfx.clear_screen_shader = zf.compileShader(&shader_load_desc) catch unreachable;
+    }
+
+    {
+        var scene_color_desc = std.mem.zeroes(zf.IGraphics.TextureDesc);
+        scene_color_desc.mWidth = @intCast(window_width);
+        scene_color_desc.mHeight = @intCast(window_height);
+        scene_color_desc.mDepth = 1;
+        scene_color_desc.mArraySize = 1;
+        scene_color_desc.mMipLevels = 1;
+        scene_color_desc.mClearValue.__struct_field1.r = 0.0;
+        scene_color_desc.mClearValue.__struct_field1.g = 0.0;
+        scene_color_desc.mClearValue.__struct_field1.b = 0.0;
+        scene_color_desc.mClearValue.__struct_field1.a = 0.0;
+        scene_color_desc.mFormat = .R8G8B8A8_SRGB;
+        scene_color_desc.mStartState = zf.IGraphics.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        scene_color_desc.mDescriptors.bits = zf.IGraphics.DescriptorType.DESCRIPTOR_TYPE_TEXTURE.bits | zf.IGraphics.DescriptorType.DESCRIPTOR_TYPE_RW_TEXTURE.bits;
+        scene_color_desc.mSampleCount = zf.IGraphics.SampleCount.SAMPLE_COUNT_1;
+        scene_color_desc.mSampleQuality = 0;
+        scene_color_desc.mFlags = zf.IGraphics.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
+        scene_color_desc.pName = "Scene Color";
+        gfx.scene_color = zf.createRenderTexture(scene_color_desc) catch unreachable;
     }
 
     while (!window.shouldClose()) {

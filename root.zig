@@ -1,5 +1,5 @@
 const std = @import("std");
-const IGraphics = @import("Common_3/Graphics/Interfaces/IGraphics.zig");
+pub const IGraphics = @import("Common_3/Graphics/Interfaces/IGraphics.zig");
 const IGraphicsTides = @import("Common_3/Graphics/Interfaces/IGraphicsTides.zig");
 // pub const IRay = @import("Common_3/Graphics/Interfaces/IRay.zig");
 
@@ -7,6 +7,13 @@ const Pool = @import("zpool").Pool;
 
 pub export const D3D12SDKVersion: u32 = 715;
 pub export const D3D12SDKPath: [*:0]const u8 = ".\\";
+
+// ██████╗ ███████╗███████╗ ██████╗    ███████╗████████╗██████╗ ██╗   ██╗ ██████╗████████╗███████╗
+// ██╔══██╗██╔════╝██╔════╝██╔════╝    ██╔════╝╚══██╔══╝██╔══██╗██║   ██║██╔════╝╚══██╔══╝██╔════╝
+// ██║  ██║█████╗  ███████╗██║         ███████╗   ██║   ██████╔╝██║   ██║██║        ██║   ███████╗
+// ██║  ██║██╔══╝  ╚════██║██║         ╚════██║   ██║   ██╔══██╗██║   ██║██║        ██║   ╚════██║
+// ██████╔╝███████╗███████║╚██████╗    ███████║   ██║   ██║  ██║╚██████╔╝╚██████╗   ██║   ███████║
+// ╚═════╝ ╚══════╝╚══════╝ ╚═════╝    ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝  ╚═════╝   ╚═╝   ╚══════╝
 
 pub const GpuDesc = struct {
     graphics_root_signature_path: []const u8,
@@ -25,11 +32,32 @@ pub const ShaderLoadDesc = struct {
     compute: ?ShaderStageLoadDesc,
 };
 
+// ██████╗ ███████╗███████╗ ██████╗ ██╗   ██╗██████╗  ██████╗███████╗    ██████╗  ██████╗  ██████╗ ██╗     ███████╗
+// ██╔══██╗██╔════╝██╔════╝██╔═══██╗██║   ██║██╔══██╗██╔════╝██╔════╝    ██╔══██╗██╔═══██╗██╔═══██╗██║     ██╔════╝
+// ██████╔╝█████╗  ███████╗██║   ██║██║   ██║██████╔╝██║     █████╗      ██████╔╝██║   ██║██║   ██║██║     ███████╗
+// ██╔══██╗██╔══╝  ╚════██║██║   ██║██║   ██║██╔══██╗██║     ██╔══╝      ██╔═══╝ ██║   ██║██║   ██║██║     ╚════██║
+// ██║  ██║███████╗███████║╚██████╔╝╚██████╔╝██║  ██║╚██████╗███████╗    ██║     ╚██████╔╝╚██████╔╝███████╗███████║
+// ╚═╝  ╚═╝╚══════╝╚══════╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝╚══════╝    ╚═╝      ╚═════╝  ╚═════╝ ╚══════╝╚══════╝
+
 const ShaderPool = Pool(8, 8, [*c]IGraphics.Shader, struct {
     ptr: [*c]IGraphics.Shader,
     // TODO: Store BinaryShaderDesc to allow for shader recompilation
 });
 pub const ShaderHandle = ShaderPool.Handle;
+
+const RenderTexturePool = Pool(8, 8, [*c]IGraphics.Texture, struct {
+    ptr: [*c]IGraphics.Texture,
+    desc: IGraphics.TextureDesc,
+});
+pub const RenderTextureHandle = RenderTexturePool.Handle;
+
+//  ██████╗ ██████╗ ██╗   ██╗    ██████╗  █████╗ ████████╗ █████╗
+// ██╔════╝ ██╔══██╗██║   ██║    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
+// ██║  ███╗██████╔╝██║   ██║    ██║  ██║███████║   ██║   ███████║
+// ██║   ██║██╔═══╝ ██║   ██║    ██║  ██║██╔══██║   ██║   ██╔══██║
+// ╚██████╔╝██║     ╚██████╔╝    ██████╔╝██║  ██║   ██║   ██║  ██║
+//  ╚═════╝ ╚═╝      ╚═════╝     ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
+
 
 pub const frames_in_flight_count: u32 = 2;
 
@@ -54,8 +82,9 @@ const Gpu = struct {
 
     hwnd: std.os.windows.HWND,
 
-    // Resources
+    // Resource Pools
     shaders: ShaderPool = undefined,
+    render_textures: RenderTexturePool = undefined,
 };
 
 var gpu: Gpu = undefined;
@@ -64,6 +93,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
     gpu.allocator = allocator;
 
     gpu.shaders = ShaderPool.initMaxCapacity(gpu.allocator) catch unreachable;
+    gpu.render_textures = RenderTexturePool.initMaxCapacity(gpu.allocator) catch unreachable;
 
     // Initialize renderer
     var renderer_desc = std.mem.zeroes(IGraphics.RendererDesc);
@@ -128,6 +158,7 @@ pub fn shutdownGpu() void {
     onUnload(reload_desc);
 
     gpu.shaders.deinit();
+    gpu.render_textures.deinit();
 
     IGraphics.removeSampler(gpu.renderer, gpu.linear_clamp_sampler);
     IGraphics.removeSampler(gpu.renderer, gpu.linear_repeat_sampler);
@@ -276,7 +307,16 @@ pub fn compileShader(shader_load_desc: *const ShaderLoadDesc) !ShaderHandle {
     }
 
     return gpu.shaders.add(.{ .ptr = shader }) catch unreachable;
+}
 
+pub fn createRenderTexture(texture_desc: IGraphics.TextureDesc) !RenderTextureHandle {
+    var texture: [*c]IGraphics.Texture = null;
+    IGraphicsTides.addTextureEx(gpu.renderer, @ptrCast(&texture_desc), false, &texture);
+
+    return gpu.render_textures.add(.{
+        .ptr = texture,
+        .desc = texture_desc,
+    });
 }
 
 fn loadShaderStage(shader_stage_load_desc: *const ShaderStageLoadDesc, binary_shader_stage_desc: [*c]IGraphics.BinaryShaderStageDesc) void {
@@ -301,6 +341,24 @@ fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
 
     if (reload_desc.mType.RESIZE or reload_desc.mType.RENDERTARGET) {
         swapchainCreate();
+
+        const window_handle = IGraphics.WindowHandle{
+            .type = .WIN32,
+            .window = gpu.hwnd,
+        };
+
+        var window_width: u32 = 0;
+        var window_height: u32 = 0;
+        IGraphicsTides.getWindowSize(window_handle, &window_width, &window_height);
+
+        var render_texture_handles = gpu.render_textures.liveHandles();
+        while (render_texture_handles.next()) |handle| {
+            const texture = gpu.render_textures.getColumnPtr(handle, .ptr) catch unreachable;
+            var texture_desc = gpu.render_textures.getColumnPtr(handle, .desc) catch unreachable;
+            texture_desc.mWidth = window_width;
+            texture_desc.mHeight = window_height;
+            IGraphicsTides.addTextureEx(gpu.renderer, texture_desc, false, &texture.*);
+        }
     }
 }
 
@@ -311,6 +369,13 @@ fn onUnload(reload_desc: IGraphics.ReloadDesc) void {
 
     if (reload_desc.mType.RESIZE or reload_desc.mType.RENDERTARGET) {
         swapchainDestroy();
+
+        var render_texture_handles = gpu.render_textures.liveHandles();
+        while (render_texture_handles.next()) |handle| {
+            const texture = gpu.render_textures.getColumnPtr(handle, .ptr) catch unreachable;
+            IGraphicsTides.removeTextureEx(gpu.renderer, texture.*);
+            texture.* = null;
+        }
     }
 }
 
