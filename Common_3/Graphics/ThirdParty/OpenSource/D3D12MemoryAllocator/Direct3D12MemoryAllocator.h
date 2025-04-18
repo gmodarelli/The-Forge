@@ -7758,22 +7758,40 @@ HRESULT AllocatorPimpl::AllocateCommittedResource(
 #ifdef __ID3D12Device4_INTERFACE_DEFINED__
     if (m_Device4)
     {
+#ifdef TIDES
+            int32_t heapFlags = (int32_t)committedAllocParams.m_HeapFlags & ~((int32_t)RESOURCE_CLASS_HEAP_FLAGS);
+            hr = m_Device4->CreateCommittedResource1(
+                &committedAllocParams.m_HeapProperties,
+                (D3D12_HEAP_FLAGS)(uint32_t)heapFlags,
+                pResourceDesc, InitialResourceState,
+                pOptimizedClearValue, committedAllocParams.m_ProtectedSession, D3D12MA_IID_PPV_ARGS(&res));
+#else
             hr = m_Device4->CreateCommittedResource1(
                 &committedAllocParams.m_HeapProperties,
                 committedAllocParams.m_HeapFlags & ~RESOURCE_CLASS_HEAP_FLAGS,
                 pResourceDesc, InitialResourceState,
                 pOptimizedClearValue, committedAllocParams.m_ProtectedSession, D3D12MA_IID_PPV_ARGS(&res));
+#endif
     }
     else
 #endif
     {
         if (committedAllocParams.m_ProtectedSession == NULL)
         {
+#ifdef TIDES
+            int32_t heapFlags = (int32_t)committedAllocParams.m_HeapFlags & ~((int32_t)RESOURCE_CLASS_HEAP_FLAGS);
+            hr = m_Device->CreateCommittedResource(
+                &committedAllocParams.m_HeapProperties,
+                (D3D12_HEAP_FLAGS)(uint32_t)heapFlags,
+                pResourceDesc, InitialResourceState,
+                pOptimizedClearValue, D3D12MA_IID_PPV_ARGS(&res));
+#else
             hr = m_Device->CreateCommittedResource(
                 &committedAllocParams.m_HeapProperties,
                 committedAllocParams.m_HeapFlags & ~RESOURCE_CLASS_HEAP_FLAGS,
                 pResourceDesc, InitialResourceState,
                 pOptimizedClearValue, D3D12MA_IID_PPV_ARGS(&res));
+#endif
         }
         else
             hr = E_NOINTERFACE;
@@ -8003,7 +8021,11 @@ HRESULT AllocatorPimpl::CalcAllocationParams(const ALLOCATION_DESC& allocDesc, U
             }
         }
 
+#ifdef TIDES
+        int32_t extraHeapFlags = (int32_t)allocDesc.ExtraHeapFlags & ~((int32_t)RESOURCE_CLASS_HEAP_FLAGS);
+#else
         const D3D12_HEAP_FLAGS extraHeapFlags = allocDesc.ExtraHeapFlags & ~RESOURCE_CLASS_HEAP_FLAGS;
+#endif
         if (outBlockVector != NULL && extraHeapFlags != 0)
         {
             outBlockVector = NULL;
@@ -8034,7 +8056,11 @@ HRESULT AllocatorPimpl::CalcAllocationParams(const ALLOCATION_DESC& allocDesc, U
 
 UINT AllocatorPimpl::CalcDefaultPoolIndex(const ALLOCATION_DESC& allocDesc, ResourceClass resourceClass) const
 {
+#ifdef TIDES
+    int32_t extraHeapFlags = (int32_t)allocDesc.ExtraHeapFlags & ~((int32_t)RESOURCE_CLASS_HEAP_FLAGS);
+#else
     const D3D12_HEAP_FLAGS extraHeapFlags = allocDesc.ExtraHeapFlags & ~RESOURCE_CLASS_HEAP_FLAGS;
+#endif
     if (extraHeapFlags != 0)
     {
         return UINT32_MAX;
