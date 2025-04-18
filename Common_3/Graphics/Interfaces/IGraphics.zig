@@ -1809,11 +1809,11 @@ pub const Pipeline = extern struct {
         mPrimitiveTopology: D3D_PRIMITIVE_TOPOLOGY,
 
         pub const __Union0 = extern union {
-            pPipelineState: [*c]ID3D12PipelineState,
+            pPipelineState: *ID3D12PipelineState,
             __struct_field1: __Struct0_2,
 
             pub const __Struct0_2 = extern struct {
-                pStateObject: [*c]ID3D12StateObject,
+                pStateObject: *ID3D12StateObject,
                 pWorkgraphName: [*c]WCHAR,
             };
         };
@@ -1841,7 +1841,7 @@ pub const PipelineCache = extern struct {
     mDx: __Struct0,
 
     pub const __Struct0 = extern struct {
-        pLibrary: [*c]ID3D12PipelineLibrary,
+        pLibrary: *ID3D12PipelineLibrary,
         pData: ?*anyopaque,
     };
 };
