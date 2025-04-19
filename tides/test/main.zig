@@ -9,6 +9,7 @@ pub const Gfx = struct {
 
     // PSOs
     clear_screen_pso: zf.PsoHandle = zf.PsoHandle.nil,
+    blit_pso: zf.PsoHandle = zf.PsoHandle.nil,
 
     // Render Targets and Render Textures
     depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
@@ -61,7 +62,15 @@ pub fn main() !void {
     }
 
     {
-        gfx.clear_screen_pso = zf.createComputePso(gfx.clear_screen_shader) catch unreachable;
+        gfx.clear_screen_pso = zf.createPso(.{ .pso_type = .compute, .shader = gfx.clear_screen_shader }) catch unreachable;
+    }
+
+    {
+        gfx.blit_pso = zf.createPso(.{
+            .pso_type = .graphics,
+            .shader = gfx.blit_shader,
+            .cull_mode = .none,
+        }) catch unreachable;
     }
 
     {

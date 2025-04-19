@@ -32,6 +32,47 @@ pub const ShaderLoadDesc = struct {
     compute: ?ShaderStageLoadDesc,
 };
 
+pub const PsoType = enum {
+    compute,
+    graphics,
+};
+
+pub const PrimitiveTopology = enum {
+    point_list,
+    line_list,
+    line_strip,
+    triangle_list,
+    triangle_strip,
+    patch_list,
+};
+
+pub const CullMode = enum {
+    none,
+    back,
+    front,
+    both,
+};
+
+pub const CompareMode = enum {
+    never,
+    less,
+    equal,
+    greated,
+    not_equal,
+    greater_equal,
+    always,
+};
+
+pub const PsoDesc = struct {
+    pso_type: PsoType,
+    shader: ShaderHandle,
+    topology: PrimitiveTopology = .triangle_list,
+    cull_mode: CullMode = .back,
+    depth_test: bool = false,
+    depth_write: bool = false,
+    depth_function: CompareMode = .never,
+};
+
 // ██████╗ ███████╗███████╗ ██████╗ ██╗   ██╗██████╗  ██████╗███████╗    ██████╗  ██████╗  ██████╗ ██╗     ███████╗
 // ██╔══██╗██╔════╝██╔════╝██╔═══██╗██║   ██║██╔══██╗██╔════╝██╔════╝    ██╔══██╗██╔═══██╗██╔═══██╗██║     ██╔════╝
 // ██████╔╝█████╗  ███████╗██║   ██║██║   ██║██████╔╝██║     █████╗      ██████╔╝██║   ██║██║   ██║██║     ███████╗
@@ -47,9 +88,7 @@ pub const ShaderHandle = ShaderPool.Handle;
 
 const PsoPool = Pool(8, 8, [*c]IGraphics.Pipeline, struct {
     ptr: [*c]IGraphics.Pipeline,
-    desc: IGraphics.PipelineDesc,
-    shader: ShaderHandle,
-    // TODO: Store handles to render targets?
+    desc: PsoDesc,
 });
 pub const PsoHandle = PsoPool.Handle;
 
@@ -289,22 +328,82 @@ pub fn requestShadersReload() void {
     onLoad(reload_desc);
 }
 
-pub fn createComputePso(shader_handle: ShaderHandle) !PsoHandle {
-    const shader = gpu.shaders.getColumn(shader_handle, .ptr) catch unreachable;
-
-    var desc = std.mem.zeroes(IGraphics.PipelineDesc);
-    desc.mType = IGraphics.PipelineType.PIPELINE_TYPE_COMPUTE;
-    desc.__union_field1.mComputeDesc.pShaderProgram = shader;
-
-    var pso: [*c]IGraphics.Pipeline = null;
-    IGraphics.addPipeline(gpu.renderer, &desc, @ptrCast(&pso));
+pub fn createPso(desc: PsoDesc) !PsoHandle {
+    const pso: [*c]IGraphics.Pipeline = blk: {
+        if (desc.pso_type == .graphics) {
+            break :blk createGraphicsPso(desc) catch unreachable;
+        } else {
+            break :blk createComputePso(desc) catch unreachable;
+        }
+    };
 
     return gpu.psos.add(.{
         .ptr = pso,
         .desc = desc,
-        .shader = shader_handle,
     }) catch unreachable;
 }
+
+fn createComputePso(desc: PsoDesc) ![*c]IGraphics.Pipeline {
+    std.debug.assert(desc.pso_type == .compute);
+
+    const shader = gpu.shaders.getColumn(desc.shader, .ptr) catch unreachable;
+
+    var pso_desc = std.mem.zeroes(IGraphics.PipelineDesc);
+    pso_desc.mType = IGraphics.PipelineType.PIPELINE_TYPE_COMPUTE;
+    pso_desc.__union_field1.mComputeDesc.pShaderProgram = shader;
+
+    var pso: [*c]IGraphics.Pipeline = null;
+    IGraphics.addPipeline(gpu.renderer, &pso_desc, @ptrCast(&pso));
+
+    return pso;
+}
+
+fn createGraphicsPso(desc: PsoDesc) ![*c]IGraphics.Pipeline {
+    std.debug.assert(desc.pso_type == .graphics);
+
+    const shader = gpu.shaders.getColumn(desc.shader, .ptr) catch unreachable;
+    var pso_desc = std.mem.zeroes(IGraphics.PipelineDesc);
+    pso_desc.mType = IGraphics.PipelineType.PIPELINE_TYPE_GRAPHICS;
+    pso_desc.__union_field1.mGraphicsDesc.pShaderProgram = shader;
+    pso_desc.__union_field1.mGraphicsDesc.mPrimitiveTopo = the_forge_topologies[@intFromEnum(desc.topology)];
+
+    var depth_state_desc = depthStateDesc(desc.depth_test, desc.depth_write, desc.depth_function);
+    pso_desc.__union_field1.mGraphicsDesc.pDepthState = @ptrCast(&depth_state_desc);
+
+    var pso: [*c]IGraphics.Pipeline = null;
+    IGraphics.addPipeline(gpu.renderer, &pso_desc, @ptrCast(&pso));
+
+    return pso;
+}
+
+const the_forge_topologies = [_]IGraphics.PrimitiveTopology{
+    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_POINT_LIST,
+    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_LINE_LIST,
+    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_LINE_STRIP,
+    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_TRI_LIST,
+    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_TRI_STRIP,
+    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_PATCH_LIST,
+};
+
+fn depthStateDesc(depth_test: bool, depth_write: bool, function: CompareMode) IGraphics.DepthStateDesc {
+    var desc = std.mem.zeroes(IGraphics.DepthStateDesc);
+    desc.mDepthTest = depth_test;
+    desc.mDepthWrite = depth_write;
+    desc.mDepthFunc = the_forge_compare_modes[@intFromEnum(function)];
+
+    return desc;
+}
+
+const the_forge_compare_modes = [_]IGraphics.CompareMode{
+    IGraphics.CompareMode.CMP_NEVER,
+    IGraphics.CompareMode.CMP_LESS,
+    IGraphics.CompareMode.CMP_EQUAL,
+    IGraphics.CompareMode.CMP_LEQUAL,
+    IGraphics.CompareMode.CMP_GREATER,
+    IGraphics.CompareMode.CMP_NOTEQUAL,
+    IGraphics.CompareMode.CMP_GEQUAL,
+    IGraphics.CompareMode.CMP_ALWAYS,
+};
 
 pub fn compileShader(shader_load_desc: ShaderLoadDesc) !ShaderHandle {
     const shader: [*c]IGraphics.Shader = compileShaderInternal(shader_load_desc) catch unreachable;
@@ -472,17 +571,12 @@ fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
         var pso_handles = gpu.psos.liveHandles();
         while (pso_handles.next()) |handle| {
             const pso = gpu.psos.getColumnPtr(handle, .ptr) catch unreachable;
-            const desc = gpu.psos.getColumnPtr(handle, .desc) catch unreachable;
-            const shader_handle = gpu.psos.getColumn(handle, .shader) catch unreachable;
-            const shader = gpu.shaders.getColumn(shader_handle, .ptr) catch unreachable;
-
-            if (desc.*.mType.bits == IGraphics.PipelineType.PIPELINE_TYPE_COMPUTE.bits) {
-                desc.*.__union_field1.mComputeDesc.pShaderProgram = shader;
+            const desc = gpu.psos.getColumn(handle, .desc) catch unreachable;
+            if (desc.pso_type == .graphics) {
+                pso.* = createGraphicsPso(desc) catch unreachable;
             } else {
-                desc.*.__union_field1.mGraphicsDesc.pShaderProgram = shader;
+                pso.* = createComputePso(desc) catch unreachable;
             }
-
-            IGraphics.addPipeline(gpu.renderer, desc, @ptrCast(&pso.*));
         }
     }
 }
