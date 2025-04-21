@@ -3,6 +3,7 @@ pub const IGraphics = @import("Common_3/Graphics/Interfaces/IGraphics.zig");
 const IGraphicsTides = @import("Common_3/Graphics/Interfaces/IGraphicsTides.zig");
 // pub const IRay = @import("Common_3/Graphics/Interfaces/IRay.zig");
 
+
 const Pool = @import("zpool").Pool;
 
 pub export const D3D12SDKVersion: u32 = 715;
@@ -14,6 +15,18 @@ pub export const D3D12SDKPath: [*:0]const u8 = ".\\";
 // ██║  ██║██╔══╝  ╚════██║██║         ╚════██║   ██║   ██╔══██╗██║   ██║██║        ██║   ╚════██║
 // ██████╔╝███████╗███████║╚██████╗    ███████║   ██║   ██║  ██║╚██████╔╝╚██████╗   ██║   ███████║
 // ╚═════╝ ╚══════╝╚══════╝ ╚═════╝    ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝  ╚═════╝   ╚═╝   ╚══════╝
+
+// Expose some of The-Forge descs
+pub const DescriptorType = IGraphics.DescriptorType;
+pub const GraphicsPipelineDesc = IGraphics.GraphicsPipelineDesc;
+pub const PipelineDesc = IGraphics.PipelineDesc;
+pub const PipelineType = IGraphics.PipelineType;
+pub const PrimitiveTopology = IGraphics.PrimitiveTopology;
+pub const RenderTargetDesc = IGraphics.RenderTargetDesc;
+pub const ResourceState = IGraphics.ResourceState;
+pub const SampleCount = IGraphics.SampleCount;
+pub const TextureCreationFlags = IGraphics.TextureCreationFlags;
+pub const TextureDesc = IGraphics.TextureDesc;
 
 pub const GpuDesc = struct {
     graphics_root_signature_path: []const u8,
@@ -32,47 +45,6 @@ pub const ShaderLoadDesc = struct {
     compute: ?ShaderStageLoadDesc,
 };
 
-pub const PsoType = enum {
-    compute,
-    graphics,
-};
-
-pub const PrimitiveTopology = enum {
-    point_list,
-    line_list,
-    line_strip,
-    triangle_list,
-    triangle_strip,
-    patch_list,
-};
-
-pub const CullMode = enum {
-    none,
-    back,
-    front,
-    both,
-};
-
-pub const CompareMode = enum {
-    never,
-    less,
-    equal,
-    greated,
-    not_equal,
-    greater_equal,
-    always,
-};
-
-pub const PsoDesc = struct {
-    pso_type: PsoType,
-    shader: ShaderHandle,
-    topology: PrimitiveTopology = .triangle_list,
-    cull_mode: CullMode = .back,
-    depth_test: bool = false,
-    depth_write: bool = false,
-    depth_function: CompareMode = .never,
-};
-
 // ██████╗ ███████╗███████╗ ██████╗ ██╗   ██╗██████╗  ██████╗███████╗    ██████╗  ██████╗  ██████╗ ██╗     ███████╗
 // ██╔══██╗██╔════╝██╔════╝██╔═══██╗██║   ██║██╔══██╗██╔════╝██╔════╝    ██╔══██╗██╔═══██╗██╔═══██╗██║     ██╔════╝
 // ██████╔╝█████╗  ███████╗██║   ██║██║   ██║██████╔╝██║     █████╗      ██████╔╝██║   ██║██║   ██║██║     ███████╗
@@ -88,7 +60,8 @@ pub const ShaderHandle = ShaderPool.Handle;
 
 const PsoPool = Pool(8, 8, [*c]IGraphics.Pipeline, struct {
     ptr: [*c]IGraphics.Pipeline,
-    desc: PsoDesc,
+    shader: ShaderHandle,
+    desc: IGraphics.PipelineDesc,
 });
 pub const PsoHandle = PsoPool.Handle;
 
@@ -328,28 +301,29 @@ pub fn requestShadersReload() void {
     onLoad(reload_desc);
 }
 
-pub fn createPso(desc: PsoDesc) !PsoHandle {
+pub fn createPso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) !PsoHandle {
     const pso: [*c]IGraphics.Pipeline = blk: {
-        if (desc.pso_type == .graphics) {
-            break :blk createGraphicsPso(desc) catch unreachable;
+        if (desc.mType.bits == IGraphics.PipelineType.PIPELINE_TYPE_GRAPHICS.bits) {
+            break :blk createGraphicsPso(desc, shader_handle) catch unreachable;
         } else {
-            break :blk createComputePso(desc) catch unreachable;
+            break :blk createComputePso(desc, shader_handle) catch unreachable;
         }
     };
 
     return gpu.psos.add(.{
         .ptr = pso,
         .desc = desc,
+        .shader = shader_handle,
     }) catch unreachable;
 }
 
-fn createComputePso(desc: PsoDesc) ![*c]IGraphics.Pipeline {
-    std.debug.assert(desc.pso_type == .compute);
+fn createComputePso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) ![*c]IGraphics.Pipeline {
+    std.debug.assert(desc.mType.bits == IGraphics.PipelineType.PIPELINE_TYPE_COMPUTE.bits);
 
-    const shader = gpu.shaders.getColumn(desc.shader, .ptr) catch unreachable;
+    var pso_desc: IGraphics.PipelineDesc = undefined;
+    memcpy(&pso_desc, &desc, @sizeOf(IGraphics.PipelineDesc));
 
-    var pso_desc = std.mem.zeroes(IGraphics.PipelineDesc);
-    pso_desc.mType = IGraphics.PipelineType.PIPELINE_TYPE_COMPUTE;
+    const shader = gpu.shaders.getColumn(shader_handle, .ptr) catch unreachable;
     pso_desc.__union_field1.mComputeDesc.pShaderProgram = shader;
 
     var pso: [*c]IGraphics.Pipeline = null;
@@ -358,52 +332,20 @@ fn createComputePso(desc: PsoDesc) ![*c]IGraphics.Pipeline {
     return pso;
 }
 
-fn createGraphicsPso(desc: PsoDesc) ![*c]IGraphics.Pipeline {
-    std.debug.assert(desc.pso_type == .graphics);
+fn createGraphicsPso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) ![*c]IGraphics.Pipeline {
+    std.debug.assert(desc.mType.bits == IGraphics.PipelineType.PIPELINE_TYPE_GRAPHICS.bits);
 
-    const shader = gpu.shaders.getColumn(desc.shader, .ptr) catch unreachable;
-    var pso_desc = std.mem.zeroes(IGraphics.PipelineDesc);
-    pso_desc.mType = IGraphics.PipelineType.PIPELINE_TYPE_GRAPHICS;
+    var pso_desc: IGraphics.PipelineDesc = undefined;
+    memcpy(&pso_desc, &desc, @sizeOf(IGraphics.PipelineDesc));
+
+    const shader = gpu.shaders.getColumn(shader_handle, .ptr) catch unreachable;
     pso_desc.__union_field1.mGraphicsDesc.pShaderProgram = shader;
-    pso_desc.__union_field1.mGraphicsDesc.mPrimitiveTopo = the_forge_topologies[@intFromEnum(desc.topology)];
-
-    var depth_state_desc = depthStateDesc(desc.depth_test, desc.depth_write, desc.depth_function);
-    pso_desc.__union_field1.mGraphicsDesc.pDepthState = @ptrCast(&depth_state_desc);
 
     var pso: [*c]IGraphics.Pipeline = null;
     IGraphics.addPipeline(gpu.renderer, &pso_desc, @ptrCast(&pso));
 
     return pso;
 }
-
-const the_forge_topologies = [_]IGraphics.PrimitiveTopology{
-    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_POINT_LIST,
-    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_LINE_LIST,
-    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_LINE_STRIP,
-    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_TRI_LIST,
-    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_TRI_STRIP,
-    IGraphics.PrimitiveTopology.PRIMITIVE_TOPO_PATCH_LIST,
-};
-
-fn depthStateDesc(depth_test: bool, depth_write: bool, function: CompareMode) IGraphics.DepthStateDesc {
-    var desc = std.mem.zeroes(IGraphics.DepthStateDesc);
-    desc.mDepthTest = depth_test;
-    desc.mDepthWrite = depth_write;
-    desc.mDepthFunc = the_forge_compare_modes[@intFromEnum(function)];
-
-    return desc;
-}
-
-const the_forge_compare_modes = [_]IGraphics.CompareMode{
-    IGraphics.CompareMode.CMP_NEVER,
-    IGraphics.CompareMode.CMP_LESS,
-    IGraphics.CompareMode.CMP_EQUAL,
-    IGraphics.CompareMode.CMP_LEQUAL,
-    IGraphics.CompareMode.CMP_GREATER,
-    IGraphics.CompareMode.CMP_NOTEQUAL,
-    IGraphics.CompareMode.CMP_GEQUAL,
-    IGraphics.CompareMode.CMP_ALWAYS,
-};
 
 pub fn compileShader(shader_load_desc: ShaderLoadDesc) !ShaderHandle {
     const shader: [*c]IGraphics.Shader = compileShaderInternal(shader_load_desc) catch unreachable;
@@ -572,10 +514,11 @@ fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
         while (pso_handles.next()) |handle| {
             const pso = gpu.psos.getColumnPtr(handle, .ptr) catch unreachable;
             const desc = gpu.psos.getColumn(handle, .desc) catch unreachable;
-            if (desc.pso_type == .graphics) {
-                pso.* = createGraphicsPso(desc) catch unreachable;
+            const shader_handle = gpu.psos.getColumn(handle, .shader) catch unreachable;
+            if (desc.mType.bits == IGraphics.PipelineType.PIPELINE_TYPE_GRAPHICS.bits) {
+                pso.* = createGraphicsPso(desc, shader_handle) catch unreachable;
             } else {
-                pso.* = createComputePso(desc) catch unreachable;
+                pso.* = createComputePso(desc, shader_handle) catch unreachable;
             }
         }
     }
@@ -647,4 +590,12 @@ fn swapchainCreate() void {
 
 fn swapchainDestroy() void {
     IGraphics.removeSwapChain(gpu.renderer, gpu.swap_chain);
+}
+
+pub fn memcpy(dst: *anyopaque, src: *const anyopaque, byte_count: u64) void {
+    const src_slice = @as([*]const u8, @ptrCast(src))[0..byte_count];
+    const dst_slice = @as([*]u8, @ptrCast(dst))[0..byte_count];
+    for (src_slice, 0..) |byte, i| {
+        dst_slice[i] = byte;
+    }
 }

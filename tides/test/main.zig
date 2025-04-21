@@ -62,36 +62,41 @@ pub fn main() !void {
     }
 
     {
-        gfx.clear_screen_pso = zf.createPso(.{ .pso_type = .compute, .shader = gfx.clear_screen_shader }) catch unreachable;
+        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
+        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
+        gfx.clear_screen_pso = zf.createPso(pipeline_desc, gfx.clear_screen_shader) catch unreachable;
     }
 
     {
-        gfx.blit_pso = zf.createPso(.{
-            .pso_type = .graphics,
-            .shader = gfx.blit_shader,
-            .cull_mode = .none,
-        }) catch unreachable;
+        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
+        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_GRAPHICS;
+        var graphics_desc = &pipeline_desc.__union_field1.mGraphicsDesc;
+        graphics_desc.* = std.mem.zeroes(zf.GraphicsPipelineDesc);
+        graphics_desc.mPrimitiveTopo = zf.PrimitiveTopology.PRIMITIVE_TOPO_TRI_LIST;
+        graphics_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
+        graphics_desc.mSampleQuality = 0;
+        gfx.blit_pso = zf.createPso(pipeline_desc, gfx.blit_shader) catch unreachable;
     }
 
     {
-        var depth_buffer_desc = std.mem.zeroes(zf.IGraphics.RenderTargetDesc);
+        var depth_buffer_desc = std.mem.zeroes(zf.RenderTargetDesc);
         depth_buffer_desc.pName = "Depth Buffer";
         depth_buffer_desc.mArraySize = 1;
         depth_buffer_desc.mClearValue.__struct_field3.depth = 0.0;
         depth_buffer_desc.mClearValue.__struct_field3.stencil = 0;
         depth_buffer_desc.mDepth = 1;
         depth_buffer_desc.mFormat = .D32_SFLOAT;
-        depth_buffer_desc.mStartState = zf.IGraphics.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        depth_buffer_desc.mStartState = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
         depth_buffer_desc.mWidth = @intCast(window_width);
         depth_buffer_desc.mHeight = @intCast(window_height);
-        depth_buffer_desc.mSampleCount = zf.IGraphics.SampleCount.SAMPLE_COUNT_1;
+        depth_buffer_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
         depth_buffer_desc.mSampleQuality = 0;
-        depth_buffer_desc.mFlags = zf.IGraphics.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
+        depth_buffer_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
         gfx.depth_buffer = zf.createRenderTarget(depth_buffer_desc) catch unreachable;
     }
 
     {
-        var scene_color_desc = std.mem.zeroes(zf.IGraphics.TextureDesc);
+        var scene_color_desc = std.mem.zeroes(zf.TextureDesc);
         scene_color_desc.mWidth = @intCast(window_width);
         scene_color_desc.mHeight = @intCast(window_height);
         scene_color_desc.mDepth = 1;
@@ -102,11 +107,11 @@ pub fn main() !void {
         scene_color_desc.mClearValue.__struct_field1.b = 0.0;
         scene_color_desc.mClearValue.__struct_field1.a = 0.0;
         scene_color_desc.mFormat = .R8G8B8A8_SRGB;
-        scene_color_desc.mStartState = zf.IGraphics.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-        scene_color_desc.mDescriptors.bits = zf.IGraphics.DescriptorType.DESCRIPTOR_TYPE_TEXTURE.bits | zf.IGraphics.DescriptorType.DESCRIPTOR_TYPE_RW_TEXTURE.bits;
-        scene_color_desc.mSampleCount = zf.IGraphics.SampleCount.SAMPLE_COUNT_1;
+        scene_color_desc.mStartState = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        scene_color_desc.mDescriptors.bits = zf.DescriptorType.DESCRIPTOR_TYPE_TEXTURE.bits | zf.DescriptorType.DESCRIPTOR_TYPE_RW_TEXTURE.bits;
+        scene_color_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
         scene_color_desc.mSampleQuality = 0;
-        scene_color_desc.mFlags = zf.IGraphics.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
+        scene_color_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
         scene_color_desc.pName = "Scene Color";
         gfx.scene_color = zf.createRenderTexture(scene_color_desc) catch unreachable;
     }
