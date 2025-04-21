@@ -31,6 +31,10 @@
 #include "../../../Common_3/Graphics/ThirdParty/OpenSource/ags/AgsHelper.h"
 
 #include "../../../Common_3/Graphics/ThirdParty/OpenSource/DirectXShaderCompiler/inc/dxcapi.h"
+#ifdef TIDES
+#include "../../../Common_3/Graphics/ThirdParty/OpenSource/Direct3d12Agility/include/d3d12shader.h"
+#include <assert.h>
+#endif
 
 #define D3D12MA_IMPLEMENTATION
 #include "../../Utilities/ThirdParty/OpenSource/Nothings/stb_ds.h"
@@ -124,6 +128,45 @@ extern "C" HRESULT IDxcUtils_CreateBlob(void* pByteCode, uint32_t byteCodeSize, 
     pUtils->Release();
     return 0;
 }
+
+#ifdef TIDES
+extern void IDxcUtils_GetReflections(struct IDxcBlobEncoding* pEncoding, uint32_t* descriptorsCount, ShaderReflectionDescriptor* pDescriptors)
+{
+    assert(pDescriptors);
+    assert(*descriptorsCount == 0);
+    
+    IDxcUtils* pUtils;
+    HRESULT res = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&pUtils));
+    assert(res == S_OK);
+
+    DxcBuffer reflectionBuffer = {};
+    reflectionBuffer.Ptr = pEncoding->GetBufferPointer();
+    reflectionBuffer.Size = pEncoding->GetBufferSize();
+
+    ID3D12ShaderReflection* pReflection;
+    res = pUtils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&pReflection));
+    assert(res == S_OK);
+    D3D12_SHADER_DESC shaderDesc = {};
+    res = pReflection->GetDesc(&shaderDesc);
+    assert(res == S_OK);
+    *descriptorsCount = shaderDesc.BoundResources;
+
+    for (uint32_t i = 0; i < shaderDesc.BoundResources; i++)
+    {
+        D3D12_SHADER_INPUT_BIND_DESC shaderInputBindDesc = {};
+        res = pReflection->GetResourceBindingDesc(i, &shaderInputBindDesc);
+        
+        memcpy((void*)pDescriptors[i].Name, shaderInputBindDesc.Name, strlen(shaderInputBindDesc.Name));
+        pDescriptors[i].Type = shaderInputBindDesc.Type;
+        pDescriptors[i].Dimension = shaderInputBindDesc.Dimension;
+        pDescriptors[i].BindCount = shaderInputBindDesc.BindCount;
+        pDescriptors[i].BindPoint = shaderInputBindDesc.BindPoint;
+        pDescriptors[i].Space = shaderInputBindDesc.Space;
+    }
+
+    pReflection->Release();
+}
+#endif
 
 extern "C" HRESULT D3D12MA_CreateAllocator(ID3D12Device* pDevice, D3D12MA_IDXGIAdapter* pGpu, struct D3D12MAAllocator_** ppOut)
 {

@@ -2,6 +2,26 @@
 
 #include "IGraphics.h"
 
+#define TIDES_SPACE_DESCRIPTORS_MAX_COUNT 8
+#define TIDES_DESCRIPTOR_SPACES_COUNT 5
+
+typedef struct SpaceDescriptors
+{
+    uint32_t mDescriptorsCount;
+    Descriptor pDescriptors[TIDES_SPACE_DESCRIPTORS_MAX_COUNT];
+} SpaceDescriptors;
+
+// From ShaderInterop.h
+// #define ROOT_PARAM_Persistent_SAMPLER 4
+// #define ROOT_PARAM_Persistent         3
+// #define ROOT_PARAM_PerFrame           2
+// #define ROOT_PARAM_PerBatch           1
+// #define ROOT_PARAM_PerDraw            0
+typedef struct Descriptors
+{
+    SpaceDescriptors pSpaceDescriptors[TIDES_DESCRIPTOR_SPACES_COUNT];
+} Descriptors;
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -18,6 +38,9 @@ bool loadDefaultRootSignatures(Renderer* pRenderer, const char* graphicsRootSign
 void releaseDefaultRootSignatures(Renderer* pRenderer);
 
 void getWindowSize(WindowHandle windowHandle, uint32_t* pWidth, uint32_t* pHeight);
+
+void createShaderDescriptors(Shader* pShaderProgram, Descriptors* pDescriptors);
+void removeShaderDescriptors(Descriptors* pDescriptors);
 
 #ifdef __cplusplus
 }

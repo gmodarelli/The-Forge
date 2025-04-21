@@ -32,6 +32,9 @@
 #include <malloc.h> // _alloca
 
 #include "../Interfaces/IGraphics.h"
+#ifdef TIDES
+#include "../Interfaces/IGraphicsTides.h"
+#endif
 
 #include "../../Utilities/ThirdParty/OpenSource/Nothings/stb_ds.h"
 #include "../../Utilities/ThirdParty/OpenSource/bstrlib/bstrlib.h"
@@ -4364,6 +4367,123 @@ void removeShader(Renderer* pRenderer, Shader* pShaderProgram)
 
     SAFE_FREE(pShaderProgram);
 }
+
+#ifdef TIDES
+void processReflections(Descriptors* pDescriptors, ShaderReflectionDescriptor* pShaderReflection);
+uint32_t spaceToSetIndex(uint32_t space, bool isSampler);
+DescriptorType shaderInputTypeToDescriptorType(D3D_SHADER_INPUT_TYPE shaderInputType);
+
+void createShaderReflections(Shader* pShaderProgram, Descriptors* pDescriptors)
+{
+    ASSERT(pShaderProgram);
+    
+    if (pShaderProgram->mDx.pVSBlob)
+    {
+        ShaderReflectionDescriptor reflections[8] = { 0 };
+        uint32_t reflectionsCount = 0;
+        IDxcUtils_GetReflections(pShaderProgram->mDx.pVSBlob, &reflectionsCount, reflections);
+        
+        for (uint32_t i = 0; i < reflectionsCount; i++)
+        {
+            processReflections(pDescriptors, &reflections[i]);
+        }
+    }
+
+    if (pShaderProgram->mDx.pPSBlob)
+    {
+        ShaderReflectionDescriptor reflections[8] = { 0 };
+        uint32_t reflectionsCount = 0;
+        IDxcUtils_GetReflections(pShaderProgram->mDx.pPSBlob, &reflectionsCount, reflections);
+        
+        for (uint32_t i = 0; i < reflectionsCount; i++)
+        {
+            processReflections(pDescriptors, &reflections[i]);
+        }
+    }
+
+    if (pShaderProgram->mDx.pCSBlob)
+    {
+        ShaderReflectionDescriptor reflections[8] = { 0 };
+        uint32_t reflectionsCount = 0;
+        IDxcUtils_GetReflections(pShaderProgram->mDx.pCSBlob, &reflectionsCount, reflections);
+        
+        for (uint32_t i = 0; i < reflectionsCount; i++)
+        {
+            processReflections(pDescriptors, &reflections[i]);
+        }
+    }
+}
+
+void removeShaderReflections(Descriptors* pDescriptors)
+{
+    for (uint32_t setIndex = 0; setIndex < TIDES_DESCRIPTOR_SPACES_COUNT; setIndex++)
+    {
+        SpaceDescriptors* pSpaceDescriptors = &pDescriptors->pSpaceDescriptors[setIndex];
+
+        for (uint32_t i = 0; i < pSpaceDescriptors->mDescriptorsCount; i++)
+        {
+#ifdef VALIDATE_DESCRIPTOR
+            tf_free(pSpaceDescriptors->pDescriptors[i].pName);
+            pSpaceDescriptors->pDescriptors[i].pName = NULL;
+#endif   
+        }
+
+        memset(pSpaceDescriptors, 0, sizeof(SpaceDescriptors));
+    }
+}
+
+void processReflections(Descriptors* pDescriptors, ShaderReflectionDescriptor* pShaderReflection)
+{
+    uint32_t setIndex = spaceToSetIndex(pShaderReflection->Space, pShaderReflection->Type == D3D_SIT_SAMPLER);
+    SpaceDescriptors* pSpaceDescriptors = &pDescriptors->pSpaceDescriptors[setIndex];
+    uint32_t descriptorIndex = pSpaceDescriptors->mDescriptorsCount++;
+    assert(descriptorIndex < TIDES_SPACE_DESCRIPTORS_MAX_COUNT);
+
+    Descriptor* pDescriptor = &pSpaceDescriptors->pDescriptors[descriptorIndex];
+
+    pDescriptor->pName = tf_malloc(32);
+#ifdef VALIDATE_DESCRIPTOR
+    memcpy(pDescriptor->pName, pShaderReflection->Name, strlen(pShaderReflection->Name));
+    pDescriptor->mSetIndex = setIndex;
+#endif
+    pDescriptor->mType = shaderInputTypeToDescriptorType(pShaderReflection->Type);
+    pDescriptor->mCount = pShaderReflection->BindCount;
+    pDescriptor->mOffset = pShaderReflection->BindPoint;
+}
+
+uint32_t spaceToSetIndex(uint32_t space, bool isSampler)
+{
+    if (space == 0 && isSampler)
+    {
+        return 4;
+    }
+
+    switch (space)
+    {
+        case 0: return 3;
+        case 1: return 2;
+        case 2: return 1;
+        case 3: return 0;
+    }
+
+    assert(false);
+    return 0;
+}
+
+DescriptorType shaderInputTypeToDescriptorType(D3D_SHADER_INPUT_TYPE shaderInputType)
+{
+    switch (shaderInputType)
+    {
+        case D3D_SIT_TEXTURE: return DESCRIPTOR_TYPE_TEXTURE;
+        case D3D_SIT_SAMPLER: return DESCRIPTOR_TYPE_SAMPLER;
+        case D3D_SIT_UAV_RWTYPED: return DESCRIPTOR_TYPE_RW_TEXTURE;
+        case D3D_SIT_CBUFFER: return DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    }
+
+    assert(false);
+    return DESCRIPTOR_TYPE_UNDEFINED;
+}
+#endif
 
 /************************************************************************/
 // Root Signature Functions

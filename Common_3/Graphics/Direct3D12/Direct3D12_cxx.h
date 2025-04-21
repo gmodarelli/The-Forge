@@ -24,6 +24,19 @@
 
 #include "../GraphicsConfig.h"
 
+
+#ifdef TIDES
+typedef struct ShaderReflectionDescriptor
+{
+    const char Name[32];
+    D3D_SHADER_INPUT_TYPE Type;
+    D3D_SRV_DIMENSION Dimension;
+    uint32_t BindPoint;
+    uint32_t BindCount;
+    uint32_t Space;
+} ShaderReflectionDescriptor;
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -37,6 +50,9 @@ extern "C"
     extern LPCSTR  IDxcBlobUtf8_GetStringPointer(struct IDxcBlobUtf8* pBlob);
     extern SIZE_T  IDxcBlobUtf8_GetStringLength(struct IDxcBlobUtf8* pBlob);
     extern HRESULT IDxcUtils_CreateBlob(void* pByteCode, uint32_t byteCodeSize, struct IDxcBlobEncoding** ppEncoding);
+#ifdef TIDES
+    extern void IDxcUtils_GetReflections(struct IDxcBlobEncoding* pEncoding, uint32_t* descriptorsCount, ShaderReflectionDescriptor* pDescriptors);
+#endif
 
     typedef struct D3D12MA_ALLOCATION_DESC
     {

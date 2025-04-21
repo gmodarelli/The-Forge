@@ -3,6 +3,18 @@ const std = @import("std");
 const zgraphics = @import("IGraphics.zig");
 //const cpp = @import("cpp");
 
+pub const TIDES_SPACE_DESCRIPTORS_MAX_COUNT: u32 = 8;
+pub const TIDES_DESCRIPTOR_SPACES_COUNT: u32 = 5;
+
+pub const SpaceDescriptors = extern struct {
+    mDescriptorsCount: u32,
+    pDescriptors: [TIDES_SPACE_DESCRIPTORS_MAX_COUNT]zgraphics.Descriptor,
+};
+
+pub const Descriptors = extern struct {
+    pSpaceDescriptors: [TIDES_DESCRIPTOR_SPACES_COUNT]SpaceDescriptors,
+};
+
 pub extern fn initGPUConfigurationEx(pExtendedSettings: [*c]zgraphics.ExtendedSettings) void;
 pub extern fn exitGPUConfigurationEx() void;
 pub extern fn addTextureEx(pRenderer: [*c]zgraphics.Renderer, pTextureDesc: [*c]const zgraphics.TextureDesc, bBindless: bool, texture: [*c][*c]zgraphics.Texture) void;
@@ -12,3 +24,5 @@ pub extern fn removeBufferEx(pRenderer: [*c]zgraphics.Renderer, pBuffer: [*c]zgr
 pub extern fn loadDefaultRootSignatures(pRenderer: [*c]zgraphics.Renderer, graphicsRootSignaturePath: [*c]const u8, computeRootSignaturePath: [*c]const u8) bool;
 pub extern fn releaseDefaultRootSignatures(pRenderer: [*c]zgraphics.Renderer) void;
 pub extern fn getWindowSize(windowHandle: zgraphics.WindowHandle, pWidth: *u32, pHeight: *u32) void;
+pub extern fn createShaderDescriptors(pShaderProgram: [*c]zgraphics.Shader, descriptors: [*c]Descriptors) void;
+pub extern fn removeShaderDescriptors(ppDescriptors: [*c]Descriptors) void;
