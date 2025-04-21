@@ -14,6 +14,13 @@ pub const Gfx = struct {
     // Render Targets and Render Textures
     depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     scene_color: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
+
+    // Uniform buffers
+    global_frame_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+};
+
+pub const Frame = struct {
+    time: f32,
 };
 
 pub fn main() !void {
@@ -68,11 +75,14 @@ pub fn main() !void {
     }
 
     {
+        var render_targets = [_]zf.IGraphics.TinyImageFormat{ zf.getSwapChainFormat() };
         var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
         pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_GRAPHICS;
         var graphics_desc = &pipeline_desc.__union_field1.mGraphicsDesc;
         graphics_desc.* = std.mem.zeroes(zf.GraphicsPipelineDesc);
         graphics_desc.mPrimitiveTopo = zf.PrimitiveTopology.PRIMITIVE_TOPO_TRI_LIST;
+        graphics_desc.mRenderTargetCount = render_targets.len;
+        graphics_desc.pColorFormats = @ptrCast(&render_targets);
         graphics_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
         graphics_desc.mSampleQuality = 0;
         gfx.blit_pso = zf.createPso(pipeline_desc, gfx.blit_shader) catch unreachable;
@@ -114,6 +124,12 @@ pub fn main() !void {
         scene_color_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
         scene_color_desc.pName = "Scene Color";
         gfx.scene_color = zf.createRenderTexture(scene_color_desc) catch unreachable;
+    }
+
+    {
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            gfx.global_frame_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(Frame), "Global Frame Constant Buffer");
+        }
     }
 
     while (!window.shouldClose()) {

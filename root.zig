@@ -77,6 +77,11 @@ const RenderTexturePool = Pool(8, 8, [*c]IGraphics.Texture, struct {
 });
 pub const RenderTextureHandle = RenderTexturePool.Handle;
 
+const BufferPool = Pool(16, 16, [*c]IGraphics.Buffer, struct{
+    ptr: [*c]IGraphics.Buffer,
+});
+pub const BufferHandle = BufferPool.Handle;
+
 //  ██████╗ ██████╗ ██╗   ██╗    ██████╗  █████╗ ████████╗ █████╗
 // ██╔════╝ ██╔══██╗██║   ██║    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
 // ██║  ███╗██████╔╝██║   ██║    ██║  ██║███████║   ██║   ███████║
@@ -112,6 +117,7 @@ const Gpu = struct {
     psos: PsoPool = undefined,
     render_targets: RenderTargetPool = undefined,
     render_textures: RenderTexturePool = undefined,
+    buffers: BufferPool = undefined,
 };
 
 var gpu: Gpu = undefined;
@@ -123,6 +129,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
     gpu.psos = PsoPool.initMaxCapacity(gpu.allocator) catch unreachable;
     gpu.render_targets = RenderTargetPool.initMaxCapacity(gpu.allocator) catch unreachable;
     gpu.render_textures = RenderTexturePool.initMaxCapacity(gpu.allocator) catch unreachable;
+    gpu.buffers = BufferPool.init(gpu.allocator);
 
     // Initialize renderer
     var renderer_desc = std.mem.zeroes(IGraphics.RendererDesc);
@@ -186,10 +193,18 @@ pub fn shutdownGpu() void {
     const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .RESIZE = true, .RENDERTARGET = true, .SHADER = true } };
     onUnload(reload_desc);
 
+    var buffer_handles = gpu.buffers.liveHandles();
+    while (buffer_handles.next()) |handle| {
+        const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
+        IGraphicsTides.removeBufferEx(gpu.renderer, buffer.*);
+        buffer.* = null;
+    }
+
     gpu.shaders.deinit();
     gpu.psos.deinit();
     gpu.render_targets.deinit();
     gpu.render_textures.deinit();
+    gpu.buffers.deinit();
 
     IGraphics.removeSampler(gpu.renderer, gpu.linear_clamp_sampler);
     IGraphics.removeSampler(gpu.renderer, gpu.linear_repeat_sampler);
@@ -287,6 +302,10 @@ pub fn frameSubmit() void {
     gpu.frame_index += 1;
     gpu.frame_index %= frames_in_flight_count;
     gpu.frame_started = false;
+}
+
+pub fn getSwapChainFormat() IGraphics.TinyImageFormat {
+    return gpu.swap_chain.*.ppRenderTargets[0].*.mFormat;
 }
 
 pub fn requestResize() void {
@@ -464,6 +483,22 @@ pub fn createRenderTarget(desc: IGraphics.RenderTargetDesc) !RenderTargetHandle 
         .ptr = render_target,
         .desc = desc,
     });
+}
+
+pub fn createUniformBuffer(size: u64, name: []const u8) BufferHandle {
+    var desc = std.mem.zeroes(IGraphics.BufferDesc);
+    desc.mDescriptors = IGraphics.DescriptorType.DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc.mMemoryUsage = IGraphics.ResourceMemoryUsage.RESOURCE_MEMORY_USAGE_CPU_TO_GPU;
+    desc.mFlags = IGraphics.BufferCreationFlags.BUFFER_CREATION_FLAG_PERSISTENT_MAP_BIT;
+    desc.pName = @ptrCast(name);
+    desc.mSize = size;
+
+    var buffer: [*c]IGraphics.Buffer = null;
+    IGraphicsTides.addBufferEx(gpu.renderer, @ptrCast(&desc), false, &buffer);
+
+    return gpu.buffers.add(.{
+        .ptr = buffer
+    }) catch unreachable;
 }
 
 fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
