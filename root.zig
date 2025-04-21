@@ -53,6 +53,7 @@ pub const ShaderLoadDesc = struct {
 
 const ShaderPool = Pool(8, 8, [*c]IGraphics.Shader, struct {
     ptr: [*c]IGraphics.Shader,
+    descriptors: IGraphicsTides.Descriptors,
     desc: ShaderLoadDesc,
 });
 pub const ShaderHandle = ShaderPool.Handle;
@@ -76,7 +77,7 @@ const RenderTexturePool = Pool(8, 8, [*c]IGraphics.Texture, struct {
 });
 pub const RenderTextureHandle = RenderTexturePool.Handle;
 
-const BufferPool = Pool(16, 16, [*c]IGraphics.Buffer, struct{
+const BufferPool = Pool(16, 16, [*c]IGraphics.Buffer, struct {
     ptr: [*c]IGraphics.Buffer,
 });
 pub const BufferHandle = BufferPool.Handle;
@@ -366,7 +367,7 @@ fn createGraphicsPso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) 
 }
 
 pub fn compileShader(shader_load_desc: ShaderLoadDesc) !ShaderHandle {
-    const shader: [*c]IGraphics.Shader = compileShaderInternal(shader_load_desc) catch unreachable;
+    const compilation_result = compileShaderInternal(shader_load_desc) catch unreachable;
 
     var desc: ShaderLoadDesc = undefined;
     if (shader_load_desc.vertex) |vertex| {
@@ -397,12 +398,13 @@ pub fn compileShader(shader_load_desc: ShaderLoadDesc) !ShaderHandle {
     }
 
     return gpu.shaders.add(.{
-        .ptr = shader,
+        .ptr = compilation_result.shader,
+        .descriptors = compilation_result.descriptors,
         .desc = desc,
     }) catch unreachable;
 }
 
-fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) ![*c]IGraphics.Shader {
+fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) !struct { shader: [*c]IGraphics.Shader, descriptors: IGraphicsTides.Descriptors } {
     var binary_shader_desc = std.mem.zeroes(IGraphics.BinaryShaderDesc);
 
     if (shader_load_desc.vertex) |*vertex| {
@@ -422,6 +424,9 @@ fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) ![*c]IGraphics.Shader
 
     var shader: [*c]IGraphics.Shader = null;
     IGraphics.addShaderBinary(gpu.renderer, &binary_shader_desc, &shader);
+
+    var descriptors = std.mem.zeroes(IGraphicsTides.Descriptors);
+    IGraphicsTides.createShaderDescriptors(shader, @ptrCast(&descriptors));
 
     if (shader_load_desc.vertex) |_| {
         if (binary_shader_desc.mVert.pByteCode) |byte_code| {
@@ -444,7 +449,10 @@ fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) ![*c]IGraphics.Shader
         }
     }
 
-    return shader;
+    return .{
+        .shader = shader,
+        .descriptors = descriptors,
+    };
 }
 
 fn loadShaderStage(shader_stage_load_desc: *const ShaderStageLoadDesc, binary_shader_stage_desc: [*c]IGraphics.BinaryShaderStageDesc) void {
@@ -495,9 +503,7 @@ pub fn createUniformBuffer(size: u64, name: []const u8) BufferHandle {
     var buffer: [*c]IGraphics.Buffer = null;
     IGraphicsTides.addBufferEx(gpu.renderer, @ptrCast(&desc), false, &buffer);
 
-    return gpu.buffers.add(.{
-        .ptr = buffer
-    }) catch unreachable;
+    return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
 }
 
 fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
@@ -538,8 +544,11 @@ fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
         var shader_handles = gpu.shaders.liveHandles();
         while (shader_handles.next()) |handle| {
             const shader = gpu.shaders.getColumnPtr(handle, .ptr) catch unreachable;
+            const descriptors = gpu.shaders.getColumnPtr(handle, .descriptors) catch unreachable;
             const desc = gpu.shaders.getColumnPtr(handle, .desc) catch unreachable;
-            shader.* = compileShaderInternal(desc.*) catch unreachable;
+            const compilation_result = compileShaderInternal(desc.*) catch unreachable;
+            shader.* = compilation_result.shader;
+            descriptors.* = compilation_result.descriptors;
         }
     }
 
@@ -585,7 +594,9 @@ fn onUnload(reload_desc: IGraphics.ReloadDesc) void {
         var shader_handles = gpu.shaders.liveHandles();
         while (shader_handles.next()) |handle| {
             const shader = gpu.shaders.getColumnPtr(handle, .ptr) catch unreachable;
+            var descriptors = gpu.shaders.getColumn(handle, .descriptors) catch unreachable;
             IGraphics.removeShader(gpu.renderer, shader.*);
+            IGraphicsTides.removeShaderDescriptors(@ptrCast(&descriptors));
             shader.* = null;
         }
     }
