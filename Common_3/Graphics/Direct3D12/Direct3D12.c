@@ -4370,7 +4370,7 @@ void removeShader(Renderer* pRenderer, Shader* pShaderProgram)
 
 #ifdef TIDES
 void processReflections(Descriptors* pDescriptors, ShaderReflectionDescriptor* pShaderReflection);
-uint32_t spaceToSetIndex(uint32_t space, bool isSampler);
+uint32_t spaceToRootParamSetIndex(uint32_t space, bool isSampler);
 DescriptorType shaderInputTypeToDescriptorType(D3D_SHADER_INPUT_TYPE shaderInputType);
 
 void createShaderReflections(Shader* pShaderProgram, Descriptors* pDescriptors)
@@ -4434,8 +4434,7 @@ void removeShaderReflections(Descriptors* pDescriptors)
 
 void processReflections(Descriptors* pDescriptors, ShaderReflectionDescriptor* pShaderReflection)
 {
-    uint32_t setIndex = spaceToSetIndex(pShaderReflection->Space, pShaderReflection->Type == D3D_SIT_SAMPLER);
-    SpaceDescriptors* pSpaceDescriptors = &pDescriptors->pSpaceDescriptors[setIndex];
+    SpaceDescriptors* pSpaceDescriptors = &pDescriptors->pSpaceDescriptors[pShaderReflection->Space];
     uint32_t descriptorIndex = pSpaceDescriptors->mDescriptorsCount++;
     assert(descriptorIndex < TIDES_SPACE_DESCRIPTORS_MAX_COUNT);
 
@@ -4444,14 +4443,14 @@ void processReflections(Descriptors* pDescriptors, ShaderReflectionDescriptor* p
     pDescriptor->pName = tf_malloc(32);
 #ifdef VALIDATE_DESCRIPTOR
     memcpy(pDescriptor->pName, pShaderReflection->Name, strlen(pShaderReflection->Name));
-    pDescriptor->mSetIndex = setIndex;
+    pDescriptor->mSetIndex = spaceToRootParamSetIndex(pShaderReflection->Space, pShaderReflection->Type == D3D_SIT_SAMPLER);
 #endif
     pDescriptor->mType = shaderInputTypeToDescriptorType(pShaderReflection->Type);
     pDescriptor->mCount = pShaderReflection->BindCount;
     pDescriptor->mOffset = pShaderReflection->BindPoint;
 }
 
-uint32_t spaceToSetIndex(uint32_t space, bool isSampler)
+uint32_t spaceToRootParamSetIndex(uint32_t space, bool isSampler)
 {
     if (space == 0 && isSampler)
     {
