@@ -3,7 +3,6 @@ pub const IGraphics = @import("Common_3/Graphics/Interfaces/IGraphics.zig");
 const IGraphicsTides = @import("Common_3/Graphics/Interfaces/IGraphicsTides.zig");
 // pub const IRay = @import("Common_3/Graphics/Interfaces/IRay.zig");
 
-
 const Pool = @import("zpool").Pool;
 
 pub export const D3D12SDKVersion: u32 = 715;
@@ -625,6 +624,11 @@ fn swapchainCreate() void {
 
 fn swapchainDestroy() void {
     IGraphics.removeSwapChain(gpu.renderer, gpu.swap_chain);
+}
+
+// TODO: Temporary, remove this once we've found a nice abstraction for materials?
+pub fn addDescriptorSet(pDesc: [*c]const IGraphics.DescriptorSetDesc, ppDescriptorSet: [*c][*c]IGraphics.DescriptorSet) void {
+    IGraphics.addDescriptorSet(gpu.renderer, pDesc, ppDescriptorSet);
 }
 
 pub fn memcpy(dst: *anyopaque, src: *const anyopaque, byte_count: u64) void {
