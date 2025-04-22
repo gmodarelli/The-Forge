@@ -36,10 +36,11 @@ pub const Pass = enum {
 pub const GfxMaterialPass = struct {
     pso: zf.PsoHandle,
 
-    persistent_descriptor_set: ?zf.IGraphics.DescriptorSet,
-    per_frame_descriptor_set: ?zf.IGraphics.DescriptorSet,
-    per_batch_descriptor_set: ?zf.IGraphics.DescriptorSet,
-    per_draw_descriptor_set: ?zf.IGraphics.DescriptorSet,
+    per_draw_descriptor_set: [*c]zf.IGraphics.DescriptorSet,
+    per_batch_descriptor_set: [*c]zf.IGraphics.DescriptorSet,
+    per_frame_descriptor_set: [*c]zf.IGraphics.DescriptorSet,
+    persistent_descriptor_set: [*c]zf.IGraphics.DescriptorSet,
+    persistent_samplers_descriptor_set: [*c]zf.IGraphics.DescriptorSet,
 
     pass: Pass,
 };
@@ -167,52 +168,12 @@ pub fn main() !void {
         gfx.blit_material.passes[0].pass = .default;
         gfx.blit_material.passes[0].pso = gfx.blit_pso;
 
-        // Persistent descriptor set
-        {
-            var descriptors = [_]zf.IGraphics.Descriptor{
-                .{
-                    .pName = "g_linear_repeat_sampler",
-                    .mSetIndex = 4, // ROOT_PARAM_Persistent_SAMPLER
-                    .mType = zf.IGraphics.DescriptorType.DESCRIPTOR_TYPE_SAMPLER,
-                    .mCount = 1,
-                    .mOffset = 0,
-                },
-            };
-
-            var desc = std.mem.zeroes(zf.IGraphics.DescriptorSetDesc);
-            desc.mIndex = 4; // ROOT_PARAM_Persistent_SAMPLER
-            desc.mMaxSets = 1;
-            desc.mDescriptorCount = @intCast(descriptors.len);
-            desc.pDescriptors = @ptrCast(&descriptors);
-            zf.addDescriptorSet(&desc, @ptrCast(&gfx.blit_material.passes[0].persistent_descriptor_set));
-        }
-
-        // Per frame descriptor set
-        {
-            var descriptors = [_]zf.IGraphics.Descriptor{
-                .{
-                    .pName = "g_CB0",
-                    .mSetIndex = 2, // ROOT_PARAM_PerFrame
-                    .mType = zf.IGraphics.DescriptorType.DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    .mCount = 1,
-                    .mOffset = 0,
-                },
-                .{
-                    .pName = "g_source",
-                    .mSetIndex = 2, // ROOT_PARAM_PerFrame
-                    .mType = zf.IGraphics.DescriptorType.DESCRIPTOR_TYPE_TEXTURE,
-                    .mCount = 1,
-                    .mOffset = 1,
-                },
-            };
-
-            var desc = std.mem.zeroes(zf.IGraphics.DescriptorSetDesc);
-            desc.mIndex = 2; // ROOT_PARAM_PerFrame
-            desc.mMaxSets = 1;
-            desc.mDescriptorCount = @intCast(descriptors.len);
-            desc.pDescriptors = @ptrCast(&descriptors);
-            zf.addDescriptorSet(&desc, @ptrCast(&gfx.blit_material.passes[0].per_frame_descriptor_set));
-        }
+        const descriptor_sets = zf.createDescriptorSets(gfx.blit_shader) catch unreachable;
+        gfx.blit_material.passes[0].per_draw_descriptor_set = descriptor_sets.per_draw;
+        gfx.blit_material.passes[0].per_batch_descriptor_set = descriptor_sets.per_batch;
+        gfx.blit_material.passes[0].per_frame_descriptor_set = descriptor_sets.per_frame;
+        gfx.blit_material.passes[0].persistent_descriptor_set = descriptor_sets.persistent;
+        gfx.blit_material.passes[0].persistent_samplers_descriptor_set = descriptor_sets.persistent_samplers;
     }
 
     while (!window.shouldClose()) {
