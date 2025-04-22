@@ -4376,13 +4376,13 @@ DescriptorType shaderInputTypeToDescriptorType(D3D_SHADER_INPUT_TYPE shaderInput
 void createShaderReflections(Shader* pShaderProgram, Descriptors* pDescriptors)
 {
     ASSERT(pShaderProgram);
-    
+
     if (pShaderProgram->mDx.pVSBlob)
     {
         ShaderReflectionDescriptor reflections[8] = { 0 };
         uint32_t reflectionsCount = 0;
         IDxcUtils_GetReflections(pShaderProgram->mDx.pVSBlob, &reflectionsCount, reflections);
-        
+
         for (uint32_t i = 0; i < reflectionsCount; i++)
         {
             processReflections(pDescriptors, &reflections[i]);
@@ -4394,7 +4394,7 @@ void createShaderReflections(Shader* pShaderProgram, Descriptors* pDescriptors)
         ShaderReflectionDescriptor reflections[8] = { 0 };
         uint32_t reflectionsCount = 0;
         IDxcUtils_GetReflections(pShaderProgram->mDx.pPSBlob, &reflectionsCount, reflections);
-        
+
         for (uint32_t i = 0; i < reflectionsCount; i++)
         {
             processReflections(pDescriptors, &reflections[i]);
@@ -4406,7 +4406,7 @@ void createShaderReflections(Shader* pShaderProgram, Descriptors* pDescriptors)
         ShaderReflectionDescriptor reflections[8] = { 0 };
         uint32_t reflectionsCount = 0;
         IDxcUtils_GetReflections(pShaderProgram->mDx.pCSBlob, &reflectionsCount, reflections);
-        
+
         for (uint32_t i = 0; i < reflectionsCount; i++)
         {
             processReflections(pDescriptors, &reflections[i]);
@@ -4425,7 +4425,7 @@ void removeShaderReflections(Descriptors* pDescriptors)
 #ifdef VALIDATE_DESCRIPTOR
             tf_free(pSpaceDescriptors->pDescriptors[i].pName);
             pSpaceDescriptors->pDescriptors[i].pName = NULL;
-#endif   
+#endif
         }
 
         memset(pSpaceDescriptors, 0, sizeof(SpaceDescriptors));
@@ -4434,7 +4434,8 @@ void removeShaderReflections(Descriptors* pDescriptors)
 
 void processReflections(Descriptors* pDescriptors, ShaderReflectionDescriptor* pShaderReflection)
 {
-    SpaceDescriptors* pSpaceDescriptors = &pDescriptors->pSpaceDescriptors[pShaderReflection->Space];
+    uint32_t setIndex = spaceToRootParamSetIndex(pShaderReflection->Space, pShaderReflection->Type == D3D_SIT_SAMPLER);
+    SpaceDescriptors* pSpaceDescriptors = &pDescriptors->pSpaceDescriptors[setIndex];
     uint32_t descriptorIndex = pSpaceDescriptors->mDescriptorsCount++;
     assert(descriptorIndex < TIDES_SPACE_DESCRIPTORS_MAX_COUNT);
 
@@ -4443,7 +4444,7 @@ void processReflections(Descriptors* pDescriptors, ShaderReflectionDescriptor* p
     pDescriptor->pName = tf_malloc(32);
 #ifdef VALIDATE_DESCRIPTOR
     memcpy(pDescriptor->pName, pShaderReflection->Name, strlen(pShaderReflection->Name));
-    pDescriptor->mSetIndex = spaceToRootParamSetIndex(pShaderReflection->Space, pShaderReflection->Type == D3D_SIT_SAMPLER);
+    pDescriptor->mSetIndex = setIndex;
 #endif
     pDescriptor->mType = shaderInputTypeToDescriptorType(pShaderReflection->Type);
     pDescriptor->mCount = pShaderReflection->BindCount;

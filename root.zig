@@ -642,7 +642,81 @@ pub fn addDescriptorSet(pDesc: [*c]const IGraphics.DescriptorSetDesc, ppDescript
     IGraphics.addDescriptorSet(gpu.renderer, pDesc, ppDescriptorSet);
 }
 
-pub fn memcpy(dst: *anyopaque, src: *const anyopaque, byte_count: u64) void {
+pub fn createDescriptorSets(shader_handle: ShaderHandle) !struct{
+    per_draw: [*c]IGraphics.DescriptorSet,
+    per_batch: [*c]IGraphics.DescriptorSet,
+    per_frame: [*c]IGraphics.DescriptorSet,
+    persistent: [*c]IGraphics.DescriptorSet,
+    persistent_samplers: [*c]IGraphics.DescriptorSet,
+}
+{
+    const descriptors = gpu.shaders.getColumn(shader_handle, .descriptors) catch unreachable;
+    var per_draw: [*c]IGraphics.DescriptorSet = null;
+    var per_batch: [*c]IGraphics.DescriptorSet = null;
+    var per_frame: [*c]IGraphics.DescriptorSet = null;
+    var persistent: [*c]IGraphics.DescriptorSet = null;
+    var persistent_samplers: [*c]IGraphics.DescriptorSet = null;
+
+    if (descriptors.pSpaceDescriptors[0].mDescriptorsCount > 0) {
+        const space_descriptors = &descriptors.pSpaceDescriptors[0];
+        var desc = std.mem.zeroes(IGraphics.DescriptorSetDesc);
+        desc.mIndex = 0; // Per Draw
+        desc.mDescriptorCount = space_descriptors.mDescriptorsCount;
+        desc.mMaxSets = frames_in_flight_count;
+        desc.pDescriptors = &space_descriptors.pDescriptors;
+        IGraphics.addDescriptorSet(gpu.renderer, &desc, @ptrCast(&per_draw));
+    }
+
+    if (descriptors.pSpaceDescriptors[1].mDescriptorsCount > 0) {
+        const space_descriptors = &descriptors.pSpaceDescriptors[1];
+        var desc = std.mem.zeroes(IGraphics.DescriptorSetDesc);
+        desc.mIndex = 1; // Per Batch
+        desc.mDescriptorCount = space_descriptors.mDescriptorsCount;
+        desc.mMaxSets = frames_in_flight_count;
+        desc.pDescriptors = &space_descriptors.pDescriptors;
+        IGraphics.addDescriptorSet(gpu.renderer, &desc, @ptrCast(&per_batch));
+    }
+
+    if (descriptors.pSpaceDescriptors[2].mDescriptorsCount > 0) {
+        const space_descriptors = &descriptors.pSpaceDescriptors[2];
+        var desc = std.mem.zeroes(IGraphics.DescriptorSetDesc);
+        desc.mIndex = 2; // Per Frame
+        desc.mDescriptorCount = space_descriptors.mDescriptorsCount;
+        desc.mMaxSets = frames_in_flight_count;
+        desc.pDescriptors = &space_descriptors.pDescriptors;
+        IGraphics.addDescriptorSet(gpu.renderer, &desc, @ptrCast(&per_frame));
+    }
+
+    if (descriptors.pSpaceDescriptors[3].mDescriptorsCount > 0) {
+        const space_descriptors = &descriptors.pSpaceDescriptors[3];
+        var desc = std.mem.zeroes(IGraphics.DescriptorSetDesc);
+        desc.mIndex = 3; // Persistent
+        desc.mDescriptorCount = space_descriptors.mDescriptorsCount;
+        desc.mMaxSets = 1;
+        desc.pDescriptors = &space_descriptors.pDescriptors;
+        IGraphics.addDescriptorSet(gpu.renderer, &desc, @ptrCast(&persistent));
+    }
+
+    if (descriptors.pSpaceDescriptors[4].mDescriptorsCount > 0) {
+        const space_descriptors = &descriptors.pSpaceDescriptors[4];
+        var desc = std.mem.zeroes(IGraphics.DescriptorSetDesc);
+        desc.mIndex = 4; // Persistent Samplers
+        desc.mDescriptorCount = space_descriptors.mDescriptorsCount;
+        desc.mMaxSets = 1;
+        desc.pDescriptors = &space_descriptors.pDescriptors;
+        IGraphics.addDescriptorSet(gpu.renderer, &desc, @ptrCast(&persistent_samplers));
+    }
+
+    return .{
+        .per_draw = per_draw,
+        .per_batch = per_batch,
+        .per_frame = per_frame,
+        .persistent = persistent,
+        .persistent_samplers = persistent_samplers,
+    };
+}
+
+fn memcpy(dst: *anyopaque, src: *const anyopaque, byte_count: u64) void {
     const src_slice = @as([*]const u8, @ptrCast(src))[0..byte_count];
     const dst_slice = @as([*]u8, @ptrCast(dst))[0..byte_count];
     for (src_slice, 0..) |byte, i| {

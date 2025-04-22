@@ -4,7 +4,7 @@ const zgraphics = @import("IGraphics.zig");
 //const cpp = @import("cpp");
 
 pub const TIDES_SPACE_DESCRIPTORS_MAX_COUNT: u32 = 8;
-pub const TIDES_DESCRIPTOR_SPACES_COUNT: u32 = 4;
+pub const TIDES_DESCRIPTOR_SPACES_COUNT: u32 = 5;
 
 pub const SpaceDescriptors = extern struct {
     mDescriptorsCount: u32,
