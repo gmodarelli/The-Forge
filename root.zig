@@ -51,9 +51,31 @@ pub const ShaderLoadDesc = struct {
 // ██║  ██║███████╗███████║╚██████╔╝╚██████╔╝██║  ██║╚██████╗███████╗    ██║     ╚██████╔╝╚██████╔╝███████╗███████║
 // ╚═╝  ╚═╝╚══════╝╚══════╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝╚══════╝    ╚═╝      ╚═════╝  ╚═════╝ ╚══════╝╚══════╝
 
+pub const ResourceType = enum {
+    buffer,
+    texture,
+    sampler,
+    acceleration_structure,
+};
+
+pub const ResourceMapping = struct {
+    hash: u64,
+    resource_type: ResourceType,
+};
+
+pub const DescriptorMappings = struct {
+    resources_count: u32,
+    resource_mappings: [IGraphicsTides.TIDES_SPACE_DESCRIPTORS_MAX_COUNT]ResourceMapping,
+};
+
+pub const DescriptorSetsMappings = struct {
+    descriptor_mappings: [IGraphicsTides.TIDES_DESCRIPTOR_SPACES_COUNT]DescriptorMappings,
+};
+
 const ShaderPool = Pool(8, 8, [*c]IGraphics.Shader, struct {
     ptr: [*c]IGraphics.Shader,
     descriptors: IGraphicsTides.Descriptors,
+    descriptor_sets_mappings: DescriptorSetsMappings,
     desc: ShaderLoadDesc,
 });
 pub const ShaderHandle = ShaderPool.Handle;
@@ -400,11 +422,16 @@ pub fn compileShader(shader_load_desc: ShaderLoadDesc) !ShaderHandle {
     return gpu.shaders.add(.{
         .ptr = compilation_result.shader,
         .descriptors = compilation_result.descriptors,
+        .descriptor_sets_mappings = compilation_result.descriptor_sets_mappings,
         .desc = desc,
     }) catch unreachable;
 }
 
-fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) !struct { shader: [*c]IGraphics.Shader, descriptors: IGraphicsTides.Descriptors } {
+fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) !struct {
+    shader: [*c]IGraphics.Shader,
+    descriptors: IGraphicsTides.Descriptors,
+    descriptor_sets_mappings: DescriptorSetsMappings,
+} {
     var binary_shader_desc = std.mem.zeroes(IGraphics.BinaryShaderDesc);
 
     if (shader_load_desc.vertex) |*vertex| {
@@ -427,6 +454,27 @@ fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) !struct { shader: [*c
 
     var descriptors = std.mem.zeroes(IGraphicsTides.Descriptors);
     IGraphicsTides.createShaderDescriptors(shader, @ptrCast(&descriptors));
+
+    var descriptor_sets_mappings: DescriptorSetsMappings = undefined;
+    for (0..IGraphicsTides.TIDES_DESCRIPTOR_SPACES_COUNT) |space_index| {
+        const descriptor_set = &descriptors.pSpaceDescriptors[space_index];
+        var descriptor_set_mappings = &descriptor_sets_mappings.descriptor_mappings[space_index];
+        descriptor_set_mappings.resources_count = descriptor_set.mDescriptorsCount;
+
+        for (0..descriptor_set.mDescriptorsCount) |descriptor_index| {
+            const descriptor = &descriptor_set.pDescriptors[descriptor_index];
+            var descriptor_mapping = &descriptor_set_mappings.resource_mappings[descriptor_index];
+            const slice = std.mem.span(descriptor.pName);
+            descriptor_mapping.hash = std.hash.Wyhash.hash(0, slice);
+
+            descriptor_mapping.resource_type = switch (descriptor.mType.bits) {
+                IGraphics.DescriptorType.DESCRIPTOR_TYPE_SAMPLER.bits => .sampler,
+                IGraphics.DescriptorType.DESCRIPTOR_TYPE_TEXTURE.bits, IGraphics.DescriptorType.DESCRIPTOR_TYPE_RW_TEXTURE.bits => .texture,
+                IGraphics.DescriptorType.DESCRIPTOR_TYPE_BUFFER.bits, IGraphics.DescriptorType.DESCRIPTOR_TYPE_RW_BUFFER.bits, IGraphics.DescriptorType.DESCRIPTOR_TYPE_BUFFER_RAW.bits, IGraphics.DescriptorType.DESCRIPTOR_TYPE_RW_BUFFER_RAW.bits, IGraphics.DescriptorType.DESCRIPTOR_TYPE_UNIFORM_BUFFER.bits => .buffer,
+                else => @panic("Unsupported descriptor type"),
+            };
+        }
+    }
 
     if (shader_load_desc.vertex) |_| {
         if (binary_shader_desc.mVert.pByteCode) |byte_code| {
@@ -452,6 +500,7 @@ fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) !struct { shader: [*c
     return .{
         .shader = shader,
         .descriptors = descriptors,
+        .descriptor_sets_mappings = descriptor_sets_mappings,
     };
 }
 
@@ -545,10 +594,12 @@ fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
         while (shader_handles.next()) |handle| {
             const shader = gpu.shaders.getColumnPtr(handle, .ptr) catch unreachable;
             const descriptors = gpu.shaders.getColumnPtr(handle, .descriptors) catch unreachable;
+            const descriptor_sets_mappings = gpu.shaders.getColumnPtr(handle, .descriptor_sets_mappings) catch unreachable;
             const desc = gpu.shaders.getColumnPtr(handle, .desc) catch unreachable;
             const compilation_result = compileShaderInternal(desc.*) catch unreachable;
             shader.* = compilation_result.shader;
             descriptors.* = compilation_result.descriptors;
+            descriptor_sets_mappings.* = compilation_result.descriptor_sets_mappings;
         }
     }
 
@@ -642,14 +693,13 @@ pub fn addDescriptorSet(pDesc: [*c]const IGraphics.DescriptorSetDesc, ppDescript
     IGraphics.addDescriptorSet(gpu.renderer, pDesc, ppDescriptorSet);
 }
 
-pub fn createDescriptorSets(shader_handle: ShaderHandle) !struct{
+pub fn createDescriptorSets(shader_handle: ShaderHandle) !struct {
     per_draw: [*c]IGraphics.DescriptorSet,
     per_batch: [*c]IGraphics.DescriptorSet,
     per_frame: [*c]IGraphics.DescriptorSet,
     persistent: [*c]IGraphics.DescriptorSet,
     persistent_samplers: [*c]IGraphics.DescriptorSet,
-}
-{
+} {
     const descriptors = gpu.shaders.getColumn(shader_handle, .descriptors) catch unreachable;
     var per_draw: [*c]IGraphics.DescriptorSet = null;
     var per_batch: [*c]IGraphics.DescriptorSet = null;
