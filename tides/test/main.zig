@@ -3,6 +3,10 @@ const zf = @import("ze_forge");
 const zglfw = @import("zglfw");
 
 pub const Gfx = struct {
+    // Static samplers
+    linear_repeat_sampler: zf.StaticSamplerHandle = zf.StaticSamplerHandle.nil,
+    linear_clamp_sampler: zf.StaticSamplerHandle = zf.StaticSamplerHandle.nil,
+
     // Shaders
     blit_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     clear_screen_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
@@ -74,6 +78,24 @@ pub fn main() !void {
 
     var gfx = Gfx{};
 
+    // Static Samplers
+    {
+        var sampler_desc = std.mem.zeroes(zf.SamplerDesc);
+        sampler_desc.mMinFilter = zf.FilterType.FILTER_LINEAR;
+        sampler_desc.mMagFilter = zf.FilterType.FILTER_LINEAR;
+        sampler_desc.mMipMapMode = zf.MipMapMode.MIPMAP_MODE_LINEAR;
+        sampler_desc.mAddressU = zf.AddressMode.ADDRESS_MODE_REPEAT;
+        sampler_desc.mAddressV = zf.AddressMode.ADDRESS_MODE_REPEAT;
+        sampler_desc.mAddressW = zf.AddressMode.ADDRESS_MODE_REPEAT;
+        gfx.linear_repeat_sampler = zf.createStaticSampler(sampler_desc) catch unreachable;
+
+        sampler_desc.mAddressW = zf.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler_desc.mAddressV = zf.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler_desc.mAddressU = zf.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
+        gfx.linear_clamp_sampler = zf.createStaticSampler(sampler_desc) catch unreachable;
+    }
+
+    // Shaders
     {
         const shader_load_desc = zf.ShaderLoadDesc{
             .vertex = .{
@@ -97,6 +119,7 @@ pub fn main() !void {
         gfx.clear_screen_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
+    // PSOs
     {
         var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
         pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
@@ -104,7 +127,7 @@ pub fn main() !void {
     }
 
     {
-        var render_targets = [_]zf.IGraphics.TinyImageFormat{ zf.getSwapChainFormat() };
+        var render_targets = [_]zf.IGraphics.TinyImageFormat{zf.getSwapChainFormat()};
         var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
         pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_GRAPHICS;
         var graphics_desc = &pipeline_desc.__union_field1.mGraphicsDesc;
@@ -117,6 +140,7 @@ pub fn main() !void {
         gfx.blit_pso = zf.createPso(pipeline_desc, gfx.blit_shader) catch unreachable;
     }
 
+    // Render Targets
     {
         var depth_buffer_desc = std.mem.zeroes(zf.RenderTargetDesc);
         depth_buffer_desc.pName = "Depth Buffer";
@@ -134,6 +158,7 @@ pub fn main() !void {
         gfx.depth_buffer = zf.createRenderTarget(depth_buffer_desc) catch unreachable;
     }
 
+    // Render Textures
     {
         var scene_color_desc = std.mem.zeroes(zf.TextureDesc);
         scene_color_desc.mWidth = @intCast(window_width);
@@ -155,6 +180,7 @@ pub fn main() !void {
         gfx.scene_color = zf.createRenderTexture(scene_color_desc) catch unreachable;
     }
 
+    // Uniform Buffers
     {
         for (0..zf.frames_in_flight_count) |frame_index| {
             gfx.global_frame_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(Frame), "Global Frame Constant Buffer");

@@ -72,6 +72,11 @@ pub const DescriptorSetsMappings = struct {
     descriptor_mappings: [IGraphicsTides.TIDES_DESCRIPTOR_SPACES_COUNT]DescriptorMappings,
 };
 
+const StaticSamplerPool = Pool(8, 8, [*c]IGraphics.Sampler, struct {
+    ptr: [*c]IGraphics.Sampler,
+});
+pub const StaticSamplerHandle = StaticSamplerPool.Handle;
+
 const ShaderPool = Pool(8, 8, [*c]IGraphics.Shader, struct {
     ptr: [*c]IGraphics.Shader,
     descriptors: IGraphicsTides.Descriptors,
@@ -140,6 +145,7 @@ const Gpu = struct {
     render_targets: RenderTargetPool = undefined,
     render_textures: RenderTexturePool = undefined,
     buffers: BufferPool = undefined,
+    static_samplers: StaticSamplerPool = undefined,
 };
 
 var gpu: Gpu = undefined;
@@ -152,6 +158,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
     gpu.render_targets = RenderTargetPool.initMaxCapacity(gpu.allocator) catch unreachable;
     gpu.render_textures = RenderTexturePool.initMaxCapacity(gpu.allocator) catch unreachable;
     gpu.buffers = BufferPool.init(gpu.allocator);
+    gpu.static_samplers = StaticSamplerPool.initMaxCapacity(gpu.allocator) catch unreachable;
 
     // Initialize renderer
     var renderer_desc = std.mem.zeroes(IGraphics.RendererDesc);
@@ -187,21 +194,6 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
         @panic("Failed to load default root signatures");
     }
 
-    // Static samplers
-    var sampler_desc = std.mem.zeroes(IGraphics.SamplerDesc);
-    sampler_desc.mMinFilter = IGraphics.FilterType.FILTER_LINEAR;
-    sampler_desc.mMagFilter = IGraphics.FilterType.FILTER_LINEAR;
-    sampler_desc.mMipMapMode = IGraphics.MipMapMode.MIPMAP_MODE_LINEAR;
-    sampler_desc.mAddressU = IGraphics.AddressMode.ADDRESS_MODE_REPEAT;
-    sampler_desc.mAddressV = IGraphics.AddressMode.ADDRESS_MODE_REPEAT;
-    sampler_desc.mAddressW = IGraphics.AddressMode.ADDRESS_MODE_REPEAT;
-    IGraphics.addSampler(gpu.renderer, &sampler_desc, &gpu.linear_repeat_sampler);
-
-    sampler_desc.mAddressW = IGraphics.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
-    sampler_desc.mAddressV = IGraphics.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
-    sampler_desc.mAddressU = IGraphics.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
-    IGraphics.addSampler(gpu.renderer, &sampler_desc, &gpu.linear_clamp_sampler);
-
     gpu.frame_started = false;
     gpu.frame_index = 0;
 
@@ -227,9 +219,7 @@ pub fn shutdownGpu() void {
     gpu.render_targets.deinit();
     gpu.render_textures.deinit();
     gpu.buffers.deinit();
-
-    IGraphics.removeSampler(gpu.renderer, gpu.linear_clamp_sampler);
-    IGraphics.removeSampler(gpu.renderer, gpu.linear_repeat_sampler);
+    gpu.static_samplers.deinit();
 
     IGraphicsTides.releaseDefaultRootSignatures(gpu.renderer);
     IGraphics.exitSemaphore(gpu.renderer, gpu.image_acquired_semaphore);
@@ -340,6 +330,13 @@ pub fn requestShadersReload() void {
     const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .SHADER = true } };
     onUnload(reload_desc);
     onLoad(reload_desc);
+}
+
+pub fn createStaticSampler(desc: IGraphics.SamplerDesc) !StaticSamplerHandle {
+    var sampler: [*c]IGraphics.Sampler = null;
+    IGraphics.addSampler(gpu.renderer, &desc, &sampler);
+
+    return gpu.static_samplers.add(.{ .ptr = sampler }) catch unreachable;
 }
 
 pub fn createPso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) !PsoHandle {
