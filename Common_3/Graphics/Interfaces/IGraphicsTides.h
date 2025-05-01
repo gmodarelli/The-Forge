@@ -3,7 +3,7 @@
 #include "IGraphics.h"
 
 #define TIDES_SPACE_DESCRIPTORS_MAX_COUNT 8
-#define TIDES_DESCRIPTOR_SPACES_COUNT 4
+#define TIDES_DESCRIPTOR_SPACES_COUNT 5
 
 typedef struct SpaceDescriptors
 {

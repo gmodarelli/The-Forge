@@ -17,12 +17,13 @@ pub const Gfx = struct {
 
     // Render Targets and Render Textures
     depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
-    scene_color: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
+    scene_color: [zf.frames_in_flight_count]zf.RenderTextureHandle = .{ zf.RenderTextureHandle.nil, zf.RenderTextureHandle.nil },
 
     // Uniform buffers
     global_frame_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
 
     // Materials
+    clear_screen_material: GfxMaterial = undefined,
     blit_material: GfxMaterial = undefined,
 };
 
@@ -76,7 +77,8 @@ pub fn main() !void {
     zf.initializeGpu(gpu_desc, std.heap.page_allocator) catch unreachable;
     defer zf.shutdownGpu();
 
-    var gfx = Gfx{};
+    var gfx = std.heap.page_allocator.create(Gfx) catch unreachable;
+    defer std.heap.page_allocator.destroy(gfx);
 
     // Static Samplers
     {
@@ -177,13 +179,65 @@ pub fn main() !void {
         scene_color_desc.mSampleQuality = 0;
         scene_color_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
         scene_color_desc.pName = "Scene Color";
-        gfx.scene_color = zf.createRenderTexture(scene_color_desc) catch unreachable;
+
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            gfx.scene_color[frame_index] = zf.createRenderTexture(scene_color_desc) catch unreachable;
+        }
     }
 
     // Uniform Buffers
     {
         for (0..zf.frames_in_flight_count) |frame_index| {
             gfx.global_frame_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(Frame), "Global Frame Constant Buffer");
+        }
+    }
+
+    // Clear Screen material example
+    {
+        gfx.clear_screen_material.passes_count = 1;
+        gfx.clear_screen_material.passes[0] = std.mem.zeroes(GfxMaterialPass);
+        gfx.clear_screen_material.passes[0].pass = .default;
+        gfx.clear_screen_material.passes[0].pso = gfx.clear_screen_pso;
+
+        gfx.clear_screen_material.passes[0].per_draw_descriptor_set = null;
+        gfx.clear_screen_material.passes[0].per_batch_descriptor_set = null;
+        gfx.clear_screen_material.passes[0].per_frame_descriptor_set = null;
+        gfx.clear_screen_material.passes[0].persistent_descriptor_set = null;
+        gfx.clear_screen_material.passes[0].persistent_samplers_descriptor_set = null;
+
+        zf.createDescriptorSets(
+            gfx.clear_screen_shader,
+            @ptrCast(&gfx.clear_screen_material.passes[0].per_draw_descriptor_set),
+            @ptrCast(&gfx.clear_screen_material.passes[0].per_batch_descriptor_set),
+            @ptrCast(&gfx.clear_screen_material.passes[0].per_frame_descriptor_set),
+            @ptrCast(&gfx.clear_screen_material.passes[0].persistent_descriptor_set),
+            @ptrCast(&gfx.clear_screen_material.passes[0].persistent_samplers_descriptor_set)
+        ) catch unreachable;
+    }
+
+    {
+         // Per Frame
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                .{
+                    .name = "g_CBO",
+                    .binding_type = .buffer,
+                    .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+                },
+                .{
+                    .name = "g_output",
+                    .binding_type = .render_texture,
+                    .render_texture_handle = gfx.scene_color[frame_index],
+                },
+            };
+
+            zf.updateDescriptorSet(
+                &resource_binding_descs,
+                .per_frame,
+                @intCast(frame_index),
+                gfx.clear_screen_shader,
+                &gfx.clear_screen_material.passes[0].per_frame_descriptor_set
+            );
         }
     }
 
@@ -194,12 +248,60 @@ pub fn main() !void {
         gfx.blit_material.passes[0].pass = .default;
         gfx.blit_material.passes[0].pso = gfx.blit_pso;
 
-        const descriptor_sets = zf.createDescriptorSets(gfx.blit_shader) catch unreachable;
-        gfx.blit_material.passes[0].per_draw_descriptor_set = descriptor_sets.per_draw;
-        gfx.blit_material.passes[0].per_batch_descriptor_set = descriptor_sets.per_batch;
-        gfx.blit_material.passes[0].per_frame_descriptor_set = descriptor_sets.per_frame;
-        gfx.blit_material.passes[0].persistent_descriptor_set = descriptor_sets.persistent;
-        gfx.blit_material.passes[0].persistent_samplers_descriptor_set = descriptor_sets.persistent_samplers;
+        gfx.blit_material.passes[0].per_draw_descriptor_set = null;
+        gfx.blit_material.passes[0].per_batch_descriptor_set = null;
+        gfx.blit_material.passes[0].per_frame_descriptor_set = null;
+        gfx.blit_material.passes[0].persistent_descriptor_set = null;
+        gfx.blit_material.passes[0].persistent_samplers_descriptor_set = null;
+
+        zf.createDescriptorSets(
+            gfx.blit_shader,
+            @ptrCast(&gfx.blit_material.passes[0].per_draw_descriptor_set),
+            @ptrCast(&gfx.blit_material.passes[0].per_batch_descriptor_set),
+            @ptrCast(&gfx.blit_material.passes[0].per_frame_descriptor_set),
+            @ptrCast(&gfx.blit_material.passes[0].persistent_descriptor_set),
+            @ptrCast(&gfx.blit_material.passes[0].persistent_samplers_descriptor_set)
+        ) catch unreachable;
+    }
+
+    {
+        // Per Frame
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                .{
+                    .name = "g_source",
+                    .binding_type = .render_texture,
+                    .render_texture_handle = gfx.scene_color[frame_index],
+                },
+            };
+
+            zf.updateDescriptorSet(
+                &resource_binding_descs,
+                .per_frame,
+                @intCast(frame_index),
+                gfx.blit_shader,
+                &gfx.blit_material.passes[0].per_frame_descriptor_set
+            );
+        }
+
+        // Persistent Sampler
+        {
+            const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                .{
+                    .name = "g_linear_repeat_sampler",
+                    .binding_type = .sampler,
+                    .static_sampler_handle = gfx.linear_repeat_sampler,
+                },
+            };
+
+            zf.updateDescriptorSet(
+                &resource_binding_descs,
+                .persistent_sampler,
+                0,
+                gfx.blit_shader,
+                &gfx.blit_material.passes[0].persistent_samplers_descriptor_set
+            );
+        }
     }
 
     while (!window.shouldClose()) {
