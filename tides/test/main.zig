@@ -320,7 +320,15 @@ pub fn main() !void {
             zf.requestResize();
         }
 
-        _ = zf.frameStart();
+        const frame_index = zf.frameStart();
+
+        const frame = Frame{ .time = 0.5 };
+        const frame_data = zf.DataSlice{
+            .data = @ptrCast(&frame),
+            .size = @sizeOf(Frame),
+        };
+        zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
+
         zf.frameSubmit();
     }
 }

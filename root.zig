@@ -31,6 +31,11 @@ pub const FilterType = IGraphics.FilterType;
 pub const MipMapMode = IGraphics.MipMapMode;
 pub const AddressMode = IGraphics.AddressMode;
 
+pub const DataSlice = extern struct {
+    data: ?*const anyopaque,
+    size: u64,
+};
+
 pub const GpuDesc = struct {
     graphics_root_signature_path: []const u8,
     compute_root_signature_path: []const u8,
@@ -581,6 +586,13 @@ pub fn createUniformBuffer(size: u64, name: []const u8) BufferHandle {
     IGraphicsTides.addBufferEx(gpu.renderer, @ptrCast(&desc), false, &buffer);
 
     return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
+}
+
+pub fn updateUniformBuffer(data: DataSlice, handle: BufferHandle) void {
+    const buffer = gpu.buffers.getColumn(handle, .ptr) catch unreachable;
+    std.debug.assert(buffer.*.bitfield_1.mDescriptors == IGraphics.DescriptorType.DESCRIPTOR_TYPE_UNIFORM_BUFFER.bits);
+    std.debug.assert(data.size <= buffer.*.bitfield_1.mSize);
+    memcpy(@ptrCast(buffer.*.pCpuMappedAddress.?), data.data.?, data.size);
 }
 
 fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
