@@ -1427,13 +1427,13 @@ pub const DescriptorData = extern struct {
     /// resource type array
     pub const __Union2 = extern union {
         /// Array of texture descriptors (srv and uav textures)
-        ppTextures: [*c][*c]Texture,
+        ppTextures: **Texture,
         /// Array of sampler descriptors
-        ppSamplers: [*c][*c]Sampler,
+        ppSamplers: **Sampler,
         /// Array of buffer descriptors (srv, uav and cbv buffers)
-        ppBuffers: [*c][*c]Buffer,
+        ppBuffers: **Buffer,
         /// Custom binding (raytracing acceleration structure ...)
-        ppAccelerationStructures: [*c][*c]AccelerationStructure,
+        ppAccelerationStructures: **AccelerationStructure,
     };
 };
 
