@@ -93,7 +93,7 @@ bool loadRootSignature(Renderer* pRenderer, const char* path, ID3D12RootSignatur
 void getWindowSize(WindowHandle windowHandle, uint32_t* pWidth, uint32_t* pHeight)
 {
     RECT rect;
-    if (!GetWindowRect(windowHandle.window, &rect))
+    if (!GetClientRect(windowHandle.window, &rect))
     {
         assert(false);
     }
