@@ -17,13 +17,17 @@ pub export const D3D12SDKPath: [*:0]const u8 = ".\\";
 
 // Expose some of The-Forge descs
 pub const AddressMode = IGraphics.AddressMode;
+pub const CullMode = IGraphics.CullMode;
+pub const DepthStateDesc = IGraphics.DepthStateDesc;
 pub const DescriptorType = IGraphics.DescriptorType;
 pub const FilterType = IGraphics.FilterType;
 pub const GraphicsPipelineDesc = IGraphics.GraphicsPipelineDesc;
+pub const LoadActionType = IGraphics.LoadActionType;
 pub const MipMapMode = IGraphics.MipMapMode;
 pub const PipelineDesc = IGraphics.PipelineDesc;
 pub const PipelineType = IGraphics.PipelineType;
 pub const PrimitiveTopology = IGraphics.PrimitiveTopology;
+pub const RasterizerStateDesc = IGraphics.RasterizerStateDesc;
 pub const RenderTargetDesc = IGraphics.RenderTargetDesc;
 pub const ResourceState = IGraphics.ResourceState;
 pub const SampleCount = IGraphics.SampleCount;
@@ -47,6 +51,11 @@ pub const TextureBarrier = struct {
     render_texture_handle: ?RenderTextureHandle = null,
     current_state: IGraphics.ResourceState,
     new_state: IGraphics.ResourceState,
+};
+
+pub const BindRenderTarget = struct {
+    render_target_handle: RenderTargetHandle,
+    load_action: IGraphics.LoadActionType,
 };
 
 pub const DataSlice = extern struct {
@@ -148,6 +157,7 @@ pub const PsoHandle = PsoPool.Handle;
 const RenderTargetPool = Pool(8, 8, [*c]IGraphics.RenderTarget, struct {
     ptr: [*c]IGraphics.RenderTarget,
     desc: IGraphics.RenderTargetDesc,
+    resize: bool,
 });
 pub const RenderTargetHandle = RenderTargetPool.Handle;
 
@@ -189,6 +199,8 @@ const Gpu = struct {
 
     frame_started: bool = false,
     frame_index: u32 = 0,
+    swap_chain_image_index: u32 = 0,
+    swap_chain_image_handle: RenderTargetHandle = RenderTargetHandle.nil,
 
     hwnd: std.os.windows.HWND,
 
@@ -247,6 +259,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
         @panic("Failed to load default root signatures");
     }
 
+    gpu.swap_chain_image_handle = gpu.render_targets.add(.{ .ptr = null, .desc = std.mem.zeroes(IGraphics.RenderTargetDesc), .resize = false }) catch unreachable;
     gpu.frame_started = false;
     gpu.frame_index = 0;
 
@@ -305,41 +318,18 @@ pub fn frameStart() u32 {
     const cmd = gpu.cmds[gpu.frame_index];
 
     IGraphics.beginCmd(cmd);
+
+    IGraphics.acquireNextImage(gpu.renderer, gpu.swap_chain, gpu.image_acquired_semaphore, null, &gpu.swap_chain_image_index);
+    const swap_chain_buffer = gpu.swap_chain.*.ppRenderTargets[gpu.swap_chain_image_index];
+    gpu.render_targets.setColumn(gpu.swap_chain_image_handle, .ptr, swap_chain_buffer) catch unreachable;
+
     return gpu.frame_index;
 }
 
 pub fn frameSubmit() void {
     std.debug.assert(gpu.frame_started);
 
-    var swap_chain_image_index: u32 = 0;
-    IGraphics.acquireNextImage(gpu.renderer, gpu.swap_chain, gpu.image_acquired_semaphore, null, &swap_chain_image_index);
-    const swap_chain_buffer = gpu.swap_chain.*.ppRenderTargets[swap_chain_image_index];
-
     var cmd = gpu.cmds[gpu.frame_index];
-
-    var render_target_barriers = [1]IGraphics.RenderTargetBarrier{undefined};
-    render_target_barriers[0] = std.mem.zeroes(IGraphics.RenderTargetBarrier);
-    render_target_barriers[0].pRenderTarget = swap_chain_buffer;
-    render_target_barriers[0].mCurrentState = IGraphics.ResourceState.RESOURCE_STATE_PRESENT;
-    render_target_barriers[0].mNewState = IGraphics.ResourceState.RESOURCE_STATE_RENDER_TARGET;
-    IGraphics.cmdResourceBarrier(cmd, 0, null, 0, null, 1, @ptrCast(&render_target_barriers));
-
-    var bind_render_targets_desc = std.mem.zeroes(IGraphics.BindRenderTargetsDesc);
-    bind_render_targets_desc.mRenderTargetCount = 1;
-    bind_render_targets_desc.mRenderTargets[0] = std.mem.zeroes(IGraphics.BindRenderTargetDesc);
-    bind_render_targets_desc.mRenderTargets[0].pRenderTarget = swap_chain_buffer;
-    bind_render_targets_desc.mRenderTargets[0].mLoadAction = IGraphics.LoadActionType.LOAD_ACTION_CLEAR;
-    IGraphics.cmdBindRenderTargets(cmd, &bind_render_targets_desc);
-
-    IGraphics.cmdSetViewport(cmd, 0.0, 0.0, @floatFromInt(swap_chain_buffer.*.bitfield_2.mWidth), @floatFromInt(swap_chain_buffer.*.bitfield_2.mHeight), 0.0, 1.0);
-    IGraphics.cmdSetScissor(cmd, 0, 0, swap_chain_buffer.*.bitfield_2.mWidth, swap_chain_buffer.*.bitfield_2.mHeight);
-
-    render_target_barriers[0] = std.mem.zeroes(IGraphics.RenderTargetBarrier);
-    render_target_barriers[0].pRenderTarget = swap_chain_buffer;
-    render_target_barriers[0].mCurrentState = IGraphics.ResourceState.RESOURCE_STATE_RENDER_TARGET;
-    render_target_barriers[0].mNewState = IGraphics.ResourceState.RESOURCE_STATE_PRESENT;
-    IGraphics.cmdResourceBarrier(cmd, 0, null, 0, null, 1, @ptrCast(&render_target_barriers));
-
     IGraphics.endCmd(cmd);
 
     var wait_semaphores = [1]*IGraphics.Semaphore{gpu.image_acquired_semaphore};
@@ -357,7 +347,7 @@ pub fn frameSubmit() void {
 
     wait_semaphores[0] = gpu.semaphores[gpu.frame_index];
     var present_desc = std.mem.zeroes(IGraphics.QueuePresentDesc);
-    present_desc.mIndex = @intCast(swap_chain_image_index);
+    present_desc.mIndex = @intCast(gpu.swap_chain_image_index);
     present_desc.pSwapChain = gpu.swap_chain;
     present_desc.mWaitSemaphoreCount = 1;
     present_desc.ppWaitSemaphores = @ptrCast(&wait_semaphores);
@@ -371,6 +361,10 @@ pub fn frameSubmit() void {
 
 pub fn getSwapChainFormat() IGraphics.TinyImageFormat {
     return gpu.swap_chain.*.ppRenderTargets[0].*.mFormat;
+}
+
+pub fn getSwapChainBufferHandle() RenderTargetHandle {
+    return gpu.swap_chain_image_handle;
 }
 
 pub fn requestResize() void {
@@ -589,6 +583,7 @@ pub fn createRenderTarget(desc: IGraphics.RenderTargetDesc) !RenderTargetHandle 
     return gpu.render_targets.add(.{
         .ptr = render_target,
         .desc = desc,
+        .resize = true,
     });
 }
 
@@ -630,11 +625,14 @@ fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
 
         var render_target_handles = gpu.render_targets.liveHandles();
         while (render_target_handles.next()) |handle| {
-            const render_target = gpu.render_targets.getColumnPtr(handle, .ptr) catch unreachable;
-            var render_target_desc = gpu.render_targets.getColumnPtr(handle, .desc) catch unreachable;
-            render_target_desc.mWidth = window_width;
-            render_target_desc.mHeight = window_height;
-            IGraphics.addRenderTarget(gpu.renderer, render_target_desc, &render_target.*);
+            const resize = gpu.render_targets.getColumn(handle, .resize) catch unreachable;
+            if (resize) {
+                const render_target = gpu.render_targets.getColumnPtr(handle, .ptr) catch unreachable;
+                var render_target_desc = gpu.render_targets.getColumnPtr(handle, .desc) catch unreachable;
+                render_target_desc.mWidth = window_width;
+                render_target_desc.mHeight = window_height;
+                IGraphics.addRenderTarget(gpu.renderer, render_target_desc, &render_target.*);
+            }
         }
 
         var render_texture_handles = gpu.render_textures.liveHandles();
@@ -686,9 +684,12 @@ fn onUnload(reload_desc: IGraphics.ReloadDesc) void {
 
         var render_target_handles = gpu.render_targets.liveHandles();
         while (render_target_handles.next()) |handle| {
-            const render_target = gpu.render_targets.getColumnPtr(handle, .ptr) catch unreachable;
-            IGraphics.removeRenderTarget(gpu.renderer, render_target.*);
-            render_target.* = null;
+            const resize = gpu.render_targets.getColumn(handle, .resize) catch unreachable;
+            if (resize) {
+                const render_target = gpu.render_targets.getColumnPtr(handle, .ptr) catch unreachable;
+                IGraphics.removeRenderTarget(gpu.renderer, render_target.*);
+                render_target.* = null;
+            }
         }
 
         var render_texture_handles = gpu.render_textures.liveHandles();
@@ -919,8 +920,25 @@ pub fn cmdResourceBarrier(buffer_barriers: ?[]BufferBarrier, texture_barriers: ?
         if (texture_barriers) |barriers| @intCast(barriers.len) else 0,
         if (texture_barriers) |_| @ptrCast(&zf_texture_barriers) else null,
         if (render_target_barriers) |barriers| @intCast(barriers.len) else 0,
-        if (render_target_barriers) |_| @ptrCast(&zf_texture_barriers) else null
+        if (render_target_barriers) |_| @ptrCast(&zf_render_target_barriers) else null
     );
+}
+
+pub fn cmdBindRenderTargets(bind_render_targets: []BindRenderTarget) void {
+    const render_targets_count_max = 8;
+    std.debug.assert(bind_render_targets.len <= render_targets_count_max);
+
+    var bind_render_targets_desc = std.mem.zeroes(IGraphics.BindRenderTargetsDesc);
+    bind_render_targets_desc.mRenderTargetCount = @intCast(bind_render_targets.len);
+
+    for (bind_render_targets, 0..) |bind_render_target, i| {
+        const render_target = gpu.render_targets.getColumn(bind_render_target.render_target_handle, .ptr) catch unreachable;
+        bind_render_targets_desc.mRenderTargets[i] = std.mem.zeroes(IGraphics.BindRenderTargetDesc);
+        bind_render_targets_desc.mRenderTargets[i].pRenderTarget = render_target;
+        bind_render_targets_desc.mRenderTargets[i].mLoadAction = bind_render_target.load_action;
+    }
+
+    IGraphics.cmdBindRenderTargets(gpu.cmds[gpu.frame_index], &bind_render_targets_desc);
 }
 
 pub fn cmdBindPipeline(handle: PsoHandle) void {
@@ -930,6 +948,15 @@ pub fn cmdBindPipeline(handle: PsoHandle) void {
 
 pub fn cmdBindDescriptorSet(frame_index: u32, descriptor_set: [*c]IGraphics.DescriptorSet) void {
     IGraphics.cmdBindDescriptorSet(gpu.cmds[gpu.frame_index], frame_index, descriptor_set);
+}
+
+pub fn cmdSetDefaultViewportAndScissor(width: u32, height: u32) void {
+    IGraphics.cmdSetViewport(gpu.cmds[gpu.frame_index], 0.0, 0.0, @floatFromInt(width), @floatFromInt(height), 0.0, 1.0);
+    IGraphics.cmdSetScissor(gpu.cmds[gpu.frame_index], 0, 0, width, height);
+}
+
+pub fn cmdDraw(vertex_count: u32, first_vertex: u32) void {
+    IGraphics.cmdDraw(gpu.cmds[gpu.frame_index], vertex_count, first_vertex);
 }
 
 pub fn cmdDispacth(group_count_x: u32, group_count_y: u32, group_count_z: u32) void {
