@@ -139,6 +139,11 @@ pub fn main() !void {
         graphics_desc.pColorFormats = @ptrCast(&render_targets);
         graphics_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
         graphics_desc.mSampleQuality = 0;
+
+        var rasterizer_state_desc = std.mem.zeroes(zf.RasterizerStateDesc);
+        rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_NONE;
+        graphics_desc.pRasterizerState = @ptrCast(&rasterizer_state_desc);
+
         gfx.blit_pso = zf.createPso(pipeline_desc, gfx.blit_shader) catch unreachable;
     }
 
@@ -269,6 +274,11 @@ pub fn main() !void {
         for (0..zf.frames_in_flight_count) |frame_index| {
             const resource_binding_descs = [_]zf.ResourceBindingDesc{
                 .{
+                    .name = "g_CBO",
+                    .binding_type = .buffer,
+                    .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+                },
+                .{
                     .name = "g_source",
                     .binding_type = .render_texture,
                     .render_texture_handle = gfx.scene_color[frame_index],
@@ -322,30 +332,65 @@ pub fn main() !void {
 
         const frame_index = zf.frameStart();
 
-        const frame = Frame{ .time = 0.5 };
+        const frame = Frame{ .time = @floatCast(zglfw.getTime()) };
         const frame_data = zf.DataSlice{
             .data = @ptrCast(&frame),
             .size = @sizeOf(Frame),
         };
         zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
 
-        var texture_barriers = [_]zf.TextureBarrier{
-            .{
-                .render_texture_handle = gfx.scene_color[frame_index],
-                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-            },
-        };
+        // Clear screen: Scene Color
+        {
+            var texture_barriers = [_]zf.TextureBarrier{
+                .{
+                    .render_texture_handle = gfx.scene_color[frame_index],
+                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+                },
+            };
 
-        zf.cmdResourceBarrier(null, &texture_barriers, null);
-        zf.cmdBindPipeline(gfx.clear_screen_pso);
-        zf.cmdBindDescriptorSet(frame_index, gfx.clear_screen_material.passes[0].per_frame_descriptor_set);
-        zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8)), @intCast(@divTrunc(frame_buffer_size[1], 8)), 1);
+            zf.cmdResourceBarrier(null, &texture_barriers, null);
+            zf.cmdBindPipeline(gfx.clear_screen_pso);
+            zf.cmdBindDescriptorSet(frame_index, gfx.clear_screen_material.passes[0].per_frame_descriptor_set);
+            zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8)), @intCast(@divTrunc(frame_buffer_size[1], 8)), 1);
 
-        texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-        texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+            texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+            texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
 
-        zf.cmdResourceBarrier(null, &texture_barriers, null);
+            zf.cmdResourceBarrier(null, &texture_barriers, null);
+        }
+
+        // Blit: Scene Color -> SwapChain Buffer
+        {
+            const swap_chain_buffer_handle = zf.getSwapChainBufferHandle();
+            var render_target_barriers = [_]zf.RenderTargetBarrier{
+                .{
+                    .render_target_handle = swap_chain_buffer_handle,
+                    .current_state = zf.ResourceState.RESOURCE_STATE_PRESENT,
+                    .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
+                },
+            };
+            zf.cmdResourceBarrier(null, null, &render_target_barriers);
+
+            var bind_render_targets = [_]zf.BindRenderTarget{
+                .{
+                    .render_target_handle = swap_chain_buffer_handle,
+                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
+                },
+            };
+            zf.cmdBindRenderTargets(&bind_render_targets);
+
+            zf.cmdSetDefaultViewportAndScissor(@intCast(frame_buffer_size[0]), @intCast(frame_buffer_size[1]));
+
+            zf.cmdBindPipeline(gfx.blit_pso);
+            zf.cmdBindDescriptorSet(0, gfx.blit_material.passes[0].persistent_samplers_descriptor_set);
+            zf.cmdBindDescriptorSet(frame_index, gfx.blit_material.passes[0].per_frame_descriptor_set);
+            zf.cmdDraw(3, 0);
+
+            render_target_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
+            render_target_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_PRESENT;
+            zf.cmdResourceBarrier(null, null, &render_target_barriers);
+        }
 
         zf.frameSubmit();
     }

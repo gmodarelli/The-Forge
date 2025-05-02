@@ -10,9 +10,10 @@ void main( uint3 DTid : SV_DispatchThreadID )
     uint width;
     uint height;
     g_output.GetDimensions(width, height);
-    
+
     if (DTid.x < width && DTid.y < height)
     {
-        g_output[DTid.xy] = float4(DTid.x / float(width), 1.0f - DTid.y / float(height), frac(g_frame.time), 1.0f);
+        float t = sin(g_frame.time) * 0.5 + 0.5;
+        g_output[DTid.xy] = float4(DTid.x / float(width), 1.0f - DTid.y / float(height), t, 1.0f);
     }
 }

@@ -24,5 +24,5 @@ Varyings FullscreenVertex(uint VertexID : SV_VertexID)
 float4 BlitFragment(Varyings varyings) : SV_Target0
 {
     float3 color = g_source.Sample(g_linear_repeat_sampler, varyings.UV).rgb;
-    return float4(color, 1.0);
+    return float4(color, saturate(g_frame.time));
 }
