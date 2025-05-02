@@ -216,7 +216,7 @@ pub fn main() !void {
     }
 
     {
-         // Per Frame
+        // Per Frame
         for (0..zf.frames_in_flight_count) |frame_index| {
             const resource_binding_descs = [_]zf.ResourceBindingDesc{
                 .{
