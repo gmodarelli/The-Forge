@@ -16,20 +16,38 @@ pub export const D3D12SDKPath: [*:0]const u8 = ".\\";
 // ╚═════╝ ╚══════╝╚══════╝ ╚═════╝    ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝  ╚═════╝   ╚═╝   ╚══════╝
 
 // Expose some of The-Forge descs
+pub const AddressMode = IGraphics.AddressMode;
 pub const DescriptorType = IGraphics.DescriptorType;
+pub const FilterType = IGraphics.FilterType;
 pub const GraphicsPipelineDesc = IGraphics.GraphicsPipelineDesc;
+pub const MipMapMode = IGraphics.MipMapMode;
 pub const PipelineDesc = IGraphics.PipelineDesc;
 pub const PipelineType = IGraphics.PipelineType;
 pub const PrimitiveTopology = IGraphics.PrimitiveTopology;
 pub const RenderTargetDesc = IGraphics.RenderTargetDesc;
 pub const ResourceState = IGraphics.ResourceState;
 pub const SampleCount = IGraphics.SampleCount;
+pub const SamplerDesc = IGraphics.SamplerDesc;
 pub const TextureCreationFlags = IGraphics.TextureCreationFlags;
 pub const TextureDesc = IGraphics.TextureDesc;
-pub const SamplerDesc = IGraphics.SamplerDesc;
-pub const FilterType = IGraphics.FilterType;
-pub const MipMapMode = IGraphics.MipMapMode;
-pub const AddressMode = IGraphics.AddressMode;
+
+pub const BufferBarrier = struct {
+    buffer_handle: BufferHandle,
+    current_state: IGraphics.ResourceState,
+    new_state: IGraphics.ResourceState,
+};
+
+pub const RenderTargetBarrier = struct {
+    render_target_handle: RenderTargetHandle,
+    current_state: IGraphics.ResourceState,
+    new_state: IGraphics.ResourceState,
+};
+
+pub const TextureBarrier = struct {
+    render_texture_handle: ?RenderTextureHandle = null,
+    current_state: IGraphics.ResourceState,
+    new_state: IGraphics.ResourceState,
+};
 
 pub const DataSlice = extern struct {
     data: ?*const anyopaque,
@@ -836,6 +854,86 @@ pub fn updateDescriptorSet(descs: []const ResourceBindingDesc, descriptor_set_sp
     }
 
     IGraphics.updateDescriptorSet(gpu.renderer, descriptor_set_index, descriptor_set.*, @intCast(descs.len), @ptrCast(&descriptor_data));
+}
+
+//  ██████╗ ██████╗ ███╗   ███╗███╗   ███╗ █████╗ ███╗   ██╗██████╗ ███████╗
+// ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝
+// ██║     ██║   ██║██╔████╔██║██╔████╔██║███████║██╔██╗ ██║██║  ██║███████╗
+// ██║     ██║   ██║██║╚██╔╝██║██║╚██╔╝██║██╔══██║██║╚██╗██║██║  ██║╚════██║
+// ╚██████╗╚██████╔╝██║ ╚═╝ ██║██║ ╚═╝ ██║██║  ██║██║ ╚████║██████╔╝███████║
+//  ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝ ╚══════╝
+//
+
+pub fn cmdResourceBarrier(buffer_barriers: ?[]BufferBarrier, texture_barriers: ?[]TextureBarrier, render_target_barriers: ?[]RenderTargetBarrier) void {
+    const barriers_count_max = 16;
+    var zf_buffer_barriers: [barriers_count_max]IGraphics.BufferBarrier = undefined;
+    var zf_render_target_barriers: [barriers_count_max]IGraphics.RenderTargetBarrier = undefined;
+    var zf_texture_barriers: [barriers_count_max]IGraphics.TextureBarrier = undefined;
+
+    if (buffer_barriers) |barriers| {
+        std.debug.assert(barriers.len <= barriers_count_max);
+
+        for (barriers, 0..) |barrier, i| {
+            zf_buffer_barriers[i] = std.mem.zeroes(IGraphics.BufferBarrier);
+            zf_buffer_barriers[i].mCurrentState = barrier.current_state;
+            zf_buffer_barriers[i].mNewState = barrier.new_state;
+
+            const buffer = gpu.buffers.getColumn(barrier.buffer_handle, .ptr) catch unreachable;
+            zf_buffer_barriers[i].pBuffer = buffer;
+        }
+    }
+
+    if (texture_barriers) |barriers| {
+        std.debug.assert(barriers.len <= barriers_count_max);
+
+        for (barriers, 0..) |barrier, i| {
+            zf_texture_barriers[i] = std.mem.zeroes(IGraphics.TextureBarrier);
+            zf_texture_barriers[i].mCurrentState = barrier.current_state;
+            zf_texture_barriers[i].mNewState = barrier.new_state;
+
+            var texture: [*c]IGraphics.Texture = null;
+            if (barrier.render_texture_handle) |render_texture_handle| {
+                texture = gpu.render_textures.getColumn(render_texture_handle, .ptr) catch unreachable;
+                zf_texture_barriers[i].pTexture = texture;
+            }
+        }
+    }
+
+    if (render_target_barriers) |barriers| {
+        std.debug.assert(barriers.len <= barriers_count_max);
+
+        for (barriers, 0..) |barrier, i| {
+            zf_render_target_barriers[i] = std.mem.zeroes(IGraphics.RenderTargetBarrier);
+            zf_render_target_barriers[i].mCurrentState = barrier.current_state;
+            zf_render_target_barriers[i].mNewState = barrier.new_state;
+
+            const render_target = gpu.render_targets.getColumn(barrier.render_target_handle, .ptr) catch unreachable;
+            zf_render_target_barriers[i].pRenderTarget = render_target;
+        }
+    }
+
+    IGraphics.cmdResourceBarrier(
+        gpu.cmds[gpu.frame_index],
+        if (buffer_barriers) |barriers| @intCast(barriers.len) else 0,
+        if (buffer_barriers) |_| @ptrCast(&zf_buffer_barriers) else null,
+        if (texture_barriers) |barriers| @intCast(barriers.len) else 0,
+        if (texture_barriers) |_| @ptrCast(&zf_texture_barriers) else null,
+        if (render_target_barriers) |barriers| @intCast(barriers.len) else 0,
+        if (render_target_barriers) |_| @ptrCast(&zf_texture_barriers) else null
+    );
+}
+
+pub fn cmdBindPipeline(handle: PsoHandle) void {
+    const pipeline = gpu.psos.getColumn(handle, .ptr) catch unreachable;
+    IGraphics.cmdBindPipeline(gpu.cmds[gpu.frame_index], pipeline);
+}
+
+pub fn cmdBindDescriptorSet(frame_index: u32, descriptor_set: [*c]IGraphics.DescriptorSet) void {
+    IGraphics.cmdBindDescriptorSet(gpu.cmds[gpu.frame_index], frame_index, descriptor_set);
+}
+
+pub fn cmdDispacth(group_count_x: u32, group_count_y: u32, group_count_z: u32) void {
+    IGraphics.cmdDispatch(gpu.cmds[gpu.frame_index], group_count_x, group_count_y, group_count_z);
 }
 
 fn memcpy(dst: *anyopaque, src: *const anyopaque, byte_count: u64) void {

@@ -329,6 +329,24 @@ pub fn main() !void {
         };
         zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
 
+        var texture_barriers = [_]zf.TextureBarrier{
+            .{
+                .render_texture_handle = gfx.scene_color[frame_index],
+                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+            },
+        };
+
+        zf.cmdResourceBarrier(null, &texture_barriers, null);
+        zf.cmdBindPipeline(gfx.clear_screen_pso);
+        zf.cmdBindDescriptorSet(frame_index, gfx.clear_screen_material.passes[0].per_frame_descriptor_set);
+        zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8)), @intCast(@divTrunc(frame_buffer_size[1], 8)), 1);
+
+        texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+        texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+
+        zf.cmdResourceBarrier(null, &texture_barriers, null);
+
         zf.frameSubmit();
     }
 }
