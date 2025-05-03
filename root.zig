@@ -172,6 +172,16 @@ const BufferPool = Pool(16, 16, [*c]IGraphics.Buffer, struct {
 });
 pub const BufferHandle = BufferPool.Handle;
 
+//  ██████╗ █████╗ ██╗     ██╗     ██████╗  █████╗  ██████╗██╗  ██╗███████╗
+// ██╔════╝██╔══██╗██║     ██║     ██╔══██╗██╔══██╗██╔════╝██║ ██╔╝██╔════╝
+// ██║     ███████║██║     ██║     ██████╔╝███████║██║     █████╔╝ ███████╗
+// ██║     ██╔══██║██║     ██║     ██╔══██╗██╔══██║██║     ██╔═██╗ ╚════██║
+// ╚██████╗██║  ██║███████╗███████╗██████╔╝██║  ██║╚██████╗██║  ██╗███████║
+//  ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝
+//
+
+pub const updateDescriptorSetsFn = ?*const fn () void;
+
 //  ██████╗ ██████╗ ██╗   ██╗    ██████╗  █████╗ ████████╗ █████╗
 // ██╔════╝ ██╔══██╗██║   ██║    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
 // ██║  ███╗██████╔╝██║   ██║    ██║  ██║███████║   ██║   ███████║
@@ -211,6 +221,9 @@ const Gpu = struct {
     render_textures: RenderTexturePool = undefined,
     buffers: BufferPool = undefined,
     static_samplers: StaticSamplerPool = undefined,
+
+    // Callbacks
+    update_descriptor_sets_fn: updateDescriptorSetsFn = null,
 };
 
 var gpu: Gpu = undefined;
@@ -300,6 +313,11 @@ pub fn shutdownGpu() void {
     IGraphics.exitQueue(gpu.renderer, gpu.graphics_queue);
     IGraphicsTides.exitGPUConfigurationEx();
     IGraphics.exitRenderer(gpu.renderer);
+}
+
+pub fn registerUpdateDescriptorSetFn(update_descriptor_sets_fn: updateDescriptorSetsFn) void {
+    std.debug.assert(gpu.update_descriptor_sets_fn == null);
+    gpu.update_descriptor_sets_fn = update_descriptor_sets_fn;
 }
 
 pub fn frameStart() u32 {
@@ -671,6 +689,10 @@ fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
                 pso.* = createComputePso(desc, shader_handle) catch unreachable;
             }
         }
+    }
+
+    if (gpu.update_descriptor_sets_fn) |callback| {
+        callback();
     }
 }
 
