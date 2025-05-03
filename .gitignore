@@ -258,5 +258,3 @@ Common_3/Application/ThirdParty/noesisgui/SDK/_build/**/build
 **/clang-tools/clang-format-files.txt
 **/clang-tools/out-files.txt
 .zig-cache
-
-.vscode/c_cpp_properties.json

@@ -6,6 +6,7 @@
                 "FORGE_DEBUG"
             ],
             "intelliSenseMode": "windows-msvc-x64",
+            "compilerPath": "${workspaceFolder}/../../tools/external/msvc_BuildTools/VC/Tools/MSVC/4.43.34808/bin/Hostx64/x64/cl.exe",
             "cStandard": "c17"
         }
     ],
