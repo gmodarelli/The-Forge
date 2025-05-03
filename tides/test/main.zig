@@ -287,7 +287,7 @@ pub fn main() !void {
             zf.cmdResourceBarrier(null, &texture_barriers, null);
             zf.cmdBindPipeline(gfx.clear_screen_pso);
             zf.cmdBindDescriptorSet(frame_index, gfx.clear_screen_material.passes[0].per_frame_descriptor_set);
-            zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8)), @intCast(@divTrunc(frame_buffer_size[1], 8)), 1);
+            zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8) + 1), @intCast(@divTrunc(frame_buffer_size[1], 8) + 1), 1);
 
             texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
             texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
