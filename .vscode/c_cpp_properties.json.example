@@ -1,0 +1,13 @@
+{
+    "configurations": [
+        {
+            "defines": [
+                "TIDES",
+                "FORGE_DEBUG"
+            ],
+            "intelliSenseMode": "windows-msvc-x64",
+            "cStandard": "c17"
+        }
+    ],
+    "version": 4
+}
