@@ -57,6 +57,8 @@ pub const GfxMaterial = struct {
     passes_count: u32,
 };
 
+var gfx: *Gfx = undefined;
+
 pub fn main() !void {
     // Create a window
     zglfw.init() catch unreachable;
@@ -77,8 +79,10 @@ pub fn main() !void {
     zf.initializeGpu(gpu_desc, std.heap.page_allocator) catch unreachable;
     defer zf.shutdownGpu();
 
-    var gfx = std.heap.page_allocator.create(Gfx) catch unreachable;
+    gfx = std.heap.page_allocator.create(Gfx) catch unreachable;
     defer std.heap.page_allocator.destroy(gfx);
+
+    zf.registerUpdateDescriptorSetFn(updateDescriptorSets);
 
     // Static Samplers
     {
@@ -220,32 +224,6 @@ pub fn main() !void {
         ) catch unreachable;
     }
 
-    {
-        // Per Frame
-        for (0..zf.frames_in_flight_count) |frame_index| {
-            const resource_binding_descs = [_]zf.ResourceBindingDesc{
-                .{
-                    .name = "g_CBO",
-                    .binding_type = .buffer,
-                    .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
-                },
-                .{
-                    .name = "g_output",
-                    .binding_type = .render_texture,
-                    .render_texture_handle = gfx.scene_color[frame_index],
-                },
-            };
-
-            zf.updateDescriptorSet(
-                &resource_binding_descs,
-                .per_frame,
-                @intCast(frame_index),
-                gfx.clear_screen_shader,
-                &gfx.clear_screen_material.passes[0].per_frame_descriptor_set
-            );
-        }
-    }
-
     // Blit material example
     {
         gfx.blit_material.passes_count = 1;
@@ -269,50 +247,7 @@ pub fn main() !void {
         ) catch unreachable;
     }
 
-    {
-        // Per Frame
-        for (0..zf.frames_in_flight_count) |frame_index| {
-            const resource_binding_descs = [_]zf.ResourceBindingDesc{
-                .{
-                    .name = "g_CBO",
-                    .binding_type = .buffer,
-                    .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
-                },
-                .{
-                    .name = "g_source",
-                    .binding_type = .render_texture,
-                    .render_texture_handle = gfx.scene_color[frame_index],
-                },
-            };
-
-            zf.updateDescriptorSet(
-                &resource_binding_descs,
-                .per_frame,
-                @intCast(frame_index),
-                gfx.blit_shader,
-                &gfx.blit_material.passes[0].per_frame_descriptor_set
-            );
-        }
-
-        // Persistent Sampler
-        {
-            const resource_binding_descs = [_]zf.ResourceBindingDesc{
-                .{
-                    .name = "g_linear_repeat_sampler",
-                    .binding_type = .sampler,
-                    .static_sampler_handle = gfx.linear_repeat_sampler,
-                },
-            };
-
-            zf.updateDescriptorSet(
-                &resource_binding_descs,
-                .persistent_sampler,
-                0,
-                gfx.blit_shader,
-                &gfx.blit_material.passes[0].persistent_samplers_descriptor_set
-            );
-        }
-    }
+    updateDescriptorSets();
 
     while (!window.shouldClose()) {
         zglfw.pollEvents();
@@ -393,5 +328,74 @@ pub fn main() !void {
         }
 
         zf.frameSubmit();
+    }
+}
+
+fn updateDescriptorSets() void {
+    // Blit Material: Per Frame
+    for (0..zf.frames_in_flight_count) |frame_index| {
+        const resource_binding_descs = [_]zf.ResourceBindingDesc{
+            .{
+                .name = "g_CBO",
+                .binding_type = .buffer,
+                .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+            },
+            .{
+                .name = "g_source",
+                .binding_type = .render_texture,
+                .render_texture_handle = gfx.scene_color[frame_index],
+            },
+        };
+
+        zf.updateDescriptorSet(
+            &resource_binding_descs,
+            .per_frame,
+            @intCast(frame_index),
+            gfx.blit_shader,
+            &gfx.blit_material.passes[0].per_frame_descriptor_set
+        );
+    }
+
+    // Blit Material: Persistent Sampler
+    {
+        const resource_binding_descs = [_]zf.ResourceBindingDesc{
+            .{
+                .name = "g_linear_repeat_sampler",
+                .binding_type = .sampler,
+                .static_sampler_handle = gfx.linear_repeat_sampler,
+            },
+        };
+
+        zf.updateDescriptorSet(
+            &resource_binding_descs,
+            .persistent_sampler,
+            0,
+            gfx.blit_shader,
+            &gfx.blit_material.passes[0].persistent_samplers_descriptor_set
+        );
+    }
+
+    // Clear Screen Material: Per Frame
+    for (0..zf.frames_in_flight_count) |frame_index| {
+        const resource_binding_descs = [_]zf.ResourceBindingDesc{
+            .{
+                .name = "g_CBO",
+                .binding_type = .buffer,
+                .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+            },
+            .{
+                .name = "g_output",
+                .binding_type = .render_texture,
+                .render_texture_handle = gfx.scene_color[frame_index],
+            },
+        };
+
+        zf.updateDescriptorSet(
+            &resource_binding_descs,
+            .per_frame,
+            @intCast(frame_index),
+            gfx.clear_screen_shader,
+            &gfx.clear_screen_material.passes[0].per_frame_descriptor_set
+        );
     }
 }
