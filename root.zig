@@ -286,6 +286,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
     // Initialize uploads
     gpu.upload_queue = UploadQueue.init();
     gpu.upload_ring_buffer = UploadRingBuffer.init(&gpu.upload_queue);
+
     const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .RESIZE = true, .RENDERTARGET = true } };
     onLoad(reload_desc);
 }
@@ -666,6 +667,11 @@ pub fn updateRawBuffer(data: DataSlice, handle: BufferHandle) void {
     IGraphicsTides.cmdUpdateBufferEx(upload_context.cmd, buffer, 0, upload_context.buffer, upload_context.buffer_offset, data.size);
 
     gpu.upload_ring_buffer.end(&upload_context, true);
+}
+
+pub fn getBufferBindlessIndex(handle: BufferHandle) u32 {
+    const buffer = gpu.buffers.getColumn(handle, .ptr) catch unreachable;
+    return @intCast(buffer.*.mDx.mDescriptors);
 }
 
 fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
