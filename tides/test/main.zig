@@ -22,6 +22,10 @@ pub const Gfx = struct {
     // Uniform buffers
     global_frame_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
 
+    // Geometry buffers
+    // TODO: Figure out if we need double-buffering here to be able to stream in meshes
+    vertex_buffer: zf.BufferHandle = undefined,
+
     // Materials
     clear_screen_material: GfxMaterial = undefined,
     blit_material: GfxMaterial = undefined,
@@ -201,6 +205,12 @@ pub fn main() !void {
         }
     }
 
+    // Geometry Buffers
+    {
+        const bindless = true;
+        gfx.vertex_buffer = zf.createRawBuffer(8 * 64 * 64, f32, bindless, "Vertex Buffer");
+    }
+
     // Clear Screen material example
     {
         gfx.clear_screen_material.passes_count = 1;
@@ -249,6 +259,8 @@ pub fn main() !void {
 
     updateDescriptorSets();
 
+    var upload_vertex_data = true;
+
     while (!window.shouldClose()) {
         zglfw.pollEvents();
 
@@ -273,6 +285,16 @@ pub fn main() !void {
             .size = @sizeOf(Frame),
         };
         zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
+
+        if (upload_vertex_data) {
+            const vertices = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0 };
+            const vertex_data = zf.DataSlice{
+                .data = @ptrCast(&vertices),
+                .size = @sizeOf(f32) * vertices.len,
+            };
+            zf.updateRawBuffer(vertex_data, gfx.vertex_buffer);
+            upload_vertex_data = false;
+        }
 
         // Clear screen: Scene Color
         {

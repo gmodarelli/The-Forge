@@ -639,6 +639,35 @@ pub fn updateUniformBuffer(data: DataSlice, handle: BufferHandle) void {
     memcpy(@ptrCast(buffer.*.pCpuMappedAddress.?), data.data.?, data.size);
 }
 
+pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, name: []const u8) BufferHandle {
+    var desc = std.mem.zeroes(IGraphics.BufferDesc);
+    desc.mDescriptors = IGraphics.DescriptorType.DESCRIPTOR_TYPE_BUFFER_RAW;
+    desc.mMemoryUsage = IGraphics.ResourceMemoryUsage.RESOURCE_MEMORY_USAGE_GPU_ONLY;
+    desc.pName = @ptrCast(name);
+    desc.mSize = size;
+    desc.mElementCount = @intCast(@divTrunc(size, @sizeOf(T)));
+
+    var buffer: [*c]IGraphics.Buffer = null;
+    IGraphicsTides.addBufferEx(gpu.renderer, @ptrCast(&desc), bindless, &buffer);
+
+    return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
+}
+
+// TODO: Pass destination offset
+pub fn updateRawBuffer(data: DataSlice, handle: BufferHandle) void {
+    const buffer = gpu.buffers.getColumn(handle, .ptr) catch unreachable;
+    std.debug.assert(buffer.*.bitfield_1.mDescriptors == IGraphics.DescriptorType.DESCRIPTOR_TYPE_BUFFER_RAW.bits);
+    std.debug.assert(data.size <= buffer.*.bitfield_1.mSize);
+
+    var upload_context = gpu.upload_ring_buffer.begin(data.size);
+    memcpy(@ptrCast(upload_context.buffer.*.pCpuMappedAddress.?), data.data.?, data.size);
+
+    // TODO: Use the given destination offset instead of 0
+    IGraphicsTides.cmdUpdateBufferEx(upload_context.cmd, buffer, 0, upload_context.buffer, upload_context.buffer_offset, data.size);
+
+    gpu.upload_ring_buffer.end(&upload_context, true);
+}
+
 fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
     std.debug.assert(gpu.renderer != null);
 
@@ -1013,7 +1042,7 @@ const UploadContext = struct {
     buffer: [*c]IGraphics.Buffer = null,
     buffer_offset: u64 = 0,
     resource_offset: u64 = 0,
-    submission: *UploadSubmission = null,
+    submission: *UploadSubmission = undefined,
 };
 
 fn endFrameUpload() void {
@@ -1072,9 +1101,9 @@ const UploadQueue = struct {
 
         var submit_desc = std.mem.zeroes(IGraphics.QueueSubmitDesc);
         submit_desc.mCmdCount = 1;
-        submit_desc.ppCmds = &cmd;
+        submit_desc.ppCmds = @constCast(&cmd);
         submit_desc.pSignalFence = self.fence;
-        IGraphics.queueSubmit(gpu.graphics_queue, &submit_desc);
+        IGraphics.queueSubmit(self.queue, &submit_desc);
 
         if (sync_on_dependent_queue) {
             self.wait_count += 1;
@@ -1245,7 +1274,7 @@ const UploadRingBuffer = struct {
 
         const buffer_start = self.buffer_start;
         const buffer_end = self.buffer_start + self.buffer_used;
-        var allocation_offset = std.math.maxInt(u64);
+        var allocation_offset: u64 = std.math.maxInt(u64);
         var padding: u64 = 0;
         if (buffer_end < self.buffer_size) {
             const end_amt = self.buffer_size - buffer_end;
@@ -1281,11 +1310,11 @@ const UploadRingBuffer = struct {
     }
 
     pub fn begin(self: *UploadRingBuffer, size: u64) UploadContext {
-        std.debug(size > 0);
+        std.debug.assert(size > 0);
         // D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT
-        size = alignTo(size, 512);
+        const aligned_size = alignTo(size, 512);
 
-        if (size > self.buffer_size) {
+        if (aligned_size > self.buffer_size) {
             win32_threading.AcquireSRWLockExclusive(&self.lock);
             defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
 
@@ -1293,7 +1322,7 @@ const UploadRingBuffer = struct {
                 self.clearPendingUploads(std.math.maxInt(u64));
             }
 
-            self.resize(size);
+            self.resize(aligned_size);
         }
 
         var upload_submission: ?*UploadSubmission = null;
@@ -1304,10 +1333,10 @@ const UploadRingBuffer = struct {
 
             self.clearPendingUploads(0);
 
-            upload_submission = self.allocateSubmission(size);
+            upload_submission = self.allocateSubmission(aligned_size);
             while (upload_submission == null) {
                 self.clearPendingUploads(1);
-                upload_submission = self.allocateSubmission(size);
+                upload_submission = self.allocateSubmission(aligned_size);
             }
         }
 
@@ -1315,10 +1344,12 @@ const UploadRingBuffer = struct {
         // NOTE: Since this is a cmd list for a copy queue, beginCmd will only reset the cmd list
         IGraphics.beginCmd(upload_submission.?.cmd);
 
-        var upload_context: UploadContext = {};
+        var upload_context: UploadContext = .{};
         upload_context.cmd = upload_submission.?.cmd;
         upload_context.buffer = self.buffer;
-        upload_context.buffer_offset = self.buffer.*.pCpuMappedAddress + upload_submission.?.offset;
+        // NOTE: This pointer arithmetics happens further down the pipe
+        // upload_context.buffer_offset = @intFromPtr(self.buffer.*.pCpuMappedAddress.?) + upload_submission.?.offset;
+        upload_context.buffer_offset = upload_submission.?.offset;
         upload_context.resource_offset = upload_submission.?.offset;
         upload_context.submission = upload_submission.?;
 
@@ -1327,13 +1358,13 @@ const UploadRingBuffer = struct {
 
     pub fn end(self: *UploadRingBuffer, upload_context: *UploadContext, sync_on_dependent_queue: bool) void {
         std.debug.assert(upload_context.cmd != null);
-        std.debug.assert(upload_context.submission != null);
+        // std.debug.assert(upload_context.submission != null);
 
         // Kick-off the copy command
         IGraphics.endCmd(upload_context.cmd);
         upload_context.submission.fence_value = self.submit_queue.submitCmdList(upload_context.submission.cmd, sync_on_dependent_queue);
 
-        upload_context = {};
+        upload_context.* = .{};
     }
 };
 
