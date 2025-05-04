@@ -1,4 +1,3 @@
-#include "ShaderInterop.h"
 #include "Globals.hlsli"
 
 struct Varyings
@@ -15,7 +14,8 @@ Varyings ObjectVS(uint VertexID : SV_VertexID)
     ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[g_frame.vertex_buffer_index];
     float3 position = vertex_buffer.Load<float3>(VertexID * sizeof(float3));
 
-    output.position = float4(position, 1);
+    float4x4 view_proj = mul(g_frame.view, g_frame.projection);
+    output.position = mul(view_proj, float4(position, 1));
     float t = sin(g_frame.time) * 0.5 + 0.5;
     output.color = float3(t, t, t);
 

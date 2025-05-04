@@ -1,4 +1,3 @@
-#include "ShaderInterop.h"
 #include "Globals.hlsli"
 
 RWTexture2D<float4> g_output : register(u1, SPACE_PerFrame);

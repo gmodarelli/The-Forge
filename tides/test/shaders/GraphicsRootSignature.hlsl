@@ -1,1 +1,1 @@
-#include "ShaderInterop.h"
+#include "Globals.hlsli"

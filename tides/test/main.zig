@@ -1,6 +1,7 @@
 const std = @import("std");
 const zf = @import("ze_forge");
 const zglfw = @import("zglfw");
+const zmath = @import("zmath");
 
 pub const Gfx = struct {
     // Static samplers
@@ -36,6 +37,9 @@ pub const Gfx = struct {
 };
 
 pub const Frame = struct {
+    view_matrix: [16]f32,
+    projection_matrix: [16]f32,
+    view_projection_matrix: [16]f32,
     time: f32,
     vertex_buffer_index: u32,
 };
@@ -342,10 +346,27 @@ pub fn main() !void {
 
         const frame_index = zf.frameStart();
 
-        const frame = Frame{
+        const z_view = zmath.lookAtLh(
+            zmath.f32x4(0.0, 0.0, -3.0, 1.0),
+            zmath.f32x4(0.0, 0.0, 0.0, 1.0),
+            zmath.f32x4(0.0, 1.0, 0.0, 1.0));
+        const z_proj = zmath.perspectiveFovLh(
+            std.math.degreesToRadians(60.0),
+            @as(f32, @floatFromInt(frame_buffer_size[0])) / @as(f32, @floatFromInt(frame_buffer_size[1])),
+            0.01,
+            100.0);
+
+        var frame = Frame{
+            .view_matrix = undefined,
+            .projection_matrix = undefined,
+            .view_projection_matrix = undefined,
             .time = @floatCast(zglfw.getTime()),
             .vertex_buffer_index = zf.getBufferBindlessIndex(gfx.vertex_buffer),
         };
+        zmath.storeMat(&frame.view_matrix, zmath.transpose(z_view));
+        zmath.storeMat(&frame.projection_matrix, zmath.transpose(z_proj));
+        zmath.storeMat(&frame.view_projection_matrix, zmath.mul(z_view, z_proj));
+
         const frame_data = zf.DataSlice{
             .data = @ptrCast(&frame),
             .size = @sizeOf(Frame),

@@ -1,4 +1,3 @@
-#include "ShaderInterop.h"
 #include "Globals.hlsli"
 
 SamplerState g_linear_repeat_sampler : register(s0, SPACE_Persistent);
