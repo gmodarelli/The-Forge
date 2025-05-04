@@ -45,6 +45,11 @@ void removeBufferEx(Renderer* pRenderer, Buffer* pBuffer)
 	removeBuffer(pRenderer, pBuffer);
 }
 
+void cmdUpdateBufferEx(Cmd* pCmd, Buffer* pBuffer, uint64_t dstOffset, Buffer* pSrcBuffer, uint64_t srcOffset, uint64_t size)
+{
+    cmdUpdateBuffer(pCmd, pBuffer, dstOffset, pSrcBuffer, srcOffset, size);
+}
+
 bool loadRootSignature(Renderer* pRenderer, const char* path, ID3D12RootSignature** ppRootSignature);
 
 bool loadDefaultRootSignatures(Renderer* pRenderer, const char* graphicsRootSignaturePath, const char* computeRootSignaturePath)

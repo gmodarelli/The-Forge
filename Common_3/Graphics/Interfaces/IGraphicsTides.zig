@@ -21,6 +21,7 @@ pub extern fn addTextureEx(pRenderer: [*c]zgraphics.Renderer, pTextureDesc: [*c]
 pub extern fn removeTextureEx(pRenderer: [*c]zgraphics.Renderer, ppTexture: [*c]zgraphics.Texture) void;
 pub extern fn addBufferEx(pRenderer: [*c]zgraphics.Renderer, pDesc: [*c]const zgraphics.BufferDesc, bBindless: bool, ppBuffer: [*c][*c]zgraphics.Buffer) void;
 pub extern fn removeBufferEx(pRenderer: [*c]zgraphics.Renderer, pBuffer: [*c]zgraphics.Buffer) void;
+pub extern fn cmdUpdateBufferEx(pCmd: [*c]zgraphics.Cmd, pBuffer: [*c]zgraphics.Buffer, dstOffset: u64, pSrcBuffer: [*c]zgraphics.Buffer, srcOffset: u64, size: u64) void;
 pub extern fn loadDefaultRootSignatures(pRenderer: [*c]zgraphics.Renderer, graphicsRootSignaturePath: [*c]const u8, computeRootSignaturePath: [*c]const u8) bool;
 pub extern fn releaseDefaultRootSignatures(pRenderer: [*c]zgraphics.Renderer) void;
 pub extern fn getWindowSize(windowHandle: zgraphics.WindowHandle, pWidth: *u32, pHeight: *u32) void;

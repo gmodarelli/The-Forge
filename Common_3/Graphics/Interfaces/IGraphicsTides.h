@@ -33,6 +33,7 @@ void addTextureEx(Renderer* pRenderer, const TextureDesc* pTextureDesc, bool bBi
 void removeTextureEx(Renderer* pRenderer, Texture* pTexture);
 void addBufferEx(Renderer* pRenderer, const BufferDesc* pDesc, bool bBindless, Buffer** ppBuffer);
 void removeBufferEx(Renderer* pRenderer, Buffer* pBuffer);
+void cmdUpdateBufferEx(Cmd* pCmd, Buffer* pBuffer, uint64_t dstOffset, Buffer* pSrcBuffer, uint64_t srcOffset, uint64_t size);
 
 bool loadDefaultRootSignatures(Renderer* pRenderer, const char* graphicsRootSignaturePath, const char* computeRootSignaturePath);
 void releaseDefaultRootSignatures(Renderer* pRenderer);
