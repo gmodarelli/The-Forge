@@ -4,6 +4,7 @@ const IGraphicsTides = @import("Common_3/Graphics/Interfaces/IGraphicsTides.zig"
 // pub const IRay = @import("Common_3/Graphics/Interfaces/IRay.zig");
 
 const Pool = @import("zpool").Pool;
+const win32_threading = @import("win32").system.threading;
 
 pub export const D3D12SDKVersion: u32 = 715;
 pub export const D3D12SDKPath: [*:0]const u8 = ".\\";
@@ -224,6 +225,10 @@ const Gpu = struct {
 
     // Callbacks
     update_descriptor_sets_fn: updateDescriptorSetsFn = null,
+
+    // Uploads
+    upload_queue: UploadQueue = undefined,
+    upload_ring_buffer: UploadRingBuffer = undefined,
 };
 
 var gpu: Gpu = undefined;
@@ -278,6 +283,9 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
 
     gpu.hwnd = gpu_desc.hwnd;
 
+    // Initialize uploads
+    gpu.upload_queue = UploadQueue.init();
+    gpu.upload_ring_buffer = UploadRingBuffer.init(&gpu.upload_queue);
     const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .RESIZE = true, .RENDERTARGET = true } };
     onLoad(reload_desc);
 }
@@ -285,6 +293,9 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
 pub fn shutdownGpu() void {
     const reload_desc = IGraphics.ReloadDesc{ .mType = .{ .RESIZE = true, .RENDERTARGET = true, .SHADER = true } };
     onUnload(reload_desc);
+
+    gpu.upload_ring_buffer.exit();
+    gpu.upload_queue.exit();
 
     var buffer_handles = gpu.buffers.liveHandles();
     while (buffer_handles.next()) |handle| {
@@ -349,6 +360,8 @@ pub fn frameSubmit() void {
 
     var cmd = gpu.cmds[gpu.frame_index];
     IGraphics.endCmd(cmd);
+
+    endFrameUpload();
 
     var wait_semaphores = [1]*IGraphics.Semaphore{gpu.image_acquired_semaphore};
     var signal_semaphores = [1]*IGraphics.Semaphore{gpu.semaphores[gpu.frame_index]};
@@ -985,10 +998,362 @@ pub fn cmdDispacth(group_count_x: u32, group_count_y: u32, group_count_z: u32) v
     IGraphics.cmdDispatch(gpu.cmds[gpu.frame_index], group_count_x, group_count_y, group_count_z);
 }
 
+// ██╗   ██╗██████╗ ██╗      ██████╗  █████╗ ██████╗ ███████╗
+// ██║   ██║██╔══██╗██║     ██╔═══██╗██╔══██╗██╔══██╗██╔════╝
+// ██║   ██║██████╔╝██║     ██║   ██║███████║██║  ██║███████╗
+// ██║   ██║██╔═══╝ ██║     ██║   ██║██╔══██║██║  ██║╚════██║
+// ╚██████╔╝██║     ███████╗╚██████╔╝██║  ██║██████╔╝███████║
+//  ╚═════╝ ╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚══════╝
+//
+// Ported from: https://github.com/TheRealMJP/DXRPathTracer/blob/master/SampleFramework12/v1.02/Graphics/DX12_Upload.h
+//
+
+const UploadContext = struct {
+    cmd: [*c]IGraphics.Cmd = null,
+    buffer: [*c]IGraphics.Buffer = null,
+    buffer_offset: u64 = 0,
+    resource_offset: u64 = 0,
+    submission: *UploadSubmission = null,
+};
+
+fn endFrameUpload() void {
+    gpu.upload_ring_buffer.tryClearPending();
+
+    gpu.upload_queue.syncDependentQueue(gpu.graphics_queue);
+}
+
+fn resourceUploadBegin(size: u64) UploadContext {
+    return gpu.upload_ring_buffer.begin(size);
+}
+
+fn resourceUploadEnd(upload_context: *UploadContext, sync_on_graphics_queue: bool) void {
+    gpu.upload_ring_buffer.end(upload_context, sync_on_graphics_queue);
+}
+
+const UploadQueue = struct {
+    queue: [*c]IGraphics.Queue = null,
+    fence: [*c]IGraphics.Fence = null,
+    wait_count: u64 = 0,
+    lock: win32_threading.RTL_SRWLOCK = .{ .Ptr = null },
+
+    pub fn init() UploadQueue {
+        var upload_queue = UploadQueue{};
+
+        var queue_desc = std.mem.zeroes(IGraphics.QueueDesc);
+        queue_desc.mType = .QUEUE_TYPE_TRANSFER; // Copy queue
+        queue_desc.mFlag = .QUEUE_FLAG_NONE;
+        queue_desc.mPriority = .QUEUE_PRIORITY_NORMAL;
+        IGraphics.initQueue(gpu.renderer, &queue_desc, &upload_queue.queue);
+
+        IGraphics.initFence(gpu.renderer, &upload_queue.fence);
+
+        return upload_queue;
+    }
+
+    pub fn exit(self: *UploadQueue) void {
+        IGraphics.exitFence(gpu.renderer, self.fence);
+        IGraphics.exitQueue(gpu.renderer, self.queue);
+    }
+
+    pub fn syncDependentQueue(self: *UploadQueue, other_queue: [*c]IGraphics.Queue) void {
+        win32_threading.AcquireSRWLockExclusive(&self.lock);
+        defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+
+        if (self.wait_count > 0) {
+            IGraphicsTides.queueWaitForFence(other_queue, self.fence);
+            self.wait_count = 0;
+        }
+
+    }
+
+    pub fn submitCmdList(self: *UploadQueue, cmd: [*c]IGraphics.Cmd, sync_on_dependent_queue: bool) u64 {
+        win32_threading.AcquireSRWLockExclusive(&self.lock);
+        defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+
+        var submit_desc = std.mem.zeroes(IGraphics.QueueSubmitDesc);
+        submit_desc.mCmdCount = 1;
+        submit_desc.ppCmds = &cmd;
+        submit_desc.pSignalFence = self.fence;
+        IGraphics.queueSubmit(gpu.graphics_queue, &submit_desc);
+
+        if (sync_on_dependent_queue) {
+            self.wait_count += 1;
+        }
+
+        // TODO: Figure out how to use The-Forge's FENCE_STATUS instead
+        return self.fence.*.mDx.mFenceValue;
+    }
+
+    pub fn flush(self: *UploadQueue) void {
+        win32_threading.AcquireSRWLockExclusive(&self.lock);
+        defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+
+        IGraphics.waitForFences(gpu.renderer, 1, &self.fence);
+    }
+};
+
+const UploadSubmission = struct {
+    cmd_pool: [*c]IGraphics.CmdPool = null,
+    cmd: [*c]IGraphics.Cmd = null,
+    offset: u64 = 0,
+    size: u64 = 0,
+    fence_value: u64 = 0,
+    padding: u64 = 0,
+
+    pub fn reset(self: *UploadSubmission) void {
+        self.offset = 0;
+        self.size = 0;
+        self.fence_value = 0;
+        self.padding = 0;
+    }
+};
+
+const UploadRingBuffer = struct {
+    pub const submissions_max_count = 16;
+
+    submissions: [submissions_max_count]UploadSubmission = undefined,
+    submission_start: u64 = 0,
+    submission_used: u64 = 0,
+
+    // CPU-Writable upload buffer
+    buffer_size: u64 = 0,
+    buffer: [*c]IGraphics.Buffer = null,
+    buffer_start: u64 = 0,
+    buffer_used: u64 = 0,
+
+    lock: win32_threading.RTL_SRWLOCK = .{ .Ptr = null },
+
+    submit_queue: *UploadQueue = undefined,
+
+    pub fn init(upload_queue: *UploadQueue) UploadRingBuffer {
+        var upload_ring_buffer = UploadRingBuffer{};
+        upload_ring_buffer.submit_queue = upload_queue;
+
+        var cmd_pool_desc = std.mem.zeroes(IGraphics.CmdPoolDesc);
+        cmd_pool_desc.mTransient = false;
+        cmd_pool_desc.pQueue = upload_ring_buffer.submit_queue.queue;
+
+        for (0..submissions_max_count) |i| {
+            IGraphics.initCmdPool(gpu.renderer, &cmd_pool_desc, &upload_ring_buffer.submissions[i].cmd_pool);
+            var cmd_desc = std.mem.zeroes(IGraphics.CmdDesc);
+            cmd_desc.pPool = upload_ring_buffer.submissions[i].cmd_pool;
+            IGraphics.initCmd(gpu.renderer, &cmd_desc, &upload_ring_buffer.submissions[i].cmd);
+        }
+
+        upload_ring_buffer.resize(64 * 1024 * 1024);
+
+        return upload_ring_buffer;
+    }
+
+    pub fn exit(self: *UploadRingBuffer) void {
+        IGraphicsTides.removeBufferEx(gpu.renderer, self.buffer);
+        for (0..submissions_max_count) |i| {
+            IGraphics.exitCmd(gpu.renderer, self.submissions[i].cmd);
+            IGraphics.exitCmdPool(gpu.renderer, self.submissions[i].cmd_pool);
+        }
+    }
+
+    pub fn resize(self: *UploadRingBuffer, size: u64) void {
+        if (self.buffer_size > 0) {
+            IGraphicsTides.removeBufferEx(gpu.renderer, self.buffer);
+        }
+
+        self.buffer_size = size;
+
+        var desc = std.mem.zeroes(IGraphics.BufferDesc);
+        desc.mDescriptors = IGraphics.DescriptorType.DESCRIPTOR_TYPE_UNDEFINED;
+        desc.mMemoryUsage = IGraphics.ResourceMemoryUsage.RESOURCE_MEMORY_USAGE_CPU_TO_GPU;
+        desc.mFlags = IGraphics.BufferCreationFlags.BUFFER_CREATION_FLAG_PERSISTENT_MAP_BIT;
+        desc.pName = "Upload Ring Buffer";
+        desc.mSize = size;
+        IGraphicsTides.addBufferEx(gpu.renderer, &desc, false, @ptrCast(&self.buffer));
+    }
+
+    pub fn clearPendingUploads(self: *UploadRingBuffer, wait_count: u64) void {
+        const start = self.submission_start;
+        const used = self.submission_used;
+
+        for (0..used) |i| {
+            const index = (start + i) % submissions_max_count;
+            var submission = &self.submissions[index];
+            std.debug.assert(submission.size > 0);
+            std.debug.assert(self.buffer_used >= submission.size);
+
+            // If the submission hasn't been sent to the GPU yet we can't wait for it
+            // TODO: Figure out how to use The-Forge's FENCE_STATUS instead
+            if (submission.fence_value == std.math.maxInt(u64)) {
+                break;
+            }
+
+            if (i < wait_count) {
+                IGraphics.waitForFences(gpu.renderer, 1, &self.submit_queue.fence);
+            }
+
+            // TODO: Figure out how to use The-Forge's FENCE_STATUS instead
+            if (self.submit_queue.fence.*.mDx.mFenceValue >= submission.fence_value) {
+                self.submission_start = (self.submission_start + 1) % submissions_max_count;
+                self.submission_used -= 1;
+                self.buffer_start = (self.buffer_start + submission.padding) % self.buffer_size;
+                std.debug.assert(submission.offset == self.buffer_start);
+                std.debug.assert(self.buffer_start + submission.size <= self.buffer_size);
+                self.buffer_start = (self.buffer_start + submission.size) % self.buffer_size;
+                self.buffer_used -= (submission.size + submission.padding);
+                submission.reset();
+
+                if (self.buffer_used == 0) {
+                    self.buffer_start = 0;
+                }
+            } else {
+                // We don't want to retire our submissions out of allocation order, because
+                // the ring buffer logic above will move the tail position forward (we don't
+                // allow holes in the ring buffer). Submitting out-of-order should still be
+                // ok though as long as we retire in-order.
+                break;
+            }
+        }
+    }
+
+    pub fn flush(self: *UploadRingBuffer) void {
+        win32_threading.AcquireSRWLockExclusive(&self.lock);
+        defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+
+        while (self.submission_used > 0) {
+            self.clearPendingUploads(std.math.maxInt(u64));
+        }
+    }
+
+    pub fn tryClearPending(self: *UploadRingBuffer) void {
+        if (win32_threading.TryAcquireSRWLockExclusive(&self.lock) == 0) {
+            self.clearPendingUploads(0);
+            win32_threading.ReleaseSRWLockExclusive(&self.lock);
+        }
+    }
+
+    pub fn allocateSubmission(self: *UploadRingBuffer, size: u64) ?*UploadSubmission {
+        std.debug.assert(self.submission_used <= submissions_max_count);
+        if (self.submission_used == submissions_max_count) {
+            return null;
+        }
+
+        const submission_index = (self.submission_start + self.submission_used) % submissions_max_count;
+        std.debug.assert(self.submissions[submission_index].size == 0);
+
+        std.debug.assert(self.buffer_used <= self.buffer_size);
+        if (size > (self.buffer_size - self.buffer_used)) {
+            return null;
+        }
+
+        const buffer_start = self.buffer_start;
+        const buffer_end = self.buffer_start + self.buffer_used;
+        var allocation_offset = std.math.maxInt(u64);
+        var padding: u64 = 0;
+        if (buffer_end < self.buffer_size) {
+            const end_amt = self.buffer_size - buffer_end;
+            if (end_amt >= size) {
+                allocation_offset = buffer_end;
+            } else if (buffer_start >= size) {
+                // Wrap around to the beginning
+                allocation_offset = 0;
+                self.buffer_used += end_amt;
+                padding = end_amt;
+            }
+        } else {
+            const wrappend_end = buffer_end % self.buffer_size;
+            if ((buffer_start - wrappend_end) >= size) {
+                allocation_offset = wrappend_end;
+            }
+        }
+
+        if (allocation_offset == std.math.maxInt(u64)) {
+            return null;
+        }
+
+        self.submission_used += 1;
+        self.buffer_used += size;
+
+        var upload_submission = &self.submissions[submission_index];
+        upload_submission.offset = allocation_offset;
+        upload_submission.size = size;
+        upload_submission.fence_value = std.math.maxInt(u64);
+        upload_submission.padding = padding;
+
+        return upload_submission;
+    }
+
+    pub fn begin(self: *UploadRingBuffer, size: u64) UploadContext {
+        std.debug(size > 0);
+        // D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT
+        size = alignTo(size, 512);
+
+        if (size > self.buffer_size) {
+            win32_threading.AcquireSRWLockExclusive(&self.lock);
+            defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+
+            while (self.submission_used > 0) {
+                self.clearPendingUploads(std.math.maxInt(u64));
+            }
+
+            self.resize(size);
+        }
+
+        var upload_submission: ?*UploadSubmission = null;
+
+        {
+            win32_threading.AcquireSRWLockExclusive(&self.lock);
+            defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+
+            self.clearPendingUploads(0);
+
+            upload_submission = self.allocateSubmission(size);
+            while (upload_submission == null) {
+                self.clearPendingUploads(1);
+                upload_submission = self.allocateSubmission(size);
+            }
+        }
+
+        IGraphics.resetCmdPool(gpu.renderer, upload_submission.?.cmd_pool);
+        // NOTE: Since this is a cmd list for a copy queue, beginCmd will only reset the cmd list
+        IGraphics.beginCmd(upload_submission.?.cmd);
+
+        var upload_context: UploadContext = {};
+        upload_context.cmd = upload_submission.?.cmd;
+        upload_context.buffer = self.buffer;
+        upload_context.buffer_offset = self.buffer.*.pCpuMappedAddress + upload_submission.?.offset;
+        upload_context.resource_offset = upload_submission.?.offset;
+        upload_context.submission = upload_submission.?;
+
+        return upload_context;
+    }
+
+    pub fn end(self: *UploadRingBuffer, upload_context: *UploadContext, sync_on_dependent_queue: bool) void {
+        std.debug.assert(upload_context.cmd != null);
+        std.debug.assert(upload_context.submission != null);
+
+        // Kick-off the copy command
+        IGraphics.endCmd(upload_context.cmd);
+        upload_context.submission.fence_value = self.submit_queue.submitCmdList(upload_context.submission.cmd, sync_on_dependent_queue);
+
+        upload_context = {};
+    }
+};
+
+// ██╗   ██╗████████╗██╗██╗     ██╗████████╗██╗███████╗███████╗
+// ██║   ██║╚══██╔══╝██║██║     ██║╚══██╔══╝██║██╔════╝██╔════╝
+// ██║   ██║   ██║   ██║██║     ██║   ██║   ██║█████╗  ███████╗
+// ██║   ██║   ██║   ██║██║     ██║   ██║   ██║██╔══╝  ╚════██║
+// ╚██████╔╝   ██║   ██║███████╗██║   ██║   ██║███████╗███████║
+//  ╚═════╝    ╚═╝   ╚═╝╚══════╝╚═╝   ╚═╝   ╚═╝╚══════╝╚══════╝
+//
+
 fn memcpy(dst: *anyopaque, src: *const anyopaque, byte_count: u64) void {
     const src_slice = @as([*]const u8, @ptrCast(src))[0..byte_count];
     const dst_slice = @as([*]u8, @ptrCast(dst))[0..byte_count];
     for (src_slice, 0..) |byte, i| {
         dst_slice[i] = byte;
     }
+}
+
+inline fn alignTo(num: u64, alignment: u64) u64 {
+    std.debug.assert(alignment > 0);
+    return @divTrunc(num + alignment - 1, alignment) * alignment;
 }
