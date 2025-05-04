@@ -6121,6 +6121,18 @@ void acquireNextImage(Renderer* pRenderer, SwapChain* pSwapChain, Semaphore* pSi
     *pSwapChainImageIndex = hook_get_swapchain_image_index(pSwapChain);
 }
 
+#ifdef TIDES
+void queueWaitForFence(Queue* pQueue, Fence* pFence)
+{
+    ASSERT(pQueue);
+    ASSERT(pQueue->mDx.pQueue);
+    ASSERT(pFence);
+    ASSERT(pFence->mDx.pFence);
+
+    CHECK_HRESULT(hook_wait(pQueue, pFence->mDx.pFence, pFence->mDx.mFenceValue));
+}
+#endif
+
 void queueSubmit(Queue* pQueue, const QueueSubmitDesc* pDesc)
 {
     ASSERT(pDesc);

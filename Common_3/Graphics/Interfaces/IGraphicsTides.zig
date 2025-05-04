@@ -26,3 +26,4 @@ pub extern fn releaseDefaultRootSignatures(pRenderer: [*c]zgraphics.Renderer) vo
 pub extern fn getWindowSize(windowHandle: zgraphics.WindowHandle, pWidth: *u32, pHeight: *u32) void;
 pub extern fn createShaderDescriptors(pShaderProgram: [*c]zgraphics.Shader, descriptors: [*c]Descriptors) void;
 pub extern fn removeShaderDescriptors(ppDescriptors: [*c]Descriptors) void;
+pub extern fn queueWaitForFence(pQueue: [*c]zgraphics.Queue, pFence: [*c]zgraphics.Fence) void;

@@ -42,6 +42,8 @@ void getWindowSize(WindowHandle windowHandle, uint32_t* pWidth, uint32_t* pHeigh
 void createShaderDescriptors(Shader* pShaderProgram, Descriptors* pDescriptors);
 void removeShaderDescriptors(Descriptors* pDescriptors);
 
+void queueWaitForFence(Queue* pQueue, Fence* pFence);
+
 #ifdef __cplusplus
 }
 #endif
