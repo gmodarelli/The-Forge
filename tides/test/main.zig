@@ -27,6 +27,7 @@ pub const Gfx = struct {
     // Geometry buffers
     // TODO: Figure out if we need double-buffering here to be able to stream in meshes
     vertex_buffer: zf.BufferHandle = undefined,
+    index_buffer: zf.BufferHandle = undefined,
 
     // Materials
     blit_material: GfxMaterial = undefined,
@@ -187,7 +188,8 @@ pub fn main() !void {
         graphics_desc.mSampleQuality = 0;
 
         var rasterizer_state_desc = std.mem.zeroes(zf.RasterizerStateDesc);
-        rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_NONE;
+        rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_BACK;
+        rasterizer_state_desc.mFillMode = zf.FillMode.FILL_MODE_SOLID;
         graphics_desc.pRasterizerState = @ptrCast(&rasterizer_state_desc);
 
         gfx.object_pso = zf.createPso(pipeline_desc, gfx.object_shader) catch unreachable;
@@ -245,8 +247,8 @@ pub fn main() !void {
 
     // Geometry Buffers
     {
-        const bindless = true;
-        gfx.vertex_buffer = zf.createRawBuffer(8 * 64 * 64, f32, bindless, "Vertex Buffer");
+        gfx.vertex_buffer = zf.createRawBuffer(8 * 64 * 64, f32, true, "Vertex Buffer");
+        gfx.index_buffer = zf.createIndexBuffer(8 * 64 * 64, zf.IndexType.INDEX_TYPE_UINT32, "Index Buffer");
     }
 
     // Clear Screen material example
@@ -320,7 +322,7 @@ pub fn main() !void {
 
     updateDescriptorSets();
 
-    var upload_vertex_data = true;
+    var upload_mesh_data = true;
 
     while (!window.shouldClose()) {
         zglfw.pollEvents();
@@ -350,18 +352,29 @@ pub fn main() !void {
         };
         zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
 
-        if (upload_vertex_data) {
+        if (upload_mesh_data) {
             const vertices = [_]f32{
                 -0.5, -0.5, 0.0,
-                0.0, 0.5, 0.0,
+                -0.5, 0.5, 0.0,
+                0.5, 0.5, 0.0,
                 0.5, -0.5, 0.0,
             };
             const vertex_data = zf.DataSlice{
                 .data = @ptrCast(&vertices),
                 .size = @sizeOf(f32) * vertices.len,
             };
-            zf.updateRawBuffer(vertex_data, gfx.vertex_buffer);
-            upload_vertex_data = false;
+            zf.updateBuffer(vertex_data, gfx.vertex_buffer);
+
+            const indices = [_]u32 {
+                0, 2, 1,
+                0, 3, 2,
+            };
+            const index_data = zf.DataSlice{
+                .data = @ptrCast(&indices),
+                .size = @sizeOf(u32) * indices.len,
+            };
+            zf.updateBuffer(index_data, gfx.index_buffer);
+            upload_mesh_data = false;
         }
 
         // Clear screen: Scene Color
@@ -414,7 +427,8 @@ pub fn main() !void {
 
             zf.cmdBindPipeline(gfx.object_pso);
             zf.cmdBindDescriptorSet(frame_index, gfx.object_material.passes[0].per_frame_descriptor_set);
-            zf.cmdDraw(3, 0);
+            zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
+            zf.cmdDrawIndexed(6, 0, 0);
 
             render_target_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
             render_target_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_PRESENT;
