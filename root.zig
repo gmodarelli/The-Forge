@@ -21,8 +21,10 @@ pub const AddressMode = IGraphics.AddressMode;
 pub const CullMode = IGraphics.CullMode;
 pub const DepthStateDesc = IGraphics.DepthStateDesc;
 pub const DescriptorType = IGraphics.DescriptorType;
+pub const FillMode = IGraphics.FillMode;
 pub const FilterType = IGraphics.FilterType;
 pub const GraphicsPipelineDesc = IGraphics.GraphicsPipelineDesc;
+pub const IndexType = IGraphics.IndexType;
 pub const LoadActionType = IGraphics.LoadActionType;
 pub const MipMapMode = IGraphics.MipMapMode;
 pub const PipelineDesc = IGraphics.PipelineDesc;
@@ -655,9 +657,8 @@ pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, name: []cons
 }
 
 // TODO: Pass destination offset
-pub fn updateRawBuffer(data: DataSlice, handle: BufferHandle) void {
+pub fn updateBuffer(data: DataSlice, handle: BufferHandle) void {
     const buffer = gpu.buffers.getColumn(handle, .ptr) catch unreachable;
-    std.debug.assert(buffer.*.bitfield_1.mDescriptors == IGraphics.DescriptorType.DESCRIPTOR_TYPE_BUFFER_RAW.bits);
     std.debug.assert(data.size <= buffer.*.bitfield_1.mSize);
 
     var upload_context = gpu.upload_ring_buffer.begin(data.size);
@@ -667,6 +668,26 @@ pub fn updateRawBuffer(data: DataSlice, handle: BufferHandle) void {
     IGraphicsTides.cmdUpdateBufferEx(upload_context.cmd, buffer, 0, upload_context.buffer, upload_context.buffer_offset, data.size);
 
     gpu.upload_ring_buffer.end(&upload_context, true);
+}
+
+pub fn createIndexBuffer(size: u64, index_type: IGraphics.IndexType, name: []const u8) BufferHandle {
+    var desc = std.mem.zeroes(IGraphics.BufferDesc);
+    desc.mDescriptors = IGraphics.DescriptorType.DESCRIPTOR_TYPE_INDEX_BUFFER;
+    desc.mMemoryUsage = IGraphics.ResourceMemoryUsage.RESOURCE_MEMORY_USAGE_GPU_ONLY;
+    desc.pName = @ptrCast(name);
+    desc.mSize = size;
+
+    const index_size: u64 = switch (index_type.bits) {
+        IGraphics.IndexType.INDEX_TYPE_UINT16.bits => 2,
+        IGraphics.IndexType.INDEX_TYPE_UINT32.bits => 4,
+        else => @panic("Unsupported index size")
+    };
+    desc.mElementCount = @intCast(@divTrunc(size, index_size));
+
+    var buffer: [*c]IGraphics.Buffer = null;
+    IGraphicsTides.addBufferEx(gpu.renderer, @ptrCast(&desc), false, &buffer);
+
+    return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
 }
 
 pub fn getBufferBindlessIndex(handle: BufferHandle) u32 {
@@ -1025,8 +1046,17 @@ pub fn cmdSetDefaultViewportAndScissor(width: u32, height: u32) void {
     IGraphics.cmdSetScissor(gpu.cmds[gpu.frame_index], 0, 0, width, height);
 }
 
+pub fn cmdBindIndexBuffer(handle: BufferHandle, index_type: IndexType) void {
+    const buffer = gpu.buffers.getColumn(handle, .ptr) catch unreachable;
+    IGraphics.cmdBindIndexBuffer(gpu.cmds[gpu.frame_index], buffer, @intCast(index_type.bits), 0);
+}
+
 pub fn cmdDraw(vertex_count: u32, first_vertex: u32) void {
     IGraphics.cmdDraw(gpu.cmds[gpu.frame_index], vertex_count, first_vertex);
+}
+
+pub fn cmdDrawIndexed(index_count: u32, first_index: u32, first_vertex: u32) void {
+    IGraphics.cmdDrawIndexedInstanced(gpu.cmds[gpu.frame_index], index_count, first_index, 1, first_vertex, 0);
 }
 
 pub fn cmdDispacth(group_count_x: u32, group_count_y: u32, group_count_z: u32) void {
