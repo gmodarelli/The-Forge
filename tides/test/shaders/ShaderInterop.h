@@ -109,11 +109,16 @@
 #endif
 
 #if defined(__cplusplus)
+typedef unsigned int uint;
+#endif
+
+#if defined(__cplusplus)
 typedef struct Frame Frame;
 #endif
 struct Frame
 {
     float time;
+    uint vertex_buffer_index;
 };
 
 #endif // _SHADER_INTEROP
