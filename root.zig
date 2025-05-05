@@ -18,6 +18,7 @@ pub export const D3D12SDKPath: [*:0]const u8 = ".\\";
 
 // Expose some of The-Forge descs
 pub const AddressMode = IGraphics.AddressMode;
+pub const CompareMode = IGraphics.CompareMode;
 pub const CullMode = IGraphics.CullMode;
 pub const DepthStateDesc = IGraphics.DepthStateDesc;
 pub const DescriptorType = IGraphics.DescriptorType;
@@ -1024,9 +1025,18 @@ pub fn cmdBindRenderTargets(bind_render_targets: []BindRenderTarget) void {
 
     for (bind_render_targets, 0..) |bind_render_target, i| {
         const render_target = gpu.render_targets.getColumn(bind_render_target.render_target_handle, .ptr) catch unreachable;
-        bind_render_targets_desc.mRenderTargets[i] = std.mem.zeroes(IGraphics.BindRenderTargetDesc);
-        bind_render_targets_desc.mRenderTargets[i].pRenderTarget = render_target;
-        bind_render_targets_desc.mRenderTargets[i].mLoadAction = bind_render_target.load_action;
+        const render_target_desc = gpu.render_targets.getColumnPtr(bind_render_target.render_target_handle, .desc) catch unreachable;
+        if (render_target_desc.*.mFormat == .D32_SFLOAT) {
+            std.debug.assert(i == bind_render_targets.len - 1);
+            bind_render_targets_desc.mDepthStencil = std.mem.zeroes(IGraphics.BindDepthTargetDesc);
+            bind_render_targets_desc.mDepthStencil.pDepthStencil = render_target;
+            bind_render_targets_desc.mDepthStencil.mLoadAction = bind_render_target.load_action;
+            bind_render_targets_desc.mRenderTargetCount -= 1;
+        } else {
+            bind_render_targets_desc.mRenderTargets[i] = std.mem.zeroes(IGraphics.BindRenderTargetDesc);
+            bind_render_targets_desc.mRenderTargets[i].pRenderTarget = render_target;
+            bind_render_targets_desc.mRenderTargets[i].mLoadAction = bind_render_target.load_action;
+        }
     }
 
     IGraphics.cmdBindRenderTargets(gpu.cmds[gpu.frame_index], &bind_render_targets_desc);

@@ -196,6 +196,13 @@ pub fn main() !void {
         rasterizer_state_desc.mFillMode = zf.FillMode.FILL_MODE_SOLID;
         graphics_desc.pRasterizerState = @ptrCast(&rasterizer_state_desc);
 
+        var depth_state_desc = std.mem.zeroes(zf.DepthStateDesc);
+        depth_state_desc.mDepthWrite = true;
+        depth_state_desc.mDepthTest = true;
+        depth_state_desc.mDepthFunc = zf.CompareMode.CMP_GEQUAL;
+        graphics_desc.pDepthState = @ptrCast(&depth_state_desc);
+        graphics_desc.mDepthStencilFormat = .D32_SFLOAT;
+
         gfx.object_pso = zf.createPso(pipeline_desc, gfx.object_shader) catch unreachable;
     }
 
@@ -428,12 +435,21 @@ pub fn main() !void {
                     .current_state = zf.ResourceState.RESOURCE_STATE_PRESENT,
                     .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
                 },
+                .{
+                    .render_target_handle = gfx.depth_buffer,
+                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                    .new_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE,
+                },
             };
             zf.cmdResourceBarrier(null, null, &render_target_barriers);
 
             var bind_render_targets = [_]zf.BindRenderTarget{
                 .{
                     .render_target_handle = swap_chain_buffer_handle,
+                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
+                },
+                .{
+                    .render_target_handle = gfx.depth_buffer,
                     .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
                 },
             };
@@ -453,6 +469,8 @@ pub fn main() !void {
 
             render_target_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
             render_target_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_PRESENT;
+            render_target_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
+            render_target_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
             zf.cmdResourceBarrier(null, null, &render_target_barriers);
         }
 
