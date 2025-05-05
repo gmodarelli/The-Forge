@@ -30,6 +30,9 @@ pub const Gfx = struct {
     vertex_buffer: zf.BufferHandle = undefined,
     index_buffer: zf.BufferHandle = undefined,
 
+    // GPU-Scene buffers
+    transform_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+
     // Materials
     blit_material: GfxMaterial = undefined,
     object_material: GfxMaterial = undefined,
@@ -41,6 +44,7 @@ pub const Frame = struct {
     projection_matrix: [16]f32,
     view_projection_matrix: [16]f32,
     time: f32,
+    transform_buffer_index: u32,
     vertex_buffer_index: u32,
 };
 
@@ -48,6 +52,10 @@ pub const Vertex = struct {
     position: [3]f32,
     uv: [2]f32,
     normal: [3]f32,
+};
+
+pub const Transform = struct {
+    world_matrix: [16]f32,
 };
 
 // TODO: List all possible passes (eg. default, shadow_caster, gbuffer, etc.)
@@ -268,6 +276,31 @@ pub fn main() !void {
         gfx.index_buffer = zf.createIndexBuffer(8 * 1024 * 1024, zf.IndexType.INDEX_TYPE_UINT32, "Index Buffer");
     }
 
+    // GPU-Scene buffers
+    {
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            gfx.transform_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, Transform, true, "Transform Buffer");
+        }
+
+        const quads_per_side = 9;
+        var transforms: [quads_per_side * quads_per_side]Transform = undefined;
+        for (0..quads_per_side) |y| {
+            for (0..quads_per_side) |x| {
+                const z_world_matrix = zmath.translation(-5.0 + @as(f32, @floatFromInt(x)) * 1.25, -5.0 + @as(f32, @floatFromInt(y)) * 1.25, 0.0);
+                zmath.storeMat(&transforms[y + x * quads_per_side].world_matrix, z_world_matrix);
+            }
+        }
+
+        // TODO: Test appending while frame is running
+        const transform_data = zf.DataSlice{
+            .data = @ptrCast(&transforms),
+            .size = @sizeOf(Transform) * transforms.len,
+        };
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            zf.updateBuffer(transform_data, gfx.transform_buffers[frame_index]);
+        }
+    }
+
     // Clear Screen material example
     {
         gfx.clear_screen_material.passes_count = 1;
@@ -360,7 +393,7 @@ pub fn main() !void {
         const frame_index = zf.frameStart();
 
         const z_view = zmath.lookAtLh(
-            zmath.f32x4(0.0, 0.0, -3.0, 1.0),
+            zmath.f32x4(0.0, 0.0, -10.0, 1.0),
             zmath.f32x4(0.0, 0.0, 0.0, 1.0),
             zmath.f32x4(0.0, 1.0, 0.0, 1.0));
         const z_proj = zmath.perspectiveFovLh(
@@ -374,6 +407,7 @@ pub fn main() !void {
             .projection_matrix = undefined,
             .view_projection_matrix = undefined,
             .time = @floatCast(zglfw.getTime()),
+            .transform_buffer_index = zf.getBufferBindlessIndex(gfx.transform_buffers[frame_index]),
             .vertex_buffer_index = zf.getBufferBindlessIndex(gfx.vertex_buffer),
         };
         zmath.storeMat(&frame.view_matrix, zmath.transpose(z_view));
@@ -471,7 +505,7 @@ pub fn main() !void {
             zf.cmdBindPipeline(gfx.object_pso);
             zf.cmdBindDescriptorSet(frame_index, gfx.object_material.passes[0].per_frame_descriptor_set);
             zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
-            zf.cmdDrawIndexed(6, 0, 0);
+            zf.cmdDrawIndexed(6, 0, 81, 0, 0);
 
             render_target_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
             render_target_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_PRESENT;

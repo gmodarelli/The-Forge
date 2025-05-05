@@ -15,15 +15,19 @@ struct Varyings
 };
 
 [RootSignature(DefaultRootSignature)]
-Varyings ObjectVS(uint VertexID : SV_VertexID)
+Varyings ObjectVS(uint VertexID : SV_VertexID, uint InstanceID : SV_InstanceID)
 {
     Varyings output = (Varyings) 0;
+
+    ByteAddressBuffer transform_buffer = ResourceDescriptorHeap[g_frame.transform_buffer_index];
+    Transform transform = transform_buffer.Load<Transform>(InstanceID * sizeof(Transform));
 
     ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[g_frame.vertex_buffer_index];
     Vertex vertex = vertex_buffer.Load<Vertex>(VertexID * sizeof(Vertex));
 
     float4x4 view_proj = mul(g_frame.view, g_frame.projection);
-    output.position = mul(view_proj, float4(vertex.position, 1));
+    float4x4 mvp = mul(view_proj, transform.world);
+    output.position = mul(mvp, float4(vertex.position, 1));
     output.uv = vertex.uv;
     output.normal = vertex.normal;
 

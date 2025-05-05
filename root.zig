@@ -24,6 +24,7 @@ pub const DepthStateDesc = IGraphics.DepthStateDesc;
 pub const DescriptorType = IGraphics.DescriptorType;
 pub const FillMode = IGraphics.FillMode;
 pub const FilterType = IGraphics.FilterType;
+pub const FrontFace = IGraphics.FrontFace;
 pub const GraphicsPipelineDesc = IGraphics.GraphicsPipelineDesc;
 pub const IndexType = IGraphics.IndexType;
 pub const LoadActionType = IGraphics.LoadActionType;
@@ -1065,8 +1066,8 @@ pub fn cmdDraw(vertex_count: u32, first_vertex: u32) void {
     IGraphics.cmdDraw(gpu.cmds[gpu.frame_index], vertex_count, first_vertex);
 }
 
-pub fn cmdDrawIndexed(index_count: u32, first_index: u32, first_vertex: u32) void {
-    IGraphics.cmdDrawIndexedInstanced(gpu.cmds[gpu.frame_index], index_count, first_index, 1, first_vertex, 0);
+pub fn cmdDrawIndexed(index_count: u32, first_index: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void {
+    IGraphics.cmdDrawIndexedInstanced(gpu.cmds[gpu.frame_index], index_count, first_index, instance_count, first_vertex, first_instance);
 }
 
 pub fn cmdDispacth(group_count_x: u32, group_count_y: u32, group_count_z: u32) void {
