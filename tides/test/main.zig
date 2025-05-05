@@ -44,6 +44,12 @@ pub const Frame = struct {
     vertex_buffer_index: u32,
 };
 
+pub const Vertex = struct {
+    position: [3]f32,
+    uv: [2]f32,
+    normal: [3]f32,
+};
+
 // TODO: List all possible passes (eg. default, shadow_caster, gbuffer, etc.)
 pub const Pass = enum {
     default,
@@ -258,8 +264,8 @@ pub fn main() !void {
 
     // Geometry Buffers
     {
-        gfx.vertex_buffer = zf.createRawBuffer(8 * 64 * 64, f32, true, "Vertex Buffer");
-        gfx.index_buffer = zf.createIndexBuffer(8 * 64 * 64, zf.IndexType.INDEX_TYPE_UINT32, "Index Buffer");
+        gfx.vertex_buffer = zf.createRawBuffer(8 * 1024 * 1024, Vertex, true, "Vertex Buffer");
+        gfx.index_buffer = zf.createIndexBuffer(8 * 1024 * 1024, zf.IndexType.INDEX_TYPE_UINT32, "Index Buffer");
     }
 
     // Clear Screen material example
@@ -381,15 +387,15 @@ pub fn main() !void {
         zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
 
         if (upload_mesh_data) {
-            const vertices = [_]f32{
-                -0.5, -0.5, 0.0,
-                -0.5, 0.5, 0.0,
-                0.5, 0.5, 0.0,
-                0.5, -0.5, 0.0,
+            const vertices = [_]Vertex{
+                .{ .position = .{-0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.0, 0.0} },
+                .{ .position = .{-0.5, 0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.0, 1.0} },
+                .{ .position = .{0.5, 0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{1.0, 1.0} },
+                .{ .position = .{0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{1.0, 0.0} },
             };
             const vertex_data = zf.DataSlice{
                 .data = @ptrCast(&vertices),
-                .size = @sizeOf(f32) * vertices.len,
+                .size = @sizeOf(Vertex) * vertices.len,
             };
             zf.updateBuffer(vertex_data, gfx.vertex_buffer);
 
