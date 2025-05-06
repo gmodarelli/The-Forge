@@ -658,16 +658,14 @@ pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, name: []cons
     return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
 }
 
-// TODO: Pass destination offset
-pub fn updateBuffer(data: DataSlice, handle: BufferHandle) void {
+pub fn updateBuffer(data: DataSlice, dest_offset: u64, handle: BufferHandle) void {
     const buffer = gpu.buffers.getColumn(handle, .ptr) catch unreachable;
     std.debug.assert(data.size <= buffer.*.bitfield_1.mSize);
 
     var upload_context = gpu.upload_ring_buffer.begin(data.size);
     memcpy(@ptrCast(upload_context.buffer.*.pCpuMappedAddress.?), data.data.?, data.size);
 
-    // TODO: Use the given destination offset instead of 0
-    IGraphicsTides.cmdUpdateBufferEx(upload_context.cmd, buffer, 0, upload_context.buffer, upload_context.buffer_offset, data.size);
+    IGraphicsTides.cmdUpdateBufferEx(upload_context.cmd, buffer, dest_offset, upload_context.buffer, upload_context.buffer_offset, data.size);
 
     gpu.upload_ring_buffer.end(&upload_context, true);
 }
@@ -1066,7 +1064,7 @@ pub fn cmdDraw(vertex_count: u32, first_vertex: u32) void {
     IGraphics.cmdDraw(gpu.cmds[gpu.frame_index], vertex_count, first_vertex);
 }
 
-pub fn cmdDrawIndexed(index_count: u32, first_index: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void {
+pub fn cmdDrawIndexedInstanced(index_count: u32, first_index: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void {
     IGraphics.cmdDrawIndexedInstanced(gpu.cmds[gpu.frame_index], index_count, first_index, instance_count, first_vertex, first_instance);
 }
 
