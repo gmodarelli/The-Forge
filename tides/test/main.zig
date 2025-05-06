@@ -37,6 +37,10 @@ pub const Gfx = struct {
     blit_material: GfxMaterial = undefined,
     object_material: GfxMaterial = undefined,
     clear_screen_material: GfxMaterial = undefined,
+
+    // CPU Geometry data
+    quad_mesh: SubMesh = undefined,
+    triangle_mesh: SubMesh = undefined,
 };
 
 pub const Frame = struct {
@@ -46,6 +50,13 @@ pub const Frame = struct {
     time: f32,
     transform_buffer_index: u32,
     vertex_buffer_index: u32,
+};
+
+pub const SubMesh = struct {
+    index_count: u32,
+    first_index: u32,
+    vertex_count: u32,
+    first_vertex: u32,
 };
 
 pub const Vertex = struct {
@@ -297,7 +308,7 @@ pub fn main() !void {
             .size = @sizeOf(Transform) * transforms.len,
         };
         for (0..zf.frames_in_flight_count) |frame_index| {
-            zf.updateBuffer(transform_data, gfx.transform_buffers[frame_index]);
+            zf.updateBuffer(transform_data, 0, gfx.transform_buffers[frame_index]);
         }
     }
 
@@ -421,27 +432,72 @@ pub fn main() !void {
         zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
 
         if (upload_mesh_data) {
-            const vertices = [_]Vertex{
-                .{ .position = .{-0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.0, 0.0} },
-                .{ .position = .{-0.5, 0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.0, 1.0} },
-                .{ .position = .{0.5, 0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{1.0, 1.0} },
-                .{ .position = .{0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{1.0, 0.0} },
-            };
-            const vertex_data = zf.DataSlice{
-                .data = @ptrCast(&vertices),
-                .size = @sizeOf(Vertex) * vertices.len,
-            };
-            zf.updateBuffer(vertex_data, gfx.vertex_buffer);
+            var vertex_buffer_offset: u64 = 0;
+            var index_buffer_offset: u64 = 0;
 
-            const indices = [_]u32 {
-                0, 2, 1,
-                0, 3, 2,
-            };
-            const index_data = zf.DataSlice{
-                .data = @ptrCast(&indices),
-                .size = @sizeOf(u32) * indices.len,
-            };
-            zf.updateBuffer(index_data, gfx.index_buffer);
+            // Quad
+            {
+                const vertices = [_]Vertex{
+                    .{ .position = .{-0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.0, 0.0} },
+                    .{ .position = .{-0.5, 0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.0, 1.0} },
+                    .{ .position = .{0.5, 0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{1.0, 1.0} },
+                    .{ .position = .{0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{1.0, 0.0} },
+                };
+                const vertex_data = zf.DataSlice{
+                    .data = @ptrCast(&vertices),
+                    .size = @sizeOf(Vertex) * vertices.len,
+                };
+                zf.updateBuffer(vertex_data, vertex_buffer_offset, gfx.vertex_buffer);
+
+                const indices = [_]u32 {
+                    0, 2, 1,
+                    0, 3, 2,
+                };
+                const index_data = zf.DataSlice{
+                    .data = @ptrCast(&indices),
+                    .size = @sizeOf(u32) * indices.len,
+                };
+                zf.updateBuffer(index_data, index_buffer_offset, gfx.index_buffer);
+
+                gfx.quad_mesh.index_count = @intCast(indices.len);
+                gfx.quad_mesh.first_index = @intCast(@divExact(index_buffer_offset, @sizeOf(u32)));
+                gfx.quad_mesh.vertex_count = @intCast(vertices.len);
+                gfx.quad_mesh.first_vertex = @intCast(@divExact(vertex_buffer_offset, @sizeOf(Vertex)));
+
+                vertex_buffer_offset += vertex_data.size;
+                index_buffer_offset += index_data.size;
+            }
+
+            // Triangle
+            {
+                const vertices = [_]Vertex{
+                    .{ .position = .{-0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.0, 0.0} },
+                    .{ .position = .{0.0, 0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.5, 1.0} },
+                    .{ .position = .{0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{1.0, 0.0} },
+                };
+                const vertex_data = zf.DataSlice{
+                    .data = @ptrCast(&vertices),
+                    .size = @sizeOf(Vertex) * vertices.len,
+                };
+                zf.updateBuffer(vertex_data, vertex_buffer_offset, gfx.vertex_buffer);
+
+                const indices = [_]u32 {
+                    0, 2, 1,
+                };
+                const index_data = zf.DataSlice{
+                    .data = @ptrCast(&indices),
+                    .size = @sizeOf(u32) * indices.len,
+                };
+                zf.updateBuffer(index_data, index_buffer_offset, gfx.index_buffer);
+
+                gfx.triangle_mesh.index_count = @intCast(indices.len);
+                gfx.triangle_mesh.first_index = @intCast(@divExact(index_buffer_offset, @sizeOf(u32)));
+                gfx.triangle_mesh.vertex_count = @intCast(vertices.len);
+                gfx.triangle_mesh.first_vertex = @intCast(@divExact(vertex_buffer_offset, @sizeOf(Vertex)));
+
+                vertex_buffer_offset += vertex_data.size;
+                index_buffer_offset += index_data.size;
+            }
             upload_mesh_data = false;
         }
 
@@ -505,7 +561,18 @@ pub fn main() !void {
             zf.cmdBindPipeline(gfx.object_pso);
             zf.cmdBindDescriptorSet(frame_index, gfx.object_material.passes[0].per_frame_descriptor_set);
             zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
-            zf.cmdDrawIndexed(6, 0, 81, 0, 0);
+            zf.cmdDrawIndexedInstanced(
+                gfx.triangle_mesh.index_count,
+                gfx.triangle_mesh.first_index,
+                36,
+                gfx.triangle_mesh.first_vertex,
+                0);
+            zf.cmdDrawIndexedInstanced(
+                gfx.quad_mesh.index_count,
+                gfx.quad_mesh.first_index,
+                45,
+                gfx.quad_mesh.first_vertex,
+                36);
 
             render_target_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
             render_target_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_PRESENT;
