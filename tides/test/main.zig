@@ -1,6 +1,7 @@
 const std = @import("std");
 const zf = @import("ze_forge");
 const zglfw = @import("zglfw");
+const zgltf = @import("zgltf");
 const zmath = @import("zmath");
 
 pub const Gfx = struct {
@@ -29,6 +30,8 @@ pub const Gfx = struct {
     // TODO: Figure out if we need double-buffering here to be able to stream in meshes
     vertex_buffer: zf.BufferHandle = undefined,
     index_buffer: zf.BufferHandle = undefined,
+    vertex_buffer_offset: u64 = 0,
+    index_buffer_offset: u64 = 0,
 
     // GPU-Scene buffers
     transform_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
@@ -39,8 +42,7 @@ pub const Gfx = struct {
     clear_screen_material: GfxMaterial = undefined,
 
     // CPU Geometry data
-    quad_mesh: SubMesh = undefined,
-    triangle_mesh: SubMesh = undefined,
+    birch_1_mesh: Mesh = undefined,
 };
 
 pub const Frame = struct {
@@ -50,6 +52,11 @@ pub const Frame = struct {
     time: f32,
     transform_buffer_index: u32,
     vertex_buffer_index: u32,
+};
+
+pub const Mesh = struct {
+    sub_meshes: [8]SubMesh = undefined,
+    sub_meshes_count: u32 = 0,
 };
 
 pub const SubMesh = struct {
@@ -96,6 +103,7 @@ pub const GfxMaterial = struct {
 };
 
 var gfx: *Gfx = undefined;
+var gltf: *zgltf = undefined;
 
 pub fn main() !void {
     // Create a window
@@ -284,7 +292,9 @@ pub fn main() !void {
     // Geometry Buffers
     {
         gfx.vertex_buffer = zf.createRawBuffer(8 * 1024 * 1024, Vertex, true, "Vertex Buffer");
+        gfx.vertex_buffer_offset = 0;
         gfx.index_buffer = zf.createIndexBuffer(8 * 1024 * 1024, zf.IndexType.INDEX_TYPE_UINT32, "Index Buffer");
+        gfx.index_buffer_offset = 0;
     }
 
     // GPU-Scene buffers
@@ -293,12 +303,15 @@ pub fn main() !void {
             gfx.transform_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, Transform, true, "Transform Buffer");
         }
 
-        const quads_per_side = 9;
-        var transforms: [quads_per_side * quads_per_side]Transform = undefined;
-        for (0..quads_per_side) |y| {
-            for (0..quads_per_side) |x| {
-                const z_world_matrix = zmath.translation(-5.0 + @as(f32, @floatFromInt(x)) * 1.25, -5.0 + @as(f32, @floatFromInt(y)) * 1.25, 0.0);
-                zmath.storeMat(&transforms[y + x * quads_per_side].world_matrix, z_world_matrix);
+        const objects_per_side = 9;
+        var transforms: [objects_per_side * objects_per_side]Transform = undefined;
+        for (0..objects_per_side) |y| {
+            for (0..objects_per_side) |x| {
+                const z_trans = zmath.translation(-6.0 + @as(f32, @floatFromInt(x)) * 1.0, -5.0 + @as(f32, @floatFromInt(y)) * 1.25, 0.0);
+                const z_rot = zmath.rotationY(@floatFromInt(x));
+                const z_scale = zmath.scaling(0.07, 0.07, 0.07);
+                const z_world = zmath.mul(z_scale, zmath.mul(z_rot, z_trans));
+                zmath.storeMat(&transforms[y + x * objects_per_side].world_matrix, z_world);
             }
         }
 
@@ -383,7 +396,16 @@ pub fn main() !void {
 
     updateDescriptorSets();
 
-    var upload_mesh_data = true;
+    // TODO: There must me a better way.
+    gltf = @constCast(&(zgltf.init(std.heap.page_allocator)));
+    defer gltf.deinit();
+
+    var temp_allocator = std.heap.page_allocator;
+    {
+        const base_path = std.fs.path.join(temp_allocator, &[_][]const u8{ "content", "models", "stylized_nature" }) catch unreachable;
+        defer temp_allocator.free(base_path);
+        loadGltfMesh(base_path, "Birch_1.gltf", temp_allocator, &gfx.birch_1_mesh);
+    }
 
     while (!window.shouldClose()) {
         zglfw.pollEvents();
@@ -406,12 +428,13 @@ pub fn main() !void {
         const z_view = zmath.lookAtLh(
             zmath.f32x4(0.0, 0.0, -10.0, 1.0),
             zmath.f32x4(0.0, 0.0, 0.0, 1.0),
-            zmath.f32x4(0.0, 1.0, 0.0, 1.0));
+            zmath.f32x4(0.0, 1.0, 0.0, 0.0));
+
         const z_proj = zmath.perspectiveFovLh(
-            std.math.degreesToRadians(60.0),
+            std.math.degreesToRadians(45.0),
             @as(f32, @floatFromInt(frame_buffer_size[0])) / @as(f32, @floatFromInt(frame_buffer_size[1])),
-            0.01,
-            100.0);
+            100.0,
+            0.01);
 
         var frame = Frame{
             .view_matrix = undefined,
@@ -430,76 +453,6 @@ pub fn main() !void {
             .size = @sizeOf(Frame),
         };
         zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
-
-        if (upload_mesh_data) {
-            var vertex_buffer_offset: u64 = 0;
-            var index_buffer_offset: u64 = 0;
-
-            // Quad
-            {
-                const vertices = [_]Vertex{
-                    .{ .position = .{-0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.0, 0.0} },
-                    .{ .position = .{-0.5, 0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.0, 1.0} },
-                    .{ .position = .{0.5, 0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{1.0, 1.0} },
-                    .{ .position = .{0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{1.0, 0.0} },
-                };
-                const vertex_data = zf.DataSlice{
-                    .data = @ptrCast(&vertices),
-                    .size = @sizeOf(Vertex) * vertices.len,
-                };
-                zf.updateBuffer(vertex_data, vertex_buffer_offset, gfx.vertex_buffer);
-
-                const indices = [_]u32 {
-                    0, 2, 1,
-                    0, 3, 2,
-                };
-                const index_data = zf.DataSlice{
-                    .data = @ptrCast(&indices),
-                    .size = @sizeOf(u32) * indices.len,
-                };
-                zf.updateBuffer(index_data, index_buffer_offset, gfx.index_buffer);
-
-                gfx.quad_mesh.index_count = @intCast(indices.len);
-                gfx.quad_mesh.first_index = @intCast(@divExact(index_buffer_offset, @sizeOf(u32)));
-                gfx.quad_mesh.vertex_count = @intCast(vertices.len);
-                gfx.quad_mesh.first_vertex = @intCast(@divExact(vertex_buffer_offset, @sizeOf(Vertex)));
-
-                vertex_buffer_offset += vertex_data.size;
-                index_buffer_offset += index_data.size;
-            }
-
-            // Triangle
-            {
-                const vertices = [_]Vertex{
-                    .{ .position = .{-0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.0, 0.0} },
-                    .{ .position = .{0.0, 0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{0.5, 1.0} },
-                    .{ .position = .{0.5, -0.5, 0.0}, .normal = .{0.0, 0.0, 1.0}, .uv = .{1.0, 0.0} },
-                };
-                const vertex_data = zf.DataSlice{
-                    .data = @ptrCast(&vertices),
-                    .size = @sizeOf(Vertex) * vertices.len,
-                };
-                zf.updateBuffer(vertex_data, vertex_buffer_offset, gfx.vertex_buffer);
-
-                const indices = [_]u32 {
-                    0, 2, 1,
-                };
-                const index_data = zf.DataSlice{
-                    .data = @ptrCast(&indices),
-                    .size = @sizeOf(u32) * indices.len,
-                };
-                zf.updateBuffer(index_data, index_buffer_offset, gfx.index_buffer);
-
-                gfx.triangle_mesh.index_count = @intCast(indices.len);
-                gfx.triangle_mesh.first_index = @intCast(@divExact(index_buffer_offset, @sizeOf(u32)));
-                gfx.triangle_mesh.vertex_count = @intCast(vertices.len);
-                gfx.triangle_mesh.first_vertex = @intCast(@divExact(vertex_buffer_offset, @sizeOf(Vertex)));
-
-                vertex_buffer_offset += vertex_data.size;
-                index_buffer_offset += index_data.size;
-            }
-            upload_mesh_data = false;
-        }
 
         // Clear screen: Scene Color
         {
@@ -561,18 +514,15 @@ pub fn main() !void {
             zf.cmdBindPipeline(gfx.object_pso);
             zf.cmdBindDescriptorSet(frame_index, gfx.object_material.passes[0].per_frame_descriptor_set);
             zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
-            zf.cmdDrawIndexedInstanced(
-                gfx.triangle_mesh.index_count,
-                gfx.triangle_mesh.first_index,
-                36,
-                gfx.triangle_mesh.first_vertex,
-                0);
-            zf.cmdDrawIndexedInstanced(
-                gfx.quad_mesh.index_count,
-                gfx.quad_mesh.first_index,
-                45,
-                gfx.quad_mesh.first_vertex,
-                36);
+            for (0..gfx.birch_1_mesh.sub_meshes_count) |sub_mesh_index| {
+                const sub_mesh = gfx.birch_1_mesh.sub_meshes[sub_mesh_index];
+                zf.cmdDrawIndexedInstanced(
+                    sub_mesh.index_count,
+                    sub_mesh.first_index,
+                    81,
+                    sub_mesh.first_vertex,
+                    0);
+            }
 
             render_target_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
             render_target_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_PRESENT;
@@ -671,4 +621,135 @@ fn updateDescriptorSets() void {
             &gfx.clear_screen_material.passes[0].per_frame_descriptor_set
         );
     }
+}
+
+fn loadGltfMesh(base_path: []const u8, file_name: []const u8, allocator: std.mem.Allocator, out_mesh: *Mesh) void {
+    const gltf_path = std.fs.path.join(allocator, &[_][]const u8{ base_path, file_name }) catch unreachable;
+    defer allocator.free(gltf_path);
+
+    const json = std.fs.cwd().readFileAllocOptions(
+        allocator,
+        gltf_path,
+        512_000,
+        null,
+        4,
+        null
+    ) catch unreachable;
+    defer allocator.free(json);
+    gltf.parse(json) catch unreachable;
+
+    std.debug.assert(gltf.data.buffers.items.len == 1);
+    const bin_path = std.fs.path.join(allocator, &[_][]const u8{ base_path, gltf.data.buffers.items[0].uri.? }) catch unreachable;
+    defer allocator.free(bin_path);
+
+    const bin = std.fs.cwd().readFileAllocOptions(
+        allocator,
+        bin_path,
+        5_000_000,
+        null,
+        4,
+        null
+    ) catch unreachable;
+    defer allocator.free(bin);
+
+    var mesh_vertices = std.ArrayList(Vertex).init(allocator);
+    defer mesh_vertices.deinit();
+    var mesh_indices = std.ArrayList(u32).init(allocator);
+    defer mesh_indices.deinit();
+
+    var positions = std.ArrayList(f32).init(allocator);
+    defer positions.deinit();
+    var uvs = std.ArrayList(f32).init(allocator);
+    defer uvs.deinit();
+    var normals = std.ArrayList(f32).init(allocator);
+    defer normals.deinit();
+    var indices = std.ArrayList(u32).init(allocator);
+    defer indices.deinit();
+
+    const mesh = gltf.data.meshes.items[0];
+    std.debug.assert(mesh.primitives.items.len < 8);
+    out_mesh.sub_meshes_count = 0;
+
+    for (mesh.primitives.items) |primitive| {
+        positions.clearRetainingCapacity();
+        uvs.clearRetainingCapacity();
+        normals.clearRetainingCapacity();
+        indices.clearRetainingCapacity();
+
+        for (primitive.attributes.items) |attribute| {
+            switch (attribute) {
+                .position => |accessor_index| {
+                    const accessor = gltf.data.accessors.items[accessor_index];
+                    std.debug.assert(accessor.type == .vec3);
+                    std.debug.assert(accessor.component_type == .float);
+                    gltf.getDataFromBufferView(f32, &positions, accessor, bin);
+                },
+                .texcoord => |accessor_index| {
+                    const accessor = gltf.data.accessors.items[accessor_index];
+                    std.debug.assert(accessor.type == .vec2);
+                    std.debug.assert(accessor.component_type == .float);
+                    gltf.getDataFromBufferView(f32, &uvs, accessor, bin);
+                },
+                .normal => |accessor_index| {
+                    const accessor = gltf.data.accessors.items[accessor_index];
+                    std.debug.assert(accessor.type == .vec3);
+                    std.debug.assert(accessor.component_type == .float);
+                    gltf.getDataFromBufferView(f32, &normals, accessor, bin);
+                },
+                else => {}
+            }
+        }
+
+        std.debug.assert(primitive.indices != null);
+        const accessor = gltf.data.accessors.items[primitive.indices.?];
+        if (accessor.component_type == .unsigned_short) {
+            var indices16 = std.ArrayList(u16).init(allocator);
+            defer indices16.deinit();
+            gltf.getDataFromBufferView(u16, &indices16, accessor, bin);
+
+            for (indices16.items) |index_16| {
+                indices.append(@intCast(index_16)) catch unreachable;
+            }
+        } else {
+            gltf.getDataFromBufferView(u32, &indices, accessor, bin);
+        }
+
+        const positions_count = @divExact(positions.items.len, 3);
+
+        out_mesh.sub_meshes[out_mesh.sub_meshes_count].index_count = @intCast(indices.items.len);
+        out_mesh.sub_meshes[out_mesh.sub_meshes_count].first_index = @intCast(mesh_indices.items.len);
+        out_mesh.sub_meshes[out_mesh.sub_meshes_count].vertex_count = @intCast(positions_count);
+        out_mesh.sub_meshes[out_mesh.sub_meshes_count].first_vertex = @intCast(mesh_vertices.items.len);
+        out_mesh.sub_meshes_count += 1;
+
+        for (0..positions_count) |vertex_index| {
+            const vertex = Vertex{
+                .position = .{ positions.items[vertex_index * 3 + 0] * -1.0, positions.items[vertex_index * 3 + 1], positions.items[vertex_index * 3 + 2] },
+                .normal = .{ normals.items[vertex_index * 3 + 0] * -1.0, normals.items[vertex_index * 3 + 1], normals.items[vertex_index * 3 + 2] },
+                .uv = .{ uvs.items[vertex_index * 2 + 0], uvs.items[vertex_index * 2 + 1] },
+            };
+            mesh_vertices.append(vertex) catch unreachable;
+        }
+
+        for (indices.items) |index| {
+            mesh_indices.append(index) catch unreachable;
+        }
+
+    }
+
+    const vertex_data = zf.DataSlice{
+        .data = @ptrCast(mesh_vertices.items),
+        .size = @sizeOf(Vertex) * mesh_vertices.items.len,
+    };
+    zf.updateBuffer(vertex_data, gfx.vertex_buffer_offset, gfx.vertex_buffer);
+
+    const index_data = zf.DataSlice{
+        .data = @ptrCast(mesh_indices.items),
+        .size = @sizeOf(u32) * mesh_indices.items.len,
+    };
+    zf.updateBuffer(index_data, gfx.index_buffer_offset, gfx.index_buffer);
+
+    // TODO: Lock-guard when multithreading
+    gfx.vertex_buffer_offset += vertex_data.size;
+    gfx.index_buffer_offset += index_data.size;
 }

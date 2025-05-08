@@ -35,8 +35,7 @@ Varyings ObjectVS(VertexShaderInput input)
     ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[g_frame.vertex_buffer_index];
     Vertex vertex = vertex_buffer.Load<Vertex>(vertex_index * sizeof(Vertex));
 
-    float4x4 view_proj = mul(g_frame.view, g_frame.projection);
-    float4x4 mvp = mul(view_proj, transform.world);
+    float4x4 mvp = mul(g_frame.view_proj, transform.world);
     output.position = mul(mvp, float4(vertex.position, 1));
     output.uv = vertex.uv;
     output.normal = vertex.normal;
@@ -47,5 +46,5 @@ Varyings ObjectVS(VertexShaderInput input)
 [RootSignature(DefaultRootSignature)]
 float4 ObjectPS(Varyings varyings) : SV_Target0
 {
-    return float4(varyings.uv, 0.0f, 1.0f);
+    return float4(varyings.normal * 0.5 + 0.5, 1.0f);
 }

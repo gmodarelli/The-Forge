@@ -22,6 +22,10 @@ pub fn buildExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     exe.root_module.addImport("zglfw", zglfw.module("root"));
     exe.linkLibrary(zglfw.artifact("glfw"));
 
+    // zgltf
+    const zgltf = b.dependency("zgltf", .{});
+    exe.root_module.addImport("zgltf", zgltf.module("zgltf"));
+
     // zmath
     const zmath = b.dependency("zmath", .{});
     exe.root_module.addImport("zmath", zmath.module("root"));

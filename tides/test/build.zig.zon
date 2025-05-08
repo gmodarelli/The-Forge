@@ -25,6 +25,7 @@
     .dependencies = .{
         .ze_forge = .{ .path = ".." },
         .zglfw = .{ .path = "../../../zglfw" },
+        .zgltf = .{ .path = "../../../zgltf" },
         .zmath = .{ .path = "../../../zmath" },
         // See `zig fetch --save <url>` for a command-line interface for adding dependencies.
         //.example = .{
