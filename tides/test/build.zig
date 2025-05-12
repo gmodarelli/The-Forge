@@ -123,26 +123,26 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     defer allocator.free(graphics_root_signature_output_path);
     const compute_root_signature_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ComputeRootSignature.rs" }) catch unreachable;
     defer allocator.free(compute_root_signature_output_path);
-    compileShader(step, "shaders/GraphicsRootSignature.hlsl", graphics_root_signature_output_path, "DefaultRootSignature", .root_signature);
-    compileShader(step, "shaders/ComputeRootSignature.hlsl", compute_root_signature_output_path, "ComputeRootSignature", .root_signature);
+    compileShader(step, "shaders/GraphicsRootSignature.hlsl", graphics_root_signature_output_path, "DefaultRootSignature", "", .root_signature);
+    compileShader(step, "shaders/ComputeRootSignature.hlsl", compute_root_signature_output_path, "ComputeRootSignature", "", .root_signature);
 
     const blit_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Blit.vert" }) catch unreachable;
     defer allocator.free(blit_vertex_output_path);
     const blit_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Blit.frag" }) catch unreachable;
     defer allocator.free(blit_pixel_output_path);
-    compileShader(step, "shaders/Blit.hlsl", blit_vertex_output_path, "FullscreenVertex", .vertex);
-    compileShader(step, "shaders/Blit.hlsl", blit_pixel_output_path, "BlitFragment", .pixel);
+    compileShader(step, "shaders/Blit.hlsl", blit_vertex_output_path, "FullscreenVertex", "", .vertex);
+    compileShader(step, "shaders/Blit.hlsl", blit_pixel_output_path, "BlitFragment", "", .pixel);
 
     const object_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Object.vert" }) catch unreachable;
     defer allocator.free(object_vertex_output_path);
     const object_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Object.frag" }) catch unreachable;
     defer allocator.free(object_pixel_output_path);
-    compileShader(step, "shaders/Object.hlsl", object_vertex_output_path, "ObjectVS", .vertex);
-    compileShader(step, "shaders/Object.hlsl", object_pixel_output_path, "ObjectPS", .pixel);
+    compileShader(step, "shaders/Object.hlsl", object_vertex_output_path, "ObjectVS", "", .vertex);
+    compileShader(step, "shaders/Object.hlsl", object_pixel_output_path, "ObjectPS", "", .pixel);
 
     const clear_screen_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ClearScreen.comp" }) catch unreachable;
     defer allocator.free(clear_screen_output_path);
-    compileShader(step, "shaders/ClearScreenCS.hlsl", clear_screen_output_path, "main", .compute);
+    compileShader(step, "shaders/ClearScreenCS.hlsl", clear_screen_output_path, "main", "", .compute);
 }
 
 const ShaderType = enum {
@@ -152,7 +152,7 @@ const ShaderType = enum {
     root_signature,
 };
 
-fn compileShader(step: *std.Build.Step, input: []const u8, output: []const u8, entry: []const u8, shader_type: ShaderType) void {
+fn compileShader(step: *std.Build.Step, input: []const u8, output: []const u8, entry: []const u8, define: []const u8, shader_type: ShaderType) void {
     const profile = switch (shader_type) {
         .vertex => "vs_6_8",
         .pixel => "ps_6_8",
@@ -172,6 +172,7 @@ fn compileShader(step: *std.Build.Step, input: []const u8, output: []const u8, e
         b.fmt("-Fo {s}", .{output}),
         b.fmt("-E {s}", .{entry}),
         b.fmt("-T {s}", .{profile}),
+        if (define.len == 0) "" else b.fmt("/D {s}", .{define}),
         qstrip_root_signature,
         "-Qembed_debug",
         "-HV 2021",
