@@ -489,7 +489,7 @@ void return_descriptor_handles_unlocked(DescriptorHeap* pHeap, DxDescriptorID ha
     for (uint32_t id = handle; id < handle + count; ++id)
     {
         const uint32_t i = id / DESCRIPTOR_HEAP_BLOCK_SIZE;
-        const uint32_t mask = ~(1 << (id % DESCRIPTOR_HEAP_BLOCK_SIZE));
+        const uint32_t mask = ~(1u << (id % DESCRIPTOR_HEAP_BLOCK_SIZE));
         pHeap->pFlags[i] &= mask;
     }
 
@@ -529,7 +529,7 @@ static DxDescriptorID consume_descriptor_handles(DescriptorHeap* pHeap, uint32_t
             continue;
         }
 
-        for (int32_t j = 0, mask = 1; j < DESCRIPTOR_HEAP_BLOCK_SIZE; ++j, mask <<= 1)
+        for (uint32_t j = 0, mask = 1; j < DESCRIPTOR_HEAP_BLOCK_SIZE; ++j, mask <<= 1)
         {
             if (!(flag & mask))
             {
