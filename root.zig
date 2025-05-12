@@ -903,7 +903,6 @@ pub fn createDescriptorSets(
 pub fn updateDescriptorSet(descs: []const ResourceBindingDesc, descriptor_set_space: DescriptorSpace, descriptor_set_index: u32, shader_handle: ShaderHandle, descriptor_set: *[*c]IGraphics.DescriptorSet) void {
     var descriptor_data: [IGraphicsTides.TIDES_SPACE_DESCRIPTORS_MAX_COUNT]IGraphics.DescriptorData = undefined;
     std.debug.assert(descs.len <= IGraphicsTides.TIDES_SPACE_DESCRIPTORS_MAX_COUNT);
-    std.log.debug("Number of resources we want to bind: {d}", .{descs.len});
 
     const descriptor_sets_mappings = gpu.shaders.getColumnPtr(shader_handle, .descriptor_sets_mappings) catch unreachable;
     const descriptor_mappings = descriptor_sets_mappings.descriptor_mappings[@intFromEnum(descriptor_set_space)];
