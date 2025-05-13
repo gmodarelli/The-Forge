@@ -923,20 +923,20 @@ pub fn updateDescriptorSet(descs: []const ResourceBindingDesc, descriptor_set_sp
 
         switch (desc.binding_type) {
             .buffer => {
-                var buffer = gpu.buffers.getColumn(desc.buffer_handle.?, .ptr) catch unreachable;
-                descriptor_data[desc_index].__union_field3.ppBuffers = @ptrCast(&buffer);
+                const buffer = gpu.buffers.getColumnPtr(desc.buffer_handle.?, .ptr) catch unreachable;
+                descriptor_data[desc_index].__union_field3.ppBuffers = @ptrCast(buffer);
             },
             .sampler => {
-                var sampler = gpu.static_samplers.getColumn(desc.static_sampler_handle.?, .ptr) catch unreachable;
-                descriptor_data[desc_index].__union_field3.ppSamplers = @ptrCast(&sampler);
+                const sampler = gpu.static_samplers.getColumnPtr(desc.static_sampler_handle.?, .ptr) catch unreachable;
+                descriptor_data[desc_index].__union_field3.ppSamplers = @ptrCast(sampler);
             },
             .render_target => {
-                const render_target = gpu.render_targets.getColumn(desc.render_target_handle.?, .ptr) catch unreachable;
-                descriptor_data[desc_index].__union_field3.ppTextures = @ptrCast(&render_target.*.pTexture);
+                const render_target = gpu.render_targets.getColumnPtr(desc.render_target_handle.?, .ptr) catch unreachable;
+                descriptor_data[desc_index].__union_field3.ppTextures = @ptrCast(&render_target.*.*.pTexture);
             },
             .render_texture => {
-                var render_texture = gpu.render_textures.getColumn(desc.render_texture_handle.?, .ptr) catch unreachable;
-                descriptor_data[desc_index].__union_field3.ppTextures = @ptrCast(&render_texture);
+                const render_texture = gpu.render_textures.getColumnPtr(desc.render_texture_handle.?, .ptr) catch unreachable;
+                descriptor_data[desc_index].__union_field3.ppTextures = @ptrCast(render_texture);
             },
             else => {
                 @panic("Unsupported");
