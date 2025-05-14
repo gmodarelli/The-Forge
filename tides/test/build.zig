@@ -143,6 +143,13 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     const clear_screen_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ClearScreen.comp" }) catch unreachable;
     defer allocator.free(clear_screen_output_path);
     compileShader(step, "shaders/ClearScreenCS.hlsl", clear_screen_output_path, "main", "", .compute);
+
+    const gauss_blur_horizontal_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "GaussBlurH.comp" }) catch unreachable;
+    defer allocator.free(gauss_blur_horizontal_output_path);
+    compileShader(step, "shaders/GaussBlurCS.hlsl", gauss_blur_horizontal_output_path, "main", "BLUR_HORIZONTAL", .compute);
+    const gauss_blur_vertical_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "GaussBlurV.comp" }) catch unreachable;
+    defer allocator.free(gauss_blur_vertical_output_path);
+    compileShader(step, "shaders/GaussBlurCS.hlsl", gauss_blur_vertical_output_path, "main", "BLUR_VERTICAL", .compute);
 }
 
 const ShaderType = enum {
