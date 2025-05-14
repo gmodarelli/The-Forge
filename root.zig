@@ -421,12 +421,12 @@ pub fn createStaticSampler(desc: IGraphics.SamplerDesc) !StaticSamplerHandle {
     return gpu.static_samplers.add(.{ .ptr = sampler }) catch unreachable;
 }
 
-// ██████╗ ███████╗ ██████╗
-// ██╔══██╗██╔════╝██╔═══██╗
-// ██████╔╝███████╗██║   ██║
-// ██╔═══╝ ╚════██║██║   ██║
-// ██║     ███████║╚██████╔╝
-// ╚═╝     ╚══════╝ ╚═════╝
+// ██████╗ ███████╗ ██████╗ ███████╗
+// ██╔══██╗██╔════╝██╔═══██╗██╔════╝
+// ██████╔╝███████╗██║   ██║███████╗
+// ██╔═══╝ ╚════██║██║   ██║╚════██║
+// ██║     ███████║╚██████╔╝███████║
+// ╚═╝     ╚══════╝ ╚═════╝ ╚══════╝
 //
 
 const PsoPool = Pool(8, 8, [*c]IGraphics.Pipeline, struct {
@@ -488,6 +488,7 @@ fn createGraphicsPso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) 
 // ╚════██║██╔══██║██╔══██║██║  ██║██╔══╝  ██╔══██╗╚════██║
 // ███████║██║  ██║██║  ██║██████╔╝███████╗██║  ██║███████║
 // ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚══════╝
+//
 
 pub const ShaderStageLoadDesc = struct {
     path: []const u8,
@@ -1175,8 +1176,8 @@ pub fn cmdDispacth(group_count_x: u32, group_count_y: u32, group_count_z: u32) v
 // ╚██████╔╝██║     ███████╗╚██████╔╝██║  ██║██████╔╝███████║
 //  ╚═════╝ ╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚══════╝
 //
+
 // Ported from: https://github.com/TheRealMJP/DXRPathTracer/blob/master/SampleFramework12/v1.02/Graphics/DX12_Upload.h
-//
 
 const UploadContext = struct {
     cmd: [*c]IGraphics.Cmd = null,
