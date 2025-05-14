@@ -152,6 +152,11 @@ const ShaderPool = Pool(8, 8, [*c]IGraphics.Shader, struct {
 });
 pub const ShaderHandle = ShaderPool.Handle;
 
+const DescriptorSetPool = Pool(16, 16, [*c]IGraphics.DescriptorSet, struct {
+    ptr: [*c]IGraphics.DescriptorSet,
+});
+pub const DescriptorSetHandle = DescriptorSetPool.Handle;
+
 const PsoPool = Pool(8, 8, [*c]IGraphics.Pipeline, struct {
     ptr: [*c]IGraphics.Pipeline,
     shader: ShaderHandle,
@@ -221,6 +226,7 @@ const Gpu = struct {
 
     // Resource Pools
     shaders: ShaderPool = undefined,
+    descriptor_sets: DescriptorSetPool = undefined,
     psos: PsoPool = undefined,
     render_targets: RenderTargetPool = undefined,
     render_textures: RenderTexturePool = undefined,
@@ -241,6 +247,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
     gpu.allocator = allocator;
 
     gpu.shaders = ShaderPool.initMaxCapacity(gpu.allocator) catch unreachable;
+    gpu.descriptor_sets = DescriptorSetPool.init(gpu.allocator);
     gpu.psos = PsoPool.initMaxCapacity(gpu.allocator) catch unreachable;
     gpu.render_targets = RenderTargetPool.initMaxCapacity(gpu.allocator) catch unreachable;
     gpu.render_textures = RenderTexturePool.initMaxCapacity(gpu.allocator) catch unreachable;
@@ -310,6 +317,7 @@ pub fn shutdownGpu() void {
     }
 
     gpu.shaders.deinit();
+    gpu.descriptor_sets.deinit();
     gpu.psos.deinit();
     gpu.render_targets.deinit();
     gpu.render_textures.deinit();
@@ -838,15 +846,20 @@ fn swapchainDestroy() void {
     IGraphics.removeSwapChain(gpu.renderer, gpu.swap_chain);
 }
 
-pub fn createDescriptorSets(
-    shader_handle: ShaderHandle,
-    per_draw: [*c][*c]IGraphics.DescriptorSet,
-    per_batch: [*c][*c]IGraphics.DescriptorSet,
-    per_frame: [*c][*c]IGraphics.DescriptorSet,
-    persistent: [*c][*c]IGraphics.DescriptorSet,
-    persistent_samplers: [*c][*c]IGraphics.DescriptorSet,
-) !void {
+pub fn createDescriptorSets(shader_handle: ShaderHandle) !struct{
+    per_draw: DescriptorSetHandle,
+    per_batch: DescriptorSetHandle,
+    per_frame: DescriptorSetHandle,
+    persistent: DescriptorSetHandle,
+    persistent_samplers: DescriptorSetHandle,
+} {
     const descriptors = gpu.shaders.getColumnPtr(shader_handle, .descriptors) catch unreachable;
+
+    var per_draw_handle: DescriptorSetHandle = DescriptorSetHandle.nil;
+    var per_batch_handle: DescriptorSetHandle = DescriptorSetHandle.nil;
+    var per_frame_handle: DescriptorSetHandle = DescriptorSetHandle.nil;
+    var persistent_handle: DescriptorSetHandle = DescriptorSetHandle.nil;
+    var persistent_samplers_handle: DescriptorSetHandle = DescriptorSetHandle.nil;
 
     if (descriptors.pSpaceDescriptors[0].mDescriptorsCount > 0) {
         const space_descriptors = &descriptors.pSpaceDescriptors[0];
@@ -855,7 +868,11 @@ pub fn createDescriptorSets(
         desc.mDescriptorCount = space_descriptors.mDescriptorsCount;
         desc.mMaxSets = frames_in_flight_count;
         desc.pDescriptors = &space_descriptors.pDescriptors;
-        IGraphics.addDescriptorSet(gpu.renderer, &desc, per_draw);
+
+        var descriptor_set: [*c]IGraphics.DescriptorSet = null;
+        IGraphics.addDescriptorSet(gpu.renderer, &desc, &descriptor_set);
+
+        per_draw_handle = gpu.descriptor_sets.add(.{ .ptr = descriptor_set }) catch unreachable;
     }
 
     if (descriptors.pSpaceDescriptors[1].mDescriptorsCount > 0) {
@@ -865,7 +882,11 @@ pub fn createDescriptorSets(
         desc.mDescriptorCount = space_descriptors.mDescriptorsCount;
         desc.mMaxSets = frames_in_flight_count;
         desc.pDescriptors = &space_descriptors.pDescriptors;
-        IGraphics.addDescriptorSet(gpu.renderer, &desc, per_batch);
+
+        var descriptor_set: [*c]IGraphics.DescriptorSet = null;
+        IGraphics.addDescriptorSet(gpu.renderer, &desc, &descriptor_set);
+
+        per_batch_handle = gpu.descriptor_sets.add(.{ .ptr = descriptor_set }) catch unreachable;
     }
 
     if (descriptors.pSpaceDescriptors[2].mDescriptorsCount > 0) {
@@ -875,7 +896,11 @@ pub fn createDescriptorSets(
         desc.mDescriptorCount = space_descriptors.mDescriptorsCount;
         desc.mMaxSets = frames_in_flight_count;
         desc.pDescriptors = &space_descriptors.pDescriptors;
-        IGraphics.addDescriptorSet(gpu.renderer, &desc, per_frame);
+
+        var descriptor_set: [*c]IGraphics.DescriptorSet = null;
+        IGraphics.addDescriptorSet(gpu.renderer, &desc, &descriptor_set);
+
+        per_frame_handle = gpu.descriptor_sets.add(.{ .ptr = descriptor_set }) catch unreachable;
     }
 
     if (descriptors.pSpaceDescriptors[3].mDescriptorsCount > 0) {
@@ -885,7 +910,11 @@ pub fn createDescriptorSets(
         desc.mDescriptorCount = space_descriptors.mDescriptorsCount;
         desc.mMaxSets = 1;
         desc.pDescriptors = &space_descriptors.pDescriptors;
-        IGraphics.addDescriptorSet(gpu.renderer, &desc, persistent);
+
+        var descriptor_set: [*c]IGraphics.DescriptorSet = null;
+        IGraphics.addDescriptorSet(gpu.renderer, &desc, &descriptor_set);
+
+        persistent_handle = gpu.descriptor_sets.add(.{ .ptr = descriptor_set }) catch unreachable;
     }
 
     if (descriptors.pSpaceDescriptors[4].mDescriptorsCount > 0) {
@@ -895,12 +924,23 @@ pub fn createDescriptorSets(
         desc.mDescriptorCount = space_descriptors.mDescriptorsCount;
         desc.mMaxSets = 1;
         desc.pDescriptors = &space_descriptors.pDescriptors;
-        IGraphics.addDescriptorSet(gpu.renderer, &desc, persistent_samplers);
+
+        var descriptor_set: [*c]IGraphics.DescriptorSet = null;
+        IGraphics.addDescriptorSet(gpu.renderer, &desc, &descriptor_set);
+
+        persistent_samplers_handle = gpu.descriptor_sets.add(.{ .ptr = descriptor_set }) catch unreachable;
     }
+
+    return .{
+        .per_draw = per_draw_handle,
+        .per_batch = per_batch_handle,
+        .per_frame = per_frame_handle,
+        .persistent = persistent_handle,
+        .persistent_samplers = persistent_samplers_handle,
+    };
 }
 
-// TODO: Temporary, remove this once we've found a nice abstraction for materials?
-pub fn updateDescriptorSet(descs: []const ResourceBindingDesc, descriptor_set_space: DescriptorSpace, descriptor_set_index: u32, shader_handle: ShaderHandle, descriptor_set: *[*c]IGraphics.DescriptorSet) void {
+pub fn updateDescriptorSet(descs: []const ResourceBindingDesc, descriptor_set_space: DescriptorSpace, descriptor_set_index: u32, shader_handle: ShaderHandle, descriptor_set_handle: DescriptorSetHandle) void {
     var descriptor_data: [IGraphicsTides.TIDES_SPACE_DESCRIPTORS_MAX_COUNT]IGraphics.DescriptorData = undefined;
     std.debug.assert(descs.len <= IGraphicsTides.TIDES_SPACE_DESCRIPTORS_MAX_COUNT);
 
@@ -944,6 +984,7 @@ pub fn updateDescriptorSet(descs: []const ResourceBindingDesc, descriptor_set_sp
         }
     }
 
+    const descriptor_set = gpu.descriptor_sets.getColumnPtr(descriptor_set_handle, .ptr) catch unreachable;
     IGraphics.updateDescriptorSet(gpu.renderer, descriptor_set_index, descriptor_set.*, @intCast(descs.len), @ptrCast(&descriptor_data));
 }
 
@@ -1045,8 +1086,9 @@ pub fn cmdBindPipeline(handle: PsoHandle) void {
     IGraphics.cmdBindPipeline(gpu.cmds[gpu.frame_index], pipeline.*);
 }
 
-pub fn cmdBindDescriptorSet(frame_index: u32, descriptor_set: [*c]IGraphics.DescriptorSet) void {
-    IGraphics.cmdBindDescriptorSet(gpu.cmds[gpu.frame_index], frame_index, descriptor_set);
+pub fn cmdBindDescriptorSet(frame_index: u32, descriptor_set_handle: DescriptorSetHandle) void {
+    const descriptor_set = gpu.descriptor_sets.getColumnPtr(descriptor_set_handle, .ptr) catch unreachable;
+    IGraphics.cmdBindDescriptorSet(gpu.cmds[gpu.frame_index], frame_index, descriptor_set.*);
 }
 
 pub fn cmdSetDefaultViewportAndScissor(width: u32, height: u32) void {
