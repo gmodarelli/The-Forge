@@ -444,8 +444,8 @@ fn createComputePso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) !
     var pso_desc: IGraphics.PipelineDesc = undefined;
     memcpy(&pso_desc, &desc, @sizeOf(IGraphics.PipelineDesc));
 
-    const shader = gpu.shaders.getColumn(shader_handle, .ptr) catch unreachable;
-    pso_desc.__union_field1.mComputeDesc.pShaderProgram = shader;
+    const shader = gpu.shaders.getColumnPtr(shader_handle, .ptr) catch unreachable;
+    pso_desc.__union_field1.mComputeDesc.pShaderProgram = shader.*;
 
     var pso: [*c]IGraphics.Pipeline = null;
     IGraphics.addPipeline(gpu.renderer, &pso_desc, @ptrCast(&pso));
@@ -459,8 +459,8 @@ fn createGraphicsPso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) 
     var pso_desc: IGraphics.PipelineDesc = undefined;
     memcpy(&pso_desc, &desc, @sizeOf(IGraphics.PipelineDesc));
 
-    const shader = gpu.shaders.getColumn(shader_handle, .ptr) catch unreachable;
-    pso_desc.__union_field1.mGraphicsDesc.pShaderProgram = shader;
+    const shader = gpu.shaders.getColumnPtr(shader_handle, .ptr) catch unreachable;
+    pso_desc.__union_field1.mGraphicsDesc.pShaderProgram = shader.*;
 
     var pso: [*c]IGraphics.Pipeline = null;
     IGraphics.addPipeline(gpu.renderer, &pso_desc, @ptrCast(&pso));
@@ -638,10 +638,10 @@ pub fn createUniformBuffer(size: u64, name: []const u8) BufferHandle {
 }
 
 pub fn updateUniformBuffer(data: DataSlice, handle: BufferHandle) void {
-    const buffer = gpu.buffers.getColumn(handle, .ptr) catch unreachable;
-    std.debug.assert(buffer.*.bitfield_1.mDescriptors == IGraphics.DescriptorType.DESCRIPTOR_TYPE_UNIFORM_BUFFER.bits);
-    std.debug.assert(data.size <= buffer.*.bitfield_1.mSize);
-    memcpy(@ptrCast(buffer.*.pCpuMappedAddress.?), data.data.?, data.size);
+    const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
+    std.debug.assert(buffer.*.*.bitfield_1.mDescriptors == IGraphics.DescriptorType.DESCRIPTOR_TYPE_UNIFORM_BUFFER.bits);
+    std.debug.assert(data.size <= buffer.*.*.bitfield_1.mSize);
+    memcpy(@ptrCast(buffer.*.*.pCpuMappedAddress.?), data.data.?, data.size);
 }
 
 pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, name: []const u8) BufferHandle {
@@ -659,13 +659,13 @@ pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, name: []cons
 }
 
 pub fn updateBuffer(data: DataSlice, dest_offset: u64, handle: BufferHandle) void {
-    const buffer = gpu.buffers.getColumn(handle, .ptr) catch unreachable;
-    std.debug.assert(data.size <= buffer.*.bitfield_1.mSize);
+    const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
+    std.debug.assert(data.size <= buffer.*.*.bitfield_1.mSize);
 
     var upload_context = gpu.upload_ring_buffer.begin(data.size);
     memcpy(@ptrCast(upload_context.buffer.*.pCpuMappedAddress.?), data.data.?, data.size);
 
-    IGraphicsTides.cmdUpdateBufferEx(upload_context.cmd, buffer, dest_offset, upload_context.buffer, upload_context.buffer_offset, data.size);
+    IGraphicsTides.cmdUpdateBufferEx(upload_context.cmd, buffer.*, dest_offset, upload_context.buffer, upload_context.buffer_offset, data.size);
 
     gpu.upload_ring_buffer.end(&upload_context, true);
 }
@@ -691,8 +691,8 @@ pub fn createIndexBuffer(size: u64, index_type: IGraphics.IndexType, name: []con
 }
 
 pub fn getBufferBindlessIndex(handle: BufferHandle) u32 {
-    const buffer = gpu.buffers.getColumn(handle, .ptr) catch unreachable;
-    return @intCast(buffer.*.mDx.mDescriptors);
+    const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
+    return @intCast(buffer.*.*.mDx.mDescriptors);
 }
 
 fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
