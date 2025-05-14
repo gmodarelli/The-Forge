@@ -969,8 +969,8 @@ pub fn cmdResourceBarrier(buffer_barriers: ?[]BufferBarrier, texture_barriers: ?
             zf_buffer_barriers[i].mCurrentState = barrier.current_state;
             zf_buffer_barriers[i].mNewState = barrier.new_state;
 
-            const buffer = gpu.buffers.getColumn(barrier.buffer_handle, .ptr) catch unreachable;
-            zf_buffer_barriers[i].pBuffer = buffer;
+            const buffer = gpu.buffers.getColumnPtr(barrier.buffer_handle, .ptr) catch unreachable;
+            zf_buffer_barriers[i].pBuffer = buffer.*;
         }
     }
 
@@ -982,10 +982,10 @@ pub fn cmdResourceBarrier(buffer_barriers: ?[]BufferBarrier, texture_barriers: ?
             zf_texture_barriers[i].mCurrentState = barrier.current_state;
             zf_texture_barriers[i].mNewState = barrier.new_state;
 
-            var texture: [*c]IGraphics.Texture = null;
+            var texture: *[*c]IGraphics.Texture = undefined;
             if (barrier.render_texture_handle) |render_texture_handle| {
-                texture = gpu.render_textures.getColumn(render_texture_handle, .ptr) catch unreachable;
-                zf_texture_barriers[i].pTexture = texture;
+                texture = gpu.render_textures.getColumnPtr(render_texture_handle, .ptr) catch unreachable;
+                zf_texture_barriers[i].pTexture = texture.*;
             }
         }
     }
@@ -998,8 +998,8 @@ pub fn cmdResourceBarrier(buffer_barriers: ?[]BufferBarrier, texture_barriers: ?
             zf_render_target_barriers[i].mCurrentState = barrier.current_state;
             zf_render_target_barriers[i].mNewState = barrier.new_state;
 
-            const render_target = gpu.render_targets.getColumn(barrier.render_target_handle, .ptr) catch unreachable;
-            zf_render_target_barriers[i].pRenderTarget = render_target;
+            const render_target = gpu.render_targets.getColumnPtr(barrier.render_target_handle, .ptr) catch unreachable;
+            zf_render_target_barriers[i].pRenderTarget = render_target.*;
         }
     }
 
@@ -1022,17 +1022,17 @@ pub fn cmdBindRenderTargets(bind_render_targets: []BindRenderTarget) void {
     bind_render_targets_desc.mRenderTargetCount = @intCast(bind_render_targets.len);
 
     for (bind_render_targets, 0..) |bind_render_target, i| {
-        const render_target = gpu.render_targets.getColumn(bind_render_target.render_target_handle, .ptr) catch unreachable;
+        const render_target = gpu.render_targets.getColumnPtr(bind_render_target.render_target_handle, .ptr) catch unreachable;
         const render_target_desc = gpu.render_targets.getColumnPtr(bind_render_target.render_target_handle, .desc) catch unreachable;
         if (render_target_desc.*.mFormat == .D32_SFLOAT) {
             std.debug.assert(i == bind_render_targets.len - 1);
             bind_render_targets_desc.mDepthStencil = std.mem.zeroes(IGraphics.BindDepthTargetDesc);
-            bind_render_targets_desc.mDepthStencil.pDepthStencil = render_target;
+            bind_render_targets_desc.mDepthStencil.pDepthStencil = render_target.*;
             bind_render_targets_desc.mDepthStencil.mLoadAction = bind_render_target.load_action;
             bind_render_targets_desc.mRenderTargetCount -= 1;
         } else {
             bind_render_targets_desc.mRenderTargets[i] = std.mem.zeroes(IGraphics.BindRenderTargetDesc);
-            bind_render_targets_desc.mRenderTargets[i].pRenderTarget = render_target;
+            bind_render_targets_desc.mRenderTargets[i].pRenderTarget = render_target.*;
             bind_render_targets_desc.mRenderTargets[i].mLoadAction = bind_render_target.load_action;
         }
     }
@@ -1041,8 +1041,8 @@ pub fn cmdBindRenderTargets(bind_render_targets: []BindRenderTarget) void {
 }
 
 pub fn cmdBindPipeline(handle: PsoHandle) void {
-    const pipeline = gpu.psos.getColumn(handle, .ptr) catch unreachable;
-    IGraphics.cmdBindPipeline(gpu.cmds[gpu.frame_index], pipeline);
+    const pipeline = gpu.psos.getColumnPtr(handle, .ptr) catch unreachable;
+    IGraphics.cmdBindPipeline(gpu.cmds[gpu.frame_index], pipeline.*);
 }
 
 pub fn cmdBindDescriptorSet(frame_index: u32, descriptor_set: [*c]IGraphics.DescriptorSet) void {
@@ -1055,8 +1055,8 @@ pub fn cmdSetDefaultViewportAndScissor(width: u32, height: u32) void {
 }
 
 pub fn cmdBindIndexBuffer(handle: BufferHandle, index_type: IndexType) void {
-    const buffer = gpu.buffers.getColumn(handle, .ptr) catch unreachable;
-    IGraphics.cmdBindIndexBuffer(gpu.cmds[gpu.frame_index], buffer, @intCast(index_type.bits), 0);
+    const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
+    IGraphics.cmdBindIndexBuffer(gpu.cmds[gpu.frame_index], buffer.*, @intCast(index_type.bits), 0);
 }
 
 pub fn cmdDraw(vertex_count: u32, first_vertex: u32) void {
