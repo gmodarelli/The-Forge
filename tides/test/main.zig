@@ -27,7 +27,6 @@ pub const Gfx = struct {
     // Render Targets and Render Textures
     gbuffer0: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
-    // TODO: Figure out if we need double-buffering for render textures
     scene_color: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
     gauss_blur_a: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
     gauss_blur_b: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
@@ -65,24 +64,6 @@ pub const Frame = struct {
     time: f32,
     transform_buffer_index: u32,
     vertex_buffer_index: u32,
-};
-
-pub const Mesh = struct {
-    sub_meshes: [8]SubMesh = undefined,
-    sub_meshes_count: u32 = 0,
-};
-
-pub const SubMesh = struct {
-    index_count: u32,
-    first_index: u32,
-    vertex_count: u32,
-    first_vertex: u32,
-};
-
-pub const Vertex = struct {
-    position: [3]f32,
-    uv: [2]f32,
-    normal: [3]f32,
 };
 
 pub const Transform = struct {
@@ -502,7 +483,38 @@ pub fn main() !void {
     {
         const base_path = std.fs.path.join(temp_allocator, &[_][]const u8{ "content", "models", "stylized_nature" }) catch unreachable;
         defer temp_allocator.free(base_path);
-        loadGltfMesh(base_path, "Birch_1.gltf", temp_allocator, &gfx.birch_1_mesh);
+
+        var mesh_vertices = std.ArrayList(Vertex).init(temp_allocator);
+        defer mesh_vertices.deinit();
+        var mesh_indices = std.ArrayList(u32).init(temp_allocator);
+        defer mesh_indices.deinit();
+
+        var load_desc = GltfLoadDesc{
+            .base_path = base_path,
+            .file_name = "Birch_1.gltf",
+            .allocator = temp_allocator,
+            .mesh = &gfx.birch_1_mesh,
+            .mesh_vertices = &mesh_vertices,
+            .mesh_indices = &mesh_indices,
+        };
+
+        loadGltfMesh(&load_desc);
+
+        const vertex_data = zf.DataSlice{
+            .data = @ptrCast(mesh_vertices.items),
+            .size = @sizeOf(Vertex) * mesh_vertices.items.len,
+        };
+        zf.updateBuffer(vertex_data, gfx.vertex_buffer_offset, gfx.vertex_buffer);
+
+        const index_data = zf.DataSlice{
+            .data = @ptrCast(mesh_indices.items),
+            .size = @sizeOf(u32) * mesh_indices.items.len,
+        };
+        zf.updateBuffer(index_data, gfx.index_buffer_offset, gfx.index_buffer);
+
+        // TODO: Lock-guard when multithreading
+        gfx.vertex_buffer_offset += vertex_data.size;
+        gfx.index_buffer_offset += index_data.size;
     }
 
     while (!window.shouldClose()) {
@@ -942,52 +954,82 @@ fn updateDescriptorSets() void {
     }
 }
 
-fn loadGltfMesh(base_path: []const u8, file_name: []const u8, allocator: std.mem.Allocator, out_mesh: *Mesh) void {
-    const gltf_path = std.fs.path.join(allocator, &[_][]const u8{ base_path, file_name }) catch unreachable;
-    defer allocator.free(gltf_path);
+// ███╗   ███╗███████╗███████╗██╗  ██╗███████╗███████╗
+// ████╗ ████║██╔════╝██╔════╝██║  ██║██╔════╝██╔════╝
+// ██╔████╔██║█████╗  ███████╗███████║█████╗  ███████╗
+// ██║╚██╔╝██║██╔══╝  ╚════██║██╔══██║██╔══╝  ╚════██║
+// ██║ ╚═╝ ██║███████╗███████║██║  ██║███████╗███████║
+// ╚═╝     ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝
+//
+
+pub const Mesh = struct {
+    sub_meshes: [8]SubMesh = undefined,
+    sub_meshes_count: u32 = 0,
+};
+
+pub const SubMesh = struct {
+    index_count: u32,
+    first_index: u32,
+    vertex_count: u32,
+    first_vertex: u32,
+};
+
+pub const Vertex = struct {
+    position: [3]f32,
+    uv: [2]f32,
+    normal: [3]f32,
+};
+
+const GltfLoadDesc = struct {
+    base_path: []const u8,
+    file_name: []const u8,
+    allocator: std.mem.Allocator,
+    mesh: *Mesh,
+    mesh_vertices: *std.ArrayList(Vertex),
+    mesh_indices: *std.ArrayList(u32),
+};
+
+fn loadGltfMesh(load_desc: *GltfLoadDesc) void {
+    const gltf_path = std.fs.path.join(load_desc.allocator, &[_][]const u8{ load_desc.base_path, load_desc.file_name }) catch unreachable;
+    defer load_desc.allocator.free(gltf_path);
 
     const json = std.fs.cwd().readFileAllocOptions(
-        allocator,
+        load_desc.allocator,
         gltf_path,
         512_000,
         null,
         4,
         null
     ) catch unreachable;
-    defer allocator.free(json);
+    defer load_desc.allocator.free(json);
     gltf.parse(json) catch unreachable;
 
     std.debug.assert(gltf.data.buffers.items.len == 1);
-    const bin_path = std.fs.path.join(allocator, &[_][]const u8{ base_path, gltf.data.buffers.items[0].uri.? }) catch unreachable;
-    defer allocator.free(bin_path);
+    const bin_path = std.fs.path.join(load_desc.allocator, &[_][]const u8{ load_desc.base_path, gltf.data.buffers.items[0].uri.? }) catch unreachable;
+    defer load_desc.allocator.free(bin_path);
 
     const bin = std.fs.cwd().readFileAllocOptions(
-        allocator,
+        load_desc.allocator,
         bin_path,
         5_000_000,
         null,
         4,
         null
     ) catch unreachable;
-    defer allocator.free(bin);
+    defer load_desc.allocator.free(bin);
 
-    var mesh_vertices = std.ArrayList(Vertex).init(allocator);
-    defer mesh_vertices.deinit();
-    var mesh_indices = std.ArrayList(u32).init(allocator);
-    defer mesh_indices.deinit();
-
-    var positions = std.ArrayList(f32).init(allocator);
+    var positions = std.ArrayList(f32).init(load_desc.allocator);
     defer positions.deinit();
-    var uvs = std.ArrayList(f32).init(allocator);
+    var uvs = std.ArrayList(f32).init(load_desc.allocator);
     defer uvs.deinit();
-    var normals = std.ArrayList(f32).init(allocator);
+    var normals = std.ArrayList(f32).init(load_desc.allocator);
     defer normals.deinit();
-    var indices = std.ArrayList(u32).init(allocator);
+    var indices = std.ArrayList(u32).init(load_desc.allocator);
     defer indices.deinit();
 
     const mesh = gltf.data.meshes.items[0];
     std.debug.assert(mesh.primitives.items.len < 8);
-    out_mesh.sub_meshes_count = 0;
+    load_desc.mesh.sub_meshes_count = 0;
 
     for (mesh.primitives.items) |primitive| {
         positions.clearRetainingCapacity();
@@ -1022,7 +1064,7 @@ fn loadGltfMesh(base_path: []const u8, file_name: []const u8, allocator: std.mem
         std.debug.assert(primitive.indices != null);
         const accessor = gltf.data.accessors.items[primitive.indices.?];
         if (accessor.component_type == .unsigned_short) {
-            var indices16 = std.ArrayList(u16).init(allocator);
+            var indices16 = std.ArrayList(u16).init(load_desc.allocator);
             defer indices16.deinit();
             gltf.getDataFromBufferView(u16, &indices16, accessor, bin);
 
@@ -1035,11 +1077,11 @@ fn loadGltfMesh(base_path: []const u8, file_name: []const u8, allocator: std.mem
 
         const positions_count = @divExact(positions.items.len, 3);
 
-        out_mesh.sub_meshes[out_mesh.sub_meshes_count].index_count = @intCast(indices.items.len);
-        out_mesh.sub_meshes[out_mesh.sub_meshes_count].first_index = @intCast(mesh_indices.items.len);
-        out_mesh.sub_meshes[out_mesh.sub_meshes_count].vertex_count = @intCast(positions_count);
-        out_mesh.sub_meshes[out_mesh.sub_meshes_count].first_vertex = @intCast(mesh_vertices.items.len);
-        out_mesh.sub_meshes_count += 1;
+        load_desc.mesh.sub_meshes[load_desc.mesh.sub_meshes_count].index_count = @intCast(indices.items.len);
+        load_desc.mesh.sub_meshes[load_desc.mesh.sub_meshes_count].first_index = @intCast(load_desc.mesh_indices.items.len);
+        load_desc.mesh.sub_meshes[load_desc.mesh.sub_meshes_count].vertex_count = @intCast(positions_count);
+        load_desc.mesh.sub_meshes[load_desc.mesh.sub_meshes_count].first_vertex = @intCast(load_desc.mesh_vertices.items.len);
+        load_desc.mesh.sub_meshes_count += 1;
 
         for (0..positions_count) |vertex_index| {
             const vertex = Vertex{
@@ -1047,28 +1089,12 @@ fn loadGltfMesh(base_path: []const u8, file_name: []const u8, allocator: std.mem
                 .normal = .{ normals.items[vertex_index * 3 + 0] * -1.0, normals.items[vertex_index * 3 + 1], normals.items[vertex_index * 3 + 2] },
                 .uv = .{ uvs.items[vertex_index * 2 + 0], uvs.items[vertex_index * 2 + 1] },
             };
-            mesh_vertices.append(vertex) catch unreachable;
+            load_desc.mesh_vertices.append(vertex) catch unreachable;
         }
 
         for (indices.items) |index| {
-            mesh_indices.append(index) catch unreachable;
+            load_desc.mesh_indices.append(index) catch unreachable;
         }
 
     }
-
-    const vertex_data = zf.DataSlice{
-        .data = @ptrCast(mesh_vertices.items),
-        .size = @sizeOf(Vertex) * mesh_vertices.items.len,
-    };
-    zf.updateBuffer(vertex_data, gfx.vertex_buffer_offset, gfx.vertex_buffer);
-
-    const index_data = zf.DataSlice{
-        .data = @ptrCast(mesh_indices.items),
-        .size = @sizeOf(u32) * mesh_indices.items.len,
-    };
-    zf.updateBuffer(index_data, gfx.index_buffer_offset, gfx.index_buffer);
-
-    // TODO: Lock-guard when multithreading
-    gfx.vertex_buffer_offset += vertex_data.size;
-    gfx.index_buffer_offset += index_data.size;
 }
