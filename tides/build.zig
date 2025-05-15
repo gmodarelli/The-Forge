@@ -89,9 +89,6 @@ pub fn buildLib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
 
     const zpool = b.dependency("zpool", .{});
     ze_forge.addImport("zpool", zpool.module("root"));
-
-    const zigwin32 = b.dependency("zigwin32", .{});
-    ze_forge.addImport("win32", zigwin32.module("win32"));
 }
 
 pub fn build(b: *std.Build) void {

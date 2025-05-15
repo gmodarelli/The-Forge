@@ -24,7 +24,6 @@
     // internet connectivity.
     .dependencies = .{
         .zpool = .{ .path = "../../zpool" },
-        .zigwin32 = .{ .path = "../../zigwin32" },
         // See `zig fetch --save <url>` for a command-line interface for adding dependencies.
         //.example = .{
         //    // When updating this field to a new URL, be sure to delete the corresponding

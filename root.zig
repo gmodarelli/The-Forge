@@ -3,7 +3,6 @@ pub const IGraphics = @import("Common_3/Graphics/Interfaces/IGraphics.zig");
 const IGraphicsTides = @import("Common_3/Graphics/Interfaces/IGraphicsTides.zig");
 
 const Pool = @import("zpool").Pool;
-const win32_threading = @import("win32").system.threading;
 
 pub export const D3D12SDKVersion: u32 = 715;
 pub export const D3D12SDKPath: [*:0]const u8 = ".\\";
@@ -1205,7 +1204,7 @@ const UploadQueue = struct {
     queue: [*c]IGraphics.Queue = null,
     fence: [*c]IGraphics.Fence = null,
     wait_count: u64 = 0,
-    lock: win32_threading.RTL_SRWLOCK = .{ .Ptr = null },
+    mutex: std.Thread.Mutex = .{},
 
     pub fn init() UploadQueue {
         var upload_queue = UploadQueue{};
@@ -1227,8 +1226,8 @@ const UploadQueue = struct {
     }
 
     pub fn syncDependentQueue(self: *UploadQueue, other_queue: [*c]IGraphics.Queue) void {
-        win32_threading.AcquireSRWLockExclusive(&self.lock);
-        defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
         if (self.wait_count > 0) {
             IGraphicsTides.queueWaitForFence(other_queue, self.fence);
@@ -1238,8 +1237,8 @@ const UploadQueue = struct {
     }
 
     pub fn submitCmdList(self: *UploadQueue, cmd: [*c]IGraphics.Cmd, sync_on_dependent_queue: bool) u64 {
-        win32_threading.AcquireSRWLockExclusive(&self.lock);
-        defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
         var submit_desc = std.mem.zeroes(IGraphics.QueueSubmitDesc);
         submit_desc.mCmdCount = 1;
@@ -1256,8 +1255,8 @@ const UploadQueue = struct {
     }
 
     pub fn flush(self: *UploadQueue) void {
-        win32_threading.AcquireSRWLockExclusive(&self.lock);
-        defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
         IGraphics.waitForFences(gpu.renderer, 1, &self.fence);
     }
@@ -1292,7 +1291,7 @@ const UploadRingBuffer = struct {
     buffer_start: u64 = 0,
     buffer_used: u64 = 0,
 
-    lock: win32_threading.RTL_SRWLOCK = .{ .Ptr = null },
+    mutex: std.Thread.Mutex = .{},
 
     submit_queue: *UploadQueue = undefined,
 
@@ -1385,8 +1384,8 @@ const UploadRingBuffer = struct {
     }
 
     pub fn flush(self: *UploadRingBuffer) void {
-        win32_threading.AcquireSRWLockExclusive(&self.lock);
-        defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
         while (self.submission_used > 0) {
             self.clearPendingUploads(std.math.maxInt(u64));
@@ -1394,9 +1393,10 @@ const UploadRingBuffer = struct {
     }
 
     pub fn tryClearPending(self: *UploadRingBuffer) void {
-        if (win32_threading.TryAcquireSRWLockExclusive(&self.lock) == 0) {
+        // TODO: Replace with std.Thread.Mutex
+        if (self.mutex.tryLock()) {
             self.clearPendingUploads(0);
-            win32_threading.ReleaseSRWLockExclusive(&self.lock);
+            self.mutex.unlock();
         }
     }
 
@@ -1457,8 +1457,8 @@ const UploadRingBuffer = struct {
         const aligned_size = alignTo(size, 512);
 
         if (aligned_size > self.buffer_size) {
-            win32_threading.AcquireSRWLockExclusive(&self.lock);
-            defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+            self.mutex.lock();
+            defer self.mutex.unlock();
 
             while (self.submission_used > 0) {
                 self.clearPendingUploads(std.math.maxInt(u64));
@@ -1470,8 +1470,8 @@ const UploadRingBuffer = struct {
         var upload_submission: ?*UploadSubmission = null;
 
         {
-            win32_threading.AcquireSRWLockExclusive(&self.lock);
-            defer win32_threading.ReleaseSRWLockExclusive(&self.lock);
+            self.mutex.lock();
+            defer self.mutex.unlock();
 
             self.clearPendingUploads(0);
 
