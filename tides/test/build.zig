@@ -93,6 +93,9 @@ pub fn buildExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     install_file = b.addInstallFile(b.path(ze_forge_base_path ++ "tides/gpu.cfg"), test_exe_bin_path ++ "gpu.cfg");
     exe.step.dependOn(&install_file.step);
 
+    var install_directory = b.addInstallDirectory(.{ .source_dir = b.path("content/models"), .install_dir = .{ .prefix = {} }, .install_subdir = "bin/content/models" });
+    exe.step.dependOn(&install_directory.step);
+
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     compileShaders(&exe.step, allocator);
