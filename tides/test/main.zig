@@ -971,69 +971,6 @@ const GltfLoadDesc = struct {
     mesh_indices: *std.ArrayList(u32),
 };
 
-fn loadMeshes() void {
-    var temp_allocator = std.heap.page_allocator;
-
-    const base_path = std.fs.path.join(temp_allocator, &[_][]const u8{ "content", "models" }) catch unreachable;
-    defer temp_allocator.free(base_path);
-
-    var mesh_vertices = std.ArrayList(Vertex).init(temp_allocator);
-    defer mesh_vertices.deinit();
-    var mesh_indices = std.ArrayList(u32).init(temp_allocator);
-    defer mesh_indices.deinit();
-
-    var load_desc = GltfLoadDesc{
-        .base_path = base_path,
-        .file_name = "Birch_1.gltf",
-        .allocator = temp_allocator,
-        .mesh = &gfx.birch_1_mesh,
-        .mesh_vertices = &mesh_vertices,
-        .mesh_indices = &mesh_indices,
-    };
-
-    loadGltfMesh(&load_desc);
-    uploadMesh(&mesh_vertices, &mesh_indices, &gfx.birch_1_mesh);
-
-    mesh_vertices.clearRetainingCapacity();
-    mesh_indices.clearRetainingCapacity();
-    load_desc.file_name = "Birch_2.gltf";
-    load_desc.mesh = &gfx.birch_2_mesh;
-    loadGltfMesh(&load_desc);
-    uploadMesh(&mesh_vertices, &mesh_indices, &gfx.birch_2_mesh);
-
-    mesh_vertices.clearRetainingCapacity();
-    mesh_indices.clearRetainingCapacity();
-    load_desc.file_name = "Bush_Large.gltf";
-    load_desc.mesh = &gfx.bush_large_mesh;
-    loadGltfMesh(&load_desc);
-    uploadMesh(&mesh_vertices, &mesh_indices, &gfx.bush_large_mesh);
-}
-
-fn uploadMesh(vertices: *std.ArrayList(Vertex), indices: *std.ArrayList(u32), mesh: *Mesh) void {
-    gfx.geometry_buffer_mutex.lock();
-    defer gfx.geometry_buffer_mutex.unlock();
-
-    for (0..mesh.sub_meshes_count) |sub_mesh_index| {
-        mesh.sub_meshes[sub_mesh_index].first_vertex += @intCast(@divExact(gfx.vertex_buffer_offset, @sizeOf(Vertex)));
-        mesh.sub_meshes[sub_mesh_index].first_index += @intCast(@divExact(gfx.index_buffer_offset, @sizeOf(u32)));
-    }
-
-    const vertex_data = zf.DataSlice{
-        .data = @ptrCast(vertices.items),
-        .size = @sizeOf(Vertex) * vertices.items.len,
-    };
-    zf.updateBuffer(vertex_data, gfx.vertex_buffer_offset, gfx.vertex_buffer);
-
-    const index_data = zf.DataSlice{
-        .data = @ptrCast(indices.items),
-        .size = @sizeOf(u32) * indices.items.len,
-    };
-    zf.updateBuffer(index_data, gfx.index_buffer_offset, gfx.index_buffer);
-
-    gfx.vertex_buffer_offset += vertex_data.size;
-    gfx.index_buffer_offset += index_data.size;
-}
-
 fn loadGltfMesh(load_desc: *GltfLoadDesc) void {
     var gltf = zgltf.init(load_desc.allocator);
     defer gltf.deinit();
@@ -1144,4 +1081,411 @@ fn loadGltfMesh(load_desc: *GltfLoadDesc) void {
             load_desc.mesh_indices.append(index) catch unreachable;
         }
     }
+}
+
+fn loadMeshes() void {
+    var temp_allocator = std.heap.page_allocator;
+
+    const base_path = std.fs.path.join(temp_allocator, &[_][]const u8{ "content", "models" }) catch unreachable;
+    defer temp_allocator.free(base_path);
+
+    var mesh_vertices = std.ArrayList(Vertex).init(temp_allocator);
+    defer mesh_vertices.deinit();
+    var mesh_indices = std.ArrayList(u32).init(temp_allocator);
+    defer mesh_indices.deinit();
+
+    var load_desc = GltfLoadDesc{
+        .base_path = base_path,
+        .file_name = "Birch_1.gltf",
+        .allocator = temp_allocator,
+        .mesh = &gfx.birch_1_mesh,
+        .mesh_vertices = &mesh_vertices,
+        .mesh_indices = &mesh_indices,
+    };
+
+    loadGltfMesh(&load_desc);
+    uploadMesh(&mesh_vertices, &mesh_indices, &gfx.birch_1_mesh);
+
+    mesh_vertices.clearRetainingCapacity();
+    mesh_indices.clearRetainingCapacity();
+    load_desc.file_name = "Birch_2.gltf";
+    load_desc.mesh = &gfx.birch_2_mesh;
+    loadGltfMesh(&load_desc);
+    uploadMesh(&mesh_vertices, &mesh_indices, &gfx.birch_2_mesh);
+
+    mesh_vertices.clearRetainingCapacity();
+    mesh_indices.clearRetainingCapacity();
+    load_desc.file_name = "Bush_Large.gltf";
+    load_desc.mesh = &gfx.bush_large_mesh;
+    loadGltfMesh(&load_desc);
+    uploadMesh(&mesh_vertices, &mesh_indices, &gfx.bush_large_mesh);
+}
+
+fn uploadMesh(vertices: *std.ArrayList(Vertex), indices: *std.ArrayList(u32), mesh: *Mesh) void {
+    gfx.geometry_buffer_mutex.lock();
+    defer gfx.geometry_buffer_mutex.unlock();
+
+    for (0..mesh.sub_meshes_count) |sub_mesh_index| {
+        mesh.sub_meshes[sub_mesh_index].first_vertex += @intCast(@divExact(gfx.vertex_buffer_offset, @sizeOf(Vertex)));
+        mesh.sub_meshes[sub_mesh_index].first_index += @intCast(@divExact(gfx.index_buffer_offset, @sizeOf(u32)));
+    }
+
+    const vertex_data = zf.DataSlice{
+        .data = @ptrCast(vertices.items),
+        .size = @sizeOf(Vertex) * vertices.items.len,
+    };
+    zf.updateBuffer(vertex_data, gfx.vertex_buffer_offset, gfx.vertex_buffer);
+
+    const index_data = zf.DataSlice{
+        .data = @ptrCast(indices.items),
+        .size = @sizeOf(u32) * indices.items.len,
+    };
+    zf.updateBuffer(index_data, gfx.index_buffer_offset, gfx.index_buffer);
+
+    gfx.vertex_buffer_offset += vertex_data.size;
+    gfx.index_buffer_offset += index_data.size;
+}
+
+// ████████╗███████╗██╗  ██╗████████╗██╗   ██╗██████╗ ███████╗███████╗
+// ╚══██╔══╝██╔════╝╚██╗██╔╝╚══██╔══╝██║   ██║██╔══██╗██╔════╝██╔════╝
+//    ██║   █████╗   ╚███╔╝    ██║   ██║   ██║██████╔╝█████╗  ███████╗
+//    ██║   ██╔══╝   ██╔██╗    ██║   ██║   ██║██╔══██╗██╔══╝  ╚════██║
+//    ██║   ███████╗██╔╝ ██╗   ██║   ╚██████╔╝██║  ██║███████╗███████║
+//    ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝
+//
+
+fn loadDdsTexture(file_path: []const u8, allocator: std.mem.Allocator) !void {
+    var file = std.fs.cwd().openFile(file_path, .{}) catch unreachable;
+    defer file.close();
+
+    const metadata = file.metadata() catch unreachable;
+    const file_size = metadata.size();
+    std.debug.assert(file_size > @sizeOf(u32) + @sizeOf(DDS_HEADER));
+
+    // Read all file
+    const file_data = allocator.alloc(u8, file_size) catch unreachable;
+    defer allocator.free(file_data);
+    const read_bytes = file.readAll(file_data) catch unreachable;
+    std.debug.assert(read_bytes == file_size);
+
+    // Create a stream
+    var stream = std.io.StreamSource(.{ .buffer = std.io.fixedBufferStream(file_data) });
+    var reader = stream.reader();
+
+    // Check DDS_MAGIC
+    const magic = reader.readInt(u32, .litte) catch unreachable;
+    std.debug.assert(magic == DDS_MAGIC);
+
+    // Extract DDS_HEADER
+    const header = reader.readStruct(DDS_HEADER) catch unreachable;
+    std.debug.assert(header.dwSize == @as(u32, @intCast(@sizeOf(DDS_HEADER))));
+    std.debug.assert(header.ddspf.dwSize == @as(u32, @intCast(@sizeOf(DDS_PIXELFORMAT))));
+
+    // Ensure there's no DX10 extension
+    // TODO: This might be required for BCH6 and BC7 :(
+    if ((header.ddspf.dwFlags & DDS_FOURCC) == DDS_FOURCC) {
+        std.debug.assert(header.ddspf.dwFourCC != makeFourCC('D', 'X', '1', '0'));
+    }
+
+    // Check alpha mode
+    var alpha_mode = DDS_ALPHA_MODE.unknown;
+    if (header.ddspf.dwFourCC == makeFourCC('D', 'X', 'T', '2') or header.ddspf.dwFourCC == makeFourCC('D', 'X', 'T', '4')) {
+        alpha_mode = .premultiplied;
+    }
+
+    const data_size = file_data.len - (@sizeOf(u32) + @sizeOf(DDS_HEADER));
+    const data = allocator.alloc(u8, data_size) catch unreachable;
+    reader.readNoEof(data) catch unreachable;
+
+    const width = header.dwWidth;
+    const height = header.dwHeight;
+    _ = width;
+    _ = height;
+    var depth = header.dwDepth;
+    var array_size: u32 = 1;
+    var mip_count = header.dwMipMapCount;
+    if (mip_count == 0) {
+        mip_count = 1;
+    }
+
+    const format = ddsFormatToTinyImageFormat(header.ddspf);
+    std.debug.assert(format != .UNDEFINED);
+
+    var texture_dimension = zf.TextureDimension.TEXTURE_DIM_UNDEFINED;
+    if ((header.dwFlags & DDS_HEADER_FLAGS_VOLUME) == DDS_HEADER_FLAGS_VOLUME) {
+        texture_dimension = zf.TextureDimension.TEXTURE_DIM_3D;
+    } else {
+        if ((header.dwCaps2 & DDS_CUBEMAP) == DDS_CUBEMAP) {
+            // We require all six faces to be defined
+            std.debug.assert((header.dwCaps2 & DDS_CUBEMAP_ALLFACES) == DDS_CUBEMAP_ALLFACES);
+            array_size = 6;
+        }
+
+        depth = 1;
+        texture_dimension = zf.TextureDimension.TEXTURE_DIM_CUBE;
+    }
+}
+
+const DDS_HEADER_FLAGS_TEXTURE: u32 = 0x00001007; // DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT
+const DDS_HEADER_FLAGS_MIPMAP: u32 = 0x00020000; // DDSD_MIPMAPCOUNT
+const DDS_HEADER_FLAGS_VOLUME: u32 = 0x00800000; // DDSD_DEPTH
+const DDS_HEADER_FLAGS_PITCH: u32 = 0x00000008; // DDSD_PITCH
+const DDS_HEADER_FLAGS_LINEARSIZE: u32 = 0x00080000; // DDSD_LINEARSIZE
+
+const DDS_HEIGHT: u32 = 0x00000002; // DDSD_HEIGHT
+const DDS_WIDTH: u32 = 0x00000004; // DDSD_WIDTH
+
+const DDS_SURFACE_FLAGS_TEXTURE: u32 = 0x00001000; // DDSCAPS_TEXTURE
+const DDS_SURFACE_FLAGS_MIPMAP: u32 = 0x00400008; // DDSCAPS_COMPLEX | DDSCAPS_MIPMAP
+const DDS_SURFACE_FLAGS_CUBEMAP: u32 = 0x00000008; // DDSCAPS_COMPLEX
+
+const DDS_CUBEMAP_POSITIVEX: u32 = 0x00000600; // DDSCAPS2_CUBEMAP | DDSCAPS2_CUBEMAP_POSITIVEX
+const DDS_CUBEMAP_NEGATIVEX: u32 = 0x00000a00; // DDSCAPS2_CUBEMAP | DDSCAPS2_CUBEMAP_NEGATIVEX
+const DDS_CUBEMAP_POSITIVEY: u32 = 0x00001200; // DDSCAPS2_CUBEMAP | DDSCAPS2_CUBEMAP_POSITIVEY
+const DDS_CUBEMAP_NEGATIVEY: u32 = 0x00002200; // DDSCAPS2_CUBEMAP | DDSCAPS2_CUBEMAP_NEGATIVEY
+const DDS_CUBEMAP_POSITIVEZ: u32 = 0x00004200; // DDSCAPS2_CUBEMAP | DDSCAPS2_CUBEMAP_POSITIVEZ
+const DDS_CUBEMAP_NEGATIVEZ: u32 = 0x00008200; // DDSCAPS2_CUBEMAP | DDSCAPS2_CUBEMAP_NEGATIVEZ
+
+const DDS_CUBEMAP_ALLFACES: u32 = (DDS_CUBEMAP_POSITIVEX | DDS_CUBEMAP_NEGATIVEX | DDS_CUBEMAP_POSITIVEY | DDS_CUBEMAP_NEGATIVEY | DDS_CUBEMAP_POSITIVEZ | DDS_CUBEMAP_NEGATIVEZ);
+
+const DDS_CUBEMAP: u32 = 0x00000200; // DDSCAPS2_CUBEMAP
+
+const DDS_FLAGS_VOLUME: u32 = 0x00200000; // DDSCAPS2_VOLUME
+
+const DDS_MISC_FLAGS2_ALPHA_MODE_MASK: u32 = 0x7;
+
+const DDS_MAGIC: u32 = 0x20534444; // "DDS "
+
+const DDS_FOURCC: u32 = 0x00000004; // DDPF_FOURCC
+const DDS_RGB: u32 = 0x00000040; // DDPF_RGB
+const DDS_RGBA: u32 = 0x00000041; // DDPF_RGB | DDPF_ALPHAPIXELS
+const DDS_LUMINANCE: u32 = 0x00020000; // DDPF_LUMINANCE
+const DDS_LUMINANCEA: u32 = 0x00020001; // DDPF_LUMINANCE | DDPF_ALPHAPIXELS
+const DDS_ALPHA: u32 = 0x00000002; // DDPF_ALPHA
+const DDS_PAL8: u32 = 0x00000020; // DDPF_PALETTEINDEXED8
+const DDS_BUMPDUDV: u32 = 0x00080000; // DDPF_BUMPDUDV
+
+inline fn makeFourCC(ch0: u8, ch1: u8, ch2: u8, ch3: u8) u32 {
+    return (@as(u32, @intCast(ch0))) | (@as(u32, @intCast(ch1)) << 8) | (@as(u32, @intCast(ch2)) << 16) | (@as(u32, @intCast(ch3)) << 24);
+}
+
+inline fn isBitMask(pixelFormat: DDS_PIXELFORMAT, r: u32, g: u32, b: u32, a: u32) bool {
+    return (pixelFormat.dwRBitMask == r and pixelFormat.dwGBitMask == g and pixelFormat.dwBBitMask == b and pixelFormat.dwABitMask == a);
+}
+
+const DDS_ALPHA_MODE = enum(u32) {
+    unknown,
+    straight,
+    premultiplied,
+    @"opaque",
+    custom,
+};
+
+const DDS_PIXELFORMAT = extern struct {
+    dwSize: u32,
+    dwFlags: u32,
+    dwFourCC: u32,
+    dwRGBBitCount: u32,
+    dwRBitMask: u32,
+    dwGBitMask: u32,
+    dwBBitMask: u32,
+    dwABitMask: u32,
+};
+
+const DDS_HEADER = extern struct {
+    dwSize: u32,
+    dwFlags: u32,
+    dwHeight: u32,
+    dwWidth: u32,
+    dwPitchOrLinearSize: u32,
+    dwDepth: u32, // only if DDS_HEADER_FLAGS_VOLUME is set in dwFlags
+    dwMipMapCount: u32,
+    dwReserved1: [11]u32,
+    ddspf: DDS_PIXELFORMAT,
+    dwCaps: u32,
+    dwCaps2: u32,
+    dwCaps3: u32,
+    dwCaps4: u32,
+    dwReserved2: u32,
+};
+
+fn ddsFormatToTinyImageFormat(pixelFormat: DDS_PIXELFORMAT) zf.IGraphics.TinyImageFormat {
+    if ((pixelFormat.dwFlags & DDS_RGB) == DDS_RGB) {
+        // Note that sRGB formats are written using the "DX10" extended header
+        if (pixelFormat.dwRGBBitCount == 32) {
+            if (isBitMask(pixelFormat, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000)) {
+                return .R8G8B8A8_UNORM;
+            }
+
+            if (isBitMask(pixelFormat, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000)) {
+                return .B8G8R8A8_UNORM;
+            }
+
+            if (isBitMask(pixelFormat, 0x00ff0000, 0x0000ff00, 0x000000ff, 0)) {
+                return .B8G8R8X8_UNORM;
+            }
+
+            // No DXGI format maps to (0x000000ff,0x0000ff00,0x00ff0000,0) aka D3DFMT_X8B8G8R8
+
+            // Note that many common DDS reader/writers (including D3DX) swap the
+            // the RED/BLUE masks for 10:10:10:2 formats. We assume
+            // below that the 'backwards' header mask is being used since it is most
+            // likely written by D3DX. The more robust solution is to use the 'DX10'
+            // header extension and specify the DXGI_FORMAT_R10G10B10A2_UNORM format directly
+
+            // For 'correct' writers, this should be (0x000003ff,0x000ffc00,0x3ff00000) for RGB data
+            if (isBitMask(pixelFormat, 0x3ff00000, 0x000ffc00, 0x000003ff, 0xc0000000)) {
+                return .R10G10B10A2_UNORM;
+            }
+
+            // No DXGI format maps to (0x000003ff,0x000ffc00,0x3ff00000,0xc0000000) aka D3DFMT_A2R10G10B10
+
+            if (isBitMask(pixelFormat, 0x0000ffff, 0xffff0000, 0, 0)) {
+                return .R16G16_UNORM;
+            }
+
+            if (isBitMask(pixelFormat, 0xffffffff, 0, 0, 0)) {
+                // Only 32-bit color channel format in D3D9 was R32F
+                return .R32_FLOAT; // D3DX writes this out as a FourCC of 114
+            }
+        } else if (pixelFormat.dwRGBBitCount == 16) {
+            if (isBitMask(pixelFormat, 0x7c00, 0x03e0, 0x001f, 0x8000)) {
+                return .B5G5R5A1_UNORM;
+            }
+            if (isBitMask(pixelFormat, 0xf800, 0x07e0, 0x001f, 0)) {
+                return .B5G6R5_UNORM;
+            }
+
+            // No DXGI format maps to (0x7c00,0x03e0,0x001f,0) aka D3DFMT_X1R5G5B5
+
+            if (isBitMask(pixelFormat, 0x0f00, 0x00f0, 0x000f, 0xf000)) {
+                return .B4G4R4A4_UNORM;
+            }
+
+            // NVTT versions 1.x wrote this as RGB instead of LUMINANCE
+            if (isBitMask(pixelFormat, 0x00ff, 0, 0, 0xff00)) {
+                return .R8G8_UNORM;
+            }
+            if (isBitMask(pixelFormat, 0xffff, 0, 0, 0)) {
+                return .R16_UNORM;
+            }
+
+            // No DXGI format maps to (0x0f00,0x00f0,0x000f,0) aka D3DFMT_X4R4G4B4
+
+            // No 3:3:2:8 or paletted DXGI formats aka D3DFMT_A8R3G3B2, D3DFMT_A8P8, etc.
+        } else if (pixelFormat.dwRGBBitCount == 8) {
+            // NVTT versions 1.x wrote this as RGB instead of LUMINANCE
+            if (isBitMask(pixelFormat, 0xff, 0, 0, 0)) {
+                return .R8_UNORM;
+            }
+
+            // No 3:3:2 or paletted DXGI formats aka D3DFMT_R3G3B2, D3DFMT_P8
+        }
+    } else if ((pixelFormat.dwFlags & DDS_LUMINANCE) == DDS_LUMINANCE) {
+        if (pixelFormat.dwRGBBitCount == 16) {
+            if (isBitMask(pixelFormat, 0xffff, 0, 0, 0)) {
+                return .R16_UNORM; // D3DX10/11 writes this out as DX10 extension
+            }
+            if (isBitMask(pixelFormat, 0x00ff, 0, 0, 0xff00)) {
+                return .R8G8_UNORM; // D3DX10/11 writes this out as DX10 extension
+            }
+        } else if (pixelFormat.dwRGBBitCount == 8) {
+            if (isBitMask(pixelFormat, 0xff, 0, 0, 0)) {
+                return .R8_UNORM; // D3DX10/11 writes this out as DX10 extension
+            }
+
+            // No DXGI format maps to isBitMask(pixelFormat, 0x0f,0,0,0xf0) aka D3DFMT_A4L4
+
+            if (isBitMask(pixelFormat, 0x00ff, 0, 0, 0xff00)) {
+                return .R8G8_UNORM; // Some DDS writers assume the bitcount should be 8 instead of 16
+            }
+        }
+    } else if ((pixelFormat.dwFlags & DDS_ALPHA) == DDS_ALPHA) {
+        if (pixelFormat.dwRGBBitCount == 8) {
+            return .A8_UNORM;
+        }
+    } else if ((pixelFormat.dwFlags & DDS_BUMPDUDV) == DDS_BUMPDUDV) {
+        if (pixelFormat.dwRGBBitCount == 32) {
+            if (isBitMask(pixelFormat, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000)) {
+                return .R8G8B8A8_SNORM; // D3DX10/11 writes this out as DX10 extension
+            }
+            if (isBitMask(pixelFormat, 0x0000ffff, 0xffff0000, 0, 0)) {
+                return .R16G16_SNORM; // D3DX10/11 writes this out as DX10 extension
+            }
+        } else if (pixelFormat.dwRGBBitCount == 16) {
+            if (isBitMask(pixelFormat, 0x00ff, 0xff00, 0, 0)) {
+                return .R8G8_SNORM; // D3DX10/11 writes this out as DX10 extension
+            }
+        }
+    } else if ((pixelFormat.dwFlags & DDS_FOURCC) == DDS_FOURCC) {
+        if (makeFourCC('D', 'X', 'T', '1') == pixelFormat.dwFourCC) {
+            return .DXBC1_RGB_UNORM;
+        }
+        if (makeFourCC('D', 'X', 'T', '3') == pixelFormat.dwFourCC) {
+            return .DXBC2_UNORM;
+        }
+        if (makeFourCC('D', 'X', 'T', '5') == pixelFormat.dwFourCC) {
+            return .DXBC3_UNORM;
+        }
+
+        // While pre-multiplied alpha isn't directly supported by the DXGI formats,
+        // they are basically the same as these BC formats so they can be mapped
+        if (makeFourCC('D', 'X', 'T', '2') == pixelFormat.dwFourCC) {
+            return .DXBC2_UNORM;
+        }
+        if (makeFourCC('D', 'X', 'T', '4') == pixelFormat.dwFourCC) {
+            return .DXBC3_UNORM;
+        }
+        if (makeFourCC('A', 'T', 'I', '1') == pixelFormat.dwFourCC) {
+            return .DXBC4_UNORM;
+        }
+        if (makeFourCC('B', 'C', '4', 'U') == pixelFormat.dwFourCC) {
+            return .DXBC4_UNORM;
+        }
+        if (makeFourCC('B', 'C', '4', 'S') == pixelFormat.dwFourCC) {
+            return .DXBC4_SNORM;
+        }
+        if (makeFourCC('A', 'T', 'I', '2') == pixelFormat.dwFourCC) {
+            return .DXBC5_UNORM;
+        }
+        if (makeFourCC('B', 'C', '5', 'U') == pixelFormat.dwFourCC) {
+            return .DXBC5_UNORM;
+        }
+        if (makeFourCC('B', 'C', '5', 'S') == pixelFormat.dwFourCC) {
+            return .DXBC5_SNORM;
+        }
+
+        // TODO: If we even need these 2 formats we need to enable the DX10 extender header
+        // // BC6H and BC7 are written using the "DX10" extended header
+        // if (makeFourCC('R', 'G', 'B', 'G') == pixelFormat.dwFourCC) {
+        //     return .R8G8_B8G8_UNORM;
+        // }
+        // if (makeFourCC('G', 'R', 'G', 'B') == pixelFormat.dwFourCC) {
+        //     return .G8R8_G8B8_UNORM;
+        // }
+        // if (makeFourCC('Y', 'U', 'Y', '2') == pixelFormat.dwFourCC) {
+        //     return .YUY2;
+        // }
+
+        // Check for D3DFORMAT enums being set here
+        if (pixelFormat.dwFourCC == 36) {
+            return .R16G16B16A16_UNORM;
+        } else if (pixelFormat.dwFourCC == 110) {
+            return .R16G16B16A16_SNORM;
+        } else if (pixelFormat.dwFourCC == 111) {
+            return .R16_SFLOAT;
+        } else if (pixelFormat.dwFourCC == 112) {
+            return .R16G16_SFLOAT;
+        } else if (pixelFormat.dwFourCC == 113) {
+            return .R16G16B16A16_SFLOAT;
+        } else if (pixelFormat.dwFourCC == 114) {
+            return .R32_SFLOAT;
+        } else if (pixelFormat.dwFourCC == 115) {
+            return .R32G32_SFLOAT;
+        } else if (pixelFormat.dwFourCC == 116) {
+            return .R32G32B32A32_SFLOAT;
+        }
+    }
+
+    return .UNDEFINED;
 }

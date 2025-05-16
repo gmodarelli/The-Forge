@@ -37,6 +37,7 @@ pub const SampleCount = IGraphics.SampleCount;
 pub const SamplerDesc = IGraphics.SamplerDesc;
 pub const TextureCreationFlags = IGraphics.TextureCreationFlags;
 pub const TextureDesc = IGraphics.TextureDesc;
+pub const TextureDimension = IGraphics.TextureDimension;
 
 pub const DataSlice = extern struct {
     data: ?*const anyopaque,
