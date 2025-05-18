@@ -89,6 +89,7 @@ const Gpu = struct {
     psos: PsoPool = undefined,
     render_targets: RenderTargetPool = undefined,
     render_textures: RenderTexturePool = undefined,
+    textures: TexturePool = undefined,
     buffers: BufferPool = undefined,
     static_samplers: StaticSamplerPool = undefined,
 
@@ -110,6 +111,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
     gpu.psos = PsoPool.initMaxCapacity(gpu.allocator) catch unreachable;
     gpu.render_targets = RenderTargetPool.initMaxCapacity(gpu.allocator) catch unreachable;
     gpu.render_textures = RenderTexturePool.initMaxCapacity(gpu.allocator) catch unreachable;
+    gpu.textures = TexturePool.init(gpu.allocator);
     gpu.buffers = BufferPool.init(gpu.allocator);
     gpu.static_samplers = StaticSamplerPool.initMaxCapacity(gpu.allocator) catch unreachable;
 
@@ -175,11 +177,19 @@ pub fn shutdownGpu() void {
         buffer.* = null;
     }
 
+    var texture_handles = gpu.textures.liveHandles();
+    while (texture_handles.next()) |handle| {
+        const texture = gpu.textures.getColumnPtr(handle, .ptr) catch unreachable;
+        IGraphicsTides.removeTextureEx(gpu.renderer, texture.*);
+        texture.* = null;
+    }
+
     gpu.shaders.deinit();
     gpu.descriptor_sets.deinit();
     gpu.psos.deinit();
     gpu.render_targets.deinit();
     gpu.render_textures.deinit();
+    gpu.textures.deinit();
     gpu.buffers.deinit();
     gpu.static_samplers.deinit();
 
@@ -658,6 +668,17 @@ const RenderTargetPool = Pool(8, 8, [*c]IGraphics.RenderTarget, struct {
 });
 pub const RenderTargetHandle = RenderTargetPool.Handle;
 
+pub fn createRenderTarget(desc: IGraphics.RenderTargetDesc) !RenderTargetHandle {
+    var render_target: [*c]IGraphics.RenderTarget = null;
+    IGraphics.addRenderTarget(gpu.renderer, @ptrCast(&desc), &render_target);
+
+    return gpu.render_targets.add(.{
+        .ptr = render_target,
+        .desc = desc,
+        .resize = true,
+    });
+}
+
 const RenderTexturePool = Pool(8, 8, [*c]IGraphics.Texture, struct {
     ptr: [*c]IGraphics.Texture,
     desc: IGraphics.TextureDesc,
@@ -674,6 +695,36 @@ pub fn createRenderTexture(desc: IGraphics.TextureDesc) !RenderTextureHandle {
     });
 }
 
+// ████████╗███████╗██╗  ██╗████████╗██╗   ██╗██████╗ ███████╗███████╗
+// ╚══██╔══╝██╔════╝╚██╗██╔╝╚══██╔══╝██║   ██║██╔══██╗██╔════╝██╔════╝
+//    ██║   █████╗   ╚███╔╝    ██║   ██║   ██║██████╔╝█████╗  ███████╗
+//    ██║   ██╔══╝   ██╔██╗    ██║   ██║   ██║██╔══██╗██╔══╝  ╚════██║
+//    ██║   ███████╗██╔╝ ██╗   ██║   ╚██████╔╝██║  ██║███████╗███████║
+//    ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝
+//
+
+const TexturePool = Pool(16, 16, [*c]IGraphics.Buffer, struct {
+    ptr: [*c]IGraphics.Texture,
+});
+pub const TextureHandle = TexturePool.Handle;
+
+pub fn createTexture(desc: IGraphics.TextureDesc, bindless: bool) !TextureHandle {
+    var texture: [*c]IGraphics.Texture = null;
+    IGraphicsTides.addTextureEx(gpu.renderer, @ptrCast(&desc), bindless, &texture);
+
+    return gpu.textures.add(.{ .ptr = texture });
+}
+
+pub fn destroyTexture(handle: TextureHandle) !void {
+    const texture = gpu.textures.getColumnPtr(handle, .ptr) catch unreachable;
+    IGraphicsTides.removeTextureEx(gpu.renderer, texture.*);
+    texture.* = null;
+    gpu.textures.removeAssumeLive(handle);
+}
+pub fn getTextureBindlessIndex(handle: TextureHandle) u32 {
+    const texture = gpu.textures.getColumnPtr(handle, .ptr) catch unreachable;
+    return @intCast(texture.*.*.mDx.mDescriptors);
+}
 // ██████╗ ██╗   ██╗███████╗███████╗███████╗██████╗ ███████╗
 // ██╔══██╗██║   ██║██╔════╝██╔════╝██╔════╝██╔══██╗██╔════╝
 // ██████╔╝██║   ██║█████╗  █████╗  █████╗  ██████╔╝███████╗
@@ -686,17 +737,6 @@ const BufferPool = Pool(16, 16, [*c]IGraphics.Buffer, struct {
     ptr: [*c]IGraphics.Buffer,
 });
 pub const BufferHandle = BufferPool.Handle;
-
-pub fn createRenderTarget(desc: IGraphics.RenderTargetDesc) !RenderTargetHandle {
-    var render_target: [*c]IGraphics.RenderTarget = null;
-    IGraphics.addRenderTarget(gpu.renderer, @ptrCast(&desc), &render_target);
-
-    return gpu.render_targets.add(.{
-        .ptr = render_target,
-        .desc = desc,
-        .resize = true,
-    });
-}
 
 pub fn createUniformBuffer(size: u64, name: []const u8) BufferHandle {
     var desc = std.mem.zeroes(IGraphics.BufferDesc);

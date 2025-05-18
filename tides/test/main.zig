@@ -58,6 +58,9 @@ pub const Gfx = struct {
     birch_1_mesh: Mesh = undefined,
     birch_2_mesh: Mesh = undefined,
     bush_large_mesh: Mesh = undefined,
+
+    // Textures
+    bark_birch_albedo: zf.TextureHandle = zf.TextureHandle.nil,
 };
 
 pub const Frame = struct {
@@ -478,6 +481,7 @@ pub fn main() !void {
 
     updateDescriptorSets();
     loadMeshes();
+    loadTextures();
 
     while (!window.shouldClose()) {
         zglfw.pollEvents();
@@ -1154,7 +1158,12 @@ fn uploadMesh(vertices: *std.ArrayList(Vertex), indices: *std.ArrayList(u32), me
 //    ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝
 //
 
-fn loadDdsTexture(file_path: []const u8, allocator: std.mem.Allocator) !void {
+fn loadTextures() void {
+    const temp_allocator = std.heap.page_allocator;
+    gfx.bark_birch_albedo = loadDdsTexture("content/textures/Bark_BirchTree.dds", true, temp_allocator) catch unreachable;
+}
+
+fn loadDdsTexture(file_path: []const u8, bindless: bool, allocator: std.mem.Allocator) !zf.TextureHandle {
     var file = std.fs.cwd().openFile(file_path, .{}) catch unreachable;
     defer file.close();
 
@@ -1169,11 +1178,11 @@ fn loadDdsTexture(file_path: []const u8, allocator: std.mem.Allocator) !void {
     std.debug.assert(read_bytes == file_size);
 
     // Create a stream
-    var stream = std.io.StreamSource(.{ .buffer = std.io.fixedBufferStream(file_data) });
+    var stream = std.io.StreamSource{ .buffer = std.io.fixedBufferStream(file_data) };
     var reader = stream.reader();
 
     // Check DDS_MAGIC
-    const magic = reader.readInt(u32, .litte) catch unreachable;
+    const magic = reader.readInt(u32, .little) catch unreachable;
     std.debug.assert(magic == DDS_MAGIC);
 
     // Extract DDS_HEADER
@@ -1181,49 +1190,45 @@ fn loadDdsTexture(file_path: []const u8, allocator: std.mem.Allocator) !void {
     std.debug.assert(header.dwSize == @as(u32, @intCast(@sizeOf(DDS_HEADER))));
     std.debug.assert(header.ddspf.dwSize == @as(u32, @intCast(@sizeOf(DDS_PIXELFORMAT))));
 
-    // Ensure there's no DX10 extension
-    // TODO: This might be required for BCH6 and BC7 :(
-    if ((header.ddspf.dwFlags & DDS_FOURCC) == DDS_FOURCC) {
-        std.debug.assert(header.ddspf.dwFourCC != makeFourCC('D', 'X', '1', '0'));
-    }
+    // Esure DX10 extension
+    std.debug.assert((header.ddspf.dwFlags & DDS_FOURCC) == DDS_FOURCC);
+    const dxt10 = reader.readStruct(DDS_HEADER_DXT10) catch unreachable;
 
-    // Check alpha mode
-    var alpha_mode = DDS_ALPHA_MODE.unknown;
-    if (header.ddspf.dwFourCC == makeFourCC('D', 'X', 'T', '2') or header.ddspf.dwFourCC == makeFourCC('D', 'X', 'T', '4')) {
-        alpha_mode = .premultiplied;
-    }
-
-    const data_size = file_data.len - (@sizeOf(u32) + @sizeOf(DDS_HEADER));
+    const data_size = file_data.len - (@sizeOf(u32) + @sizeOf(DDS_HEADER) + @sizeOf(DDS_HEADER_DXT10));
     const data = allocator.alloc(u8, data_size) catch unreachable;
     reader.readNoEof(data) catch unreachable;
 
     const width = header.dwWidth;
     const height = header.dwHeight;
-    _ = width;
-    _ = height;
-    var depth = header.dwDepth;
-    var array_size: u32 = 1;
-    var mip_count = header.dwMipMapCount;
-    if (mip_count == 0) {
-        mip_count = 1;
-    }
+    const mip_count = if (header.dwMipMapCount == 0) 1 else header.dwMipMapCount;
+    // NOTE: We don't support texture arrays for now
+    const array_size = dxt10.arraySize;
+    std.debug.assert(array_size == 1);
+    // NOTE: We only support TEXTURE2D for now
+    std.debug.assert(dxt10.resourceDimension == 3);
+    const depth = 1;
 
-    const format = ddsFormatToTinyImageFormat(header.ddspf);
+    const format = dxgiFormatToTinyImageFormat(dxt10.dxgiFormat);
     std.debug.assert(format != .UNDEFINED);
 
-    var texture_dimension = zf.TextureDimension.TEXTURE_DIM_UNDEFINED;
-    if ((header.dwFlags & DDS_HEADER_FLAGS_VOLUME) == DDS_HEADER_FLAGS_VOLUME) {
-        texture_dimension = zf.TextureDimension.TEXTURE_DIM_3D;
-    } else {
-        if ((header.dwCaps2 & DDS_CUBEMAP) == DDS_CUBEMAP) {
-            // We require all six faces to be defined
-            std.debug.assert((header.dwCaps2 & DDS_CUBEMAP_ALLFACES) == DDS_CUBEMAP_ALLFACES);
-            array_size = 6;
-        }
+    // Create texture
+    var texture_desc = std.mem.zeroes(zf.TextureDesc);
+    texture_desc.mWidth = @intCast(width);
+    texture_desc.mHeight = @intCast(height);
+    texture_desc.mDepth = depth;
+    texture_desc.mArraySize = array_size;
+    texture_desc.mMipLevels = mip_count;
+    texture_desc.mFormat = format;
+    texture_desc.mStartState = zf.ResourceState.RESOURCE_STATE_COMMON;
+    texture_desc.mDescriptors.bits = zf.DescriptorType.DESCRIPTOR_TYPE_TEXTURE.bits;
+    texture_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
+    texture_desc.mSampleQuality = 0;
+    texture_desc.pName = @ptrCast(&file_path);
+    const texture_handle = zf.createTexture(texture_desc, bindless) catch unreachable;
 
-        depth = 1;
-        texture_dimension = zf.TextureDimension.TEXTURE_DIM_CUBE;
-    }
+    // Update texture
+
+    return texture_handle;
 }
 
 const DDS_HEADER_FLAGS_TEXTURE: u32 = 0x00001007; // DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT
@@ -1309,144 +1314,66 @@ const DDS_HEADER = extern struct {
     dwReserved2: u32,
 };
 
+pub const DDS_HEADER_DXT10 = extern struct {
+    dxgiFormat: DXGI_FORMAT,
+    resourceDimension: u32,
+    miscFlag: u32, // see DDS_RESOURCE_MISC_FLAG
+    arraySize: u32,
+    miscFlags2: u32, // see DDS_MISC_FLAGS2
+};
+
+fn dxgiFormatToTinyImageFormat(dxgiFormat: DXGI_FORMAT) zf.IGraphics.TinyImageFormat {
+    // NOTE: We only support loading BC-encoded DDS textures
+
+    return switch (dxgiFormat) {
+        .BC1_UNORM => .DXBC1_RGBA_UNORM,
+        .BC1_UNORM_SRGB => .DXBC1_RGBA_SRGB,
+        .BC2_UNORM => .DXBC2_UNORM,
+        .BC2_UNORM_SRGB => .DXBC2_SRGB,
+        .BC3_UNORM => .DXBC3_UNORM,
+        .BC3_UNORM_SRGB => .DXBC3_SRGB,
+        .BC4_UNORM => .DXBC4_UNORM,
+        .BC4_SNORM => .DXBC4_SNORM,
+        .BC5_UNORM => .DXBC5_UNORM,
+        .BC5_SNORM => .DXBC5_SNORM,
+        .BC6H_UF16 => .DXBC6H_UFLOAT,
+        .BC6H_SF16 => .DXBC6H_SFLOAT,
+        .BC7_UNORM => .DXBC7_UNORM,
+        .BC7_UNORM_SRGB => .DXBC7_SRGB,
+        else => .UNDEFINED,
+    };
+}
+
 fn ddsFormatToTinyImageFormat(pixelFormat: DDS_PIXELFORMAT) zf.IGraphics.TinyImageFormat {
-    if ((pixelFormat.dwFlags & DDS_RGB) == DDS_RGB) {
-        // Note that sRGB formats are written using the "DX10" extended header
-        if (pixelFormat.dwRGBBitCount == 32) {
-            if (isBitMask(pixelFormat, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000)) {
-                return .R8G8B8A8_UNORM;
-            }
+    // NOTE: We only support loading BC-encoded DDS textures
 
-            if (isBitMask(pixelFormat, 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000)) {
-                return .B8G8R8A8_UNORM;
-            }
-
-            if (isBitMask(pixelFormat, 0x00ff0000, 0x0000ff00, 0x000000ff, 0)) {
-                return .B8G8R8X8_UNORM;
-            }
-
-            // No DXGI format maps to (0x000000ff,0x0000ff00,0x00ff0000,0) aka D3DFMT_X8B8G8R8
-
-            // Note that many common DDS reader/writers (including D3DX) swap the
-            // the RED/BLUE masks for 10:10:10:2 formats. We assume
-            // below that the 'backwards' header mask is being used since it is most
-            // likely written by D3DX. The more robust solution is to use the 'DX10'
-            // header extension and specify the DXGI_FORMAT_R10G10B10A2_UNORM format directly
-
-            // For 'correct' writers, this should be (0x000003ff,0x000ffc00,0x3ff00000) for RGB data
-            if (isBitMask(pixelFormat, 0x3ff00000, 0x000ffc00, 0x000003ff, 0xc0000000)) {
-                return .R10G10B10A2_UNORM;
-            }
-
-            // No DXGI format maps to (0x000003ff,0x000ffc00,0x3ff00000,0xc0000000) aka D3DFMT_A2R10G10B10
-
-            if (isBitMask(pixelFormat, 0x0000ffff, 0xffff0000, 0, 0)) {
-                return .R16G16_UNORM;
-            }
-
-            if (isBitMask(pixelFormat, 0xffffffff, 0, 0, 0)) {
-                // Only 32-bit color channel format in D3D9 was R32F
-                return .R32_FLOAT; // D3DX writes this out as a FourCC of 114
-            }
-        } else if (pixelFormat.dwRGBBitCount == 16) {
-            if (isBitMask(pixelFormat, 0x7c00, 0x03e0, 0x001f, 0x8000)) {
-                return .B5G5R5A1_UNORM;
-            }
-            if (isBitMask(pixelFormat, 0xf800, 0x07e0, 0x001f, 0)) {
-                return .B5G6R5_UNORM;
-            }
-
-            // No DXGI format maps to (0x7c00,0x03e0,0x001f,0) aka D3DFMT_X1R5G5B5
-
-            if (isBitMask(pixelFormat, 0x0f00, 0x00f0, 0x000f, 0xf000)) {
-                return .B4G4R4A4_UNORM;
-            }
-
-            // NVTT versions 1.x wrote this as RGB instead of LUMINANCE
-            if (isBitMask(pixelFormat, 0x00ff, 0, 0, 0xff00)) {
-                return .R8G8_UNORM;
-            }
-            if (isBitMask(pixelFormat, 0xffff, 0, 0, 0)) {
-                return .R16_UNORM;
-            }
-
-            // No DXGI format maps to (0x0f00,0x00f0,0x000f,0) aka D3DFMT_X4R4G4B4
-
-            // No 3:3:2:8 or paletted DXGI formats aka D3DFMT_A8R3G3B2, D3DFMT_A8P8, etc.
-        } else if (pixelFormat.dwRGBBitCount == 8) {
-            // NVTT versions 1.x wrote this as RGB instead of LUMINANCE
-            if (isBitMask(pixelFormat, 0xff, 0, 0, 0)) {
-                return .R8_UNORM;
-            }
-
-            // No 3:3:2 or paletted DXGI formats aka D3DFMT_R3G3B2, D3DFMT_P8
-        }
-    } else if ((pixelFormat.dwFlags & DDS_LUMINANCE) == DDS_LUMINANCE) {
-        if (pixelFormat.dwRGBBitCount == 16) {
-            if (isBitMask(pixelFormat, 0xffff, 0, 0, 0)) {
-                return .R16_UNORM; // D3DX10/11 writes this out as DX10 extension
-            }
-            if (isBitMask(pixelFormat, 0x00ff, 0, 0, 0xff00)) {
-                return .R8G8_UNORM; // D3DX10/11 writes this out as DX10 extension
-            }
-        } else if (pixelFormat.dwRGBBitCount == 8) {
-            if (isBitMask(pixelFormat, 0xff, 0, 0, 0)) {
-                return .R8_UNORM; // D3DX10/11 writes this out as DX10 extension
-            }
-
-            // No DXGI format maps to isBitMask(pixelFormat, 0x0f,0,0,0xf0) aka D3DFMT_A4L4
-
-            if (isBitMask(pixelFormat, 0x00ff, 0, 0, 0xff00)) {
-                return .R8G8_UNORM; // Some DDS writers assume the bitcount should be 8 instead of 16
-            }
-        }
-    } else if ((pixelFormat.dwFlags & DDS_ALPHA) == DDS_ALPHA) {
-        if (pixelFormat.dwRGBBitCount == 8) {
-            return .A8_UNORM;
-        }
-    } else if ((pixelFormat.dwFlags & DDS_BUMPDUDV) == DDS_BUMPDUDV) {
-        if (pixelFormat.dwRGBBitCount == 32) {
-            if (isBitMask(pixelFormat, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000)) {
-                return .R8G8B8A8_SNORM; // D3DX10/11 writes this out as DX10 extension
-            }
-            if (isBitMask(pixelFormat, 0x0000ffff, 0xffff0000, 0, 0)) {
-                return .R16G16_SNORM; // D3DX10/11 writes this out as DX10 extension
-            }
-        } else if (pixelFormat.dwRGBBitCount == 16) {
-            if (isBitMask(pixelFormat, 0x00ff, 0xff00, 0, 0)) {
-                return .R8G8_SNORM; // D3DX10/11 writes this out as DX10 extension
-            }
-        }
-    } else if ((pixelFormat.dwFlags & DDS_FOURCC) == DDS_FOURCC) {
+    if ((pixelFormat.dwFlags & DDS_FOURCC) == DDS_FOURCC) {
         if (makeFourCC('D', 'X', 'T', '1') == pixelFormat.dwFourCC) {
-            return .DXBC1_RGB_UNORM;
+            return .DXBC1_RGBA_UNORM;
         }
-        if (makeFourCC('D', 'X', 'T', '3') == pixelFormat.dwFourCC) {
+        if (makeFourCC('D', 'X', 'T', '2') == pixelFormat.dwFourCC) {
             return .DXBC2_UNORM;
         }
-        if (makeFourCC('D', 'X', 'T', '5') == pixelFormat.dwFourCC) {
-            return .DXBC3_UNORM;
-        }
-
-        // While pre-multiplied alpha isn't directly supported by the DXGI formats,
-        // they are basically the same as these BC formats so they can be mapped
-        if (makeFourCC('D', 'X', 'T', '2') == pixelFormat.dwFourCC) {
+        if (makeFourCC('D', 'X', 'T', '3') == pixelFormat.dwFourCC) {
             return .DXBC2_UNORM;
         }
         if (makeFourCC('D', 'X', 'T', '4') == pixelFormat.dwFourCC) {
             return .DXBC3_UNORM;
         }
+        if (makeFourCC('D', 'X', 'T', '5') == pixelFormat.dwFourCC) {
+            return .DXBC3_UNORM;
+        }
         if (makeFourCC('A', 'T', 'I', '1') == pixelFormat.dwFourCC) {
             return .DXBC4_UNORM;
+        }
+        if (makeFourCC('A', 'T', 'I', '2') == pixelFormat.dwFourCC) {
+            return .DXBC5_UNORM;
         }
         if (makeFourCC('B', 'C', '4', 'U') == pixelFormat.dwFourCC) {
             return .DXBC4_UNORM;
         }
         if (makeFourCC('B', 'C', '4', 'S') == pixelFormat.dwFourCC) {
             return .DXBC4_SNORM;
-        }
-        if (makeFourCC('A', 'T', 'I', '2') == pixelFormat.dwFourCC) {
-            return .DXBC5_UNORM;
         }
         if (makeFourCC('B', 'C', '5', 'U') == pixelFormat.dwFourCC) {
             return .DXBC5_UNORM;
@@ -1457,35 +1384,133 @@ fn ddsFormatToTinyImageFormat(pixelFormat: DDS_PIXELFORMAT) zf.IGraphics.TinyIma
 
         // TODO: If we even need these 2 formats we need to enable the DX10 extender header
         // // BC6H and BC7 are written using the "DX10" extended header
-        // if (makeFourCC('R', 'G', 'B', 'G') == pixelFormat.dwFourCC) {
-        //     return .R8G8_B8G8_UNORM;
-        // }
-        // if (makeFourCC('G', 'R', 'G', 'B') == pixelFormat.dwFourCC) {
-        //     return .G8R8_G8B8_UNORM;
-        // }
-        // if (makeFourCC('Y', 'U', 'Y', '2') == pixelFormat.dwFourCC) {
-        //     return .YUY2;
-        // }
-
-        // Check for D3DFORMAT enums being set here
-        if (pixelFormat.dwFourCC == 36) {
-            return .R16G16B16A16_UNORM;
-        } else if (pixelFormat.dwFourCC == 110) {
-            return .R16G16B16A16_SNORM;
-        } else if (pixelFormat.dwFourCC == 111) {
-            return .R16_SFLOAT;
-        } else if (pixelFormat.dwFourCC == 112) {
-            return .R16G16_SFLOAT;
-        } else if (pixelFormat.dwFourCC == 113) {
-            return .R16G16B16A16_SFLOAT;
-        } else if (pixelFormat.dwFourCC == 114) {
-            return .R32_SFLOAT;
-        } else if (pixelFormat.dwFourCC == 115) {
-            return .R32G32_SFLOAT;
-        } else if (pixelFormat.dwFourCC == 116) {
-            return .R32G32B32A32_SFLOAT;
-        }
     }
 
     return .UNDEFINED;
 }
+
+const DXGI_FORMAT = enum(u32) {
+    UNKNOWN = 0,
+    R32G32B32A32_TYPELESS = 1,
+    R32G32B32A32_FLOAT = 2,
+    R32G32B32A32_UINT = 3,
+    R32G32B32A32_SINT = 4,
+    R32G32B32_TYPELESS = 5,
+    R32G32B32_FLOAT = 6,
+    R32G32B32_UINT = 7,
+    R32G32B32_SINT = 8,
+    R16G16B16A16_TYPELESS = 9,
+    R16G16B16A16_FLOAT = 10,
+    R16G16B16A16_UNORM = 11,
+    R16G16B16A16_UINT = 12,
+    R16G16B16A16_SNORM = 13,
+    R16G16B16A16_SINT = 14,
+    R32G32_TYPELESS = 15,
+    R32G32_FLOAT = 16,
+    R32G32_UINT = 17,
+    R32G32_SINT = 18,
+    R32G8X24_TYPELESS = 19,
+    D32_FLOAT_S8X24_UINT = 20,
+    R32_FLOAT_X8X24_TYPELESS = 21,
+    X32_TYPELESS_G8X24_UINT = 22,
+    R10G10B10A2_TYPELESS = 23,
+    R10G10B10A2_UNORM = 24,
+    R10G10B10A2_UINT = 25,
+    R11G11B10_FLOAT = 26,
+    R8G8B8A8_TYPELESS = 27,
+    R8G8B8A8_UNORM = 28,
+    R8G8B8A8_UNORM_SRGB = 29,
+    R8G8B8A8_UINT = 30,
+    R8G8B8A8_SNORM = 31,
+    R8G8B8A8_SINT = 32,
+    R16G16_TYPELESS = 33,
+    R16G16_FLOAT = 34,
+    R16G16_UNORM = 35,
+    R16G16_UINT = 36,
+    R16G16_SNORM = 37,
+    R16G16_SINT = 38,
+    R32_TYPELESS = 39,
+    D32_FLOAT = 40,
+    R32_FLOAT = 41,
+    R32_UINT = 42,
+    R32_SINT = 43,
+    R24G8_TYPELESS = 44,
+    D24_UNORM_S8_UINT = 45,
+    R24_UNORM_X8_TYPELESS = 46,
+    X24_TYPELESS_G8_UINT = 47,
+    R8G8_TYPELESS = 48,
+    R8G8_UNORM = 49,
+    R8G8_UINT = 50,
+    R8G8_SNORM = 51,
+    R8G8_SINT = 52,
+    R16_TYPELESS = 53,
+    R16_FLOAT = 54,
+    D16_UNORM = 55,
+    R16_UNORM = 56,
+    R16_UINT = 57,
+    R16_SNORM = 58,
+    R16_SINT = 59,
+    R8_TYPELESS = 60,
+    R8_UNORM = 61,
+    R8_UINT = 62,
+    R8_SNORM = 63,
+    R8_SINT = 64,
+    A8_UNORM = 65,
+    R1_UNORM = 66,
+    R9G9B9E5_SHAREDEXP = 67,
+    R8G8_B8G8_UNORM = 68,
+    G8R8_G8B8_UNORM = 69,
+    BC1_TYPELESS = 70,
+    BC1_UNORM = 71,
+    BC1_UNORM_SRGB = 72,
+    BC2_TYPELESS = 73,
+    BC2_UNORM = 74,
+    BC2_UNORM_SRGB = 75,
+    BC3_TYPELESS = 76,
+    BC3_UNORM = 77,
+    BC3_UNORM_SRGB = 78,
+    BC4_TYPELESS = 79,
+    BC4_UNORM = 80,
+    BC4_SNORM = 81,
+    BC5_TYPELESS = 82,
+    BC5_UNORM = 83,
+    BC5_SNORM = 84,
+    B5G6R5_UNORM = 85,
+    B5G5R5A1_UNORM = 86,
+    B8G8R8A8_UNORM = 87,
+    B8G8R8X8_UNORM = 88,
+    R10G10B10_XR_BIAS_A2_UNORM = 89,
+    B8G8R8A8_TYPELESS = 90,
+    B8G8R8A8_UNORM_SRGB = 91,
+    B8G8R8X8_TYPELESS = 92,
+    B8G8R8X8_UNORM_SRGB = 93,
+    BC6H_TYPELESS = 94,
+    BC6H_UF16 = 95,
+    BC6H_SF16 = 96,
+    BC7_TYPELESS = 97,
+    BC7_UNORM = 98,
+    BC7_UNORM_SRGB = 99,
+    AYUV = 100,
+    Y410 = 101,
+    Y416 = 102,
+    NV12 = 103,
+    P010 = 104,
+    P016 = 105,
+    @"420_OPAQUE" = 106,
+    YUY2 = 107,
+    Y210 = 108,
+    Y216 = 109,
+    NV11 = 110,
+    AI44 = 111,
+    IA44 = 112,
+    P8 = 113,
+    A8P8 = 114,
+    B4G4R4A4_UNORM = 115,
+    P208 = 130,
+    V208 = 131,
+    V408 = 132,
+    SAMPLER_FEEDBACK_MIN_MIP_OPAQUE,
+    SAMPLER_FEEDBACK_MIP_REGION_USED_OPAQUE,
+    D3DFMT_R8G8B8, // Note: you will need to handle conversion of this legacy format yourself
+    FORCE_DWORD = 0xffffffff
+};
