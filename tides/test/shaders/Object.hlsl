@@ -54,13 +54,13 @@ float4 ObjectPS(Varyings varyings) : SV_Target0
     float3 color = 0.0;
 
     if (hasValidDescriptor(material.albedo_texture_index)) {
-        Texture2D albedo = ResourceDescriptorHeap[material.albedo_texture_index];
+        Texture2D albedo = ResourceDescriptorHeap[NonUniformResourceIndex(material.albedo_texture_index)];
 
         uint sampler_index = material.albedo_sampler_index;
         if (!hasValidDescriptor(sampler_index)) {
             sampler_index = g_frame.linear_repeat_sampler_index;
         }
-        SamplerState sampler = SamplerDescriptorHeap[sampler_index];
+        SamplerState sampler = SamplerDescriptorHeap[NonUniformResourceIndex(sampler_index)];
 
         float4 albedo_sample = albedo.Sample(sampler, varyings.uv);
         clip(albedo_sample.a - 0.5);
@@ -69,13 +69,13 @@ float4 ObjectPS(Varyings varyings) : SV_Target0
     }
 
     if (false && hasValidDescriptor(material.normal_texture_index)) {
-        Texture2D normal = ResourceDescriptorHeap[material.normal_texture_index];
+        Texture2D normal = ResourceDescriptorHeap[NonUniformResourceIndex(material.normal_texture_index)];
 
         uint sampler_index = material.normal_sampler_index;
         if (!hasValidDescriptor(sampler_index)) {
             sampler_index = g_frame.linear_repeat_sampler_index;
         }
-        SamplerState sampler = SamplerDescriptorHeap[sampler_index];
+        SamplerState sampler = SamplerDescriptorHeap[NonUniformResourceIndex(sampler_index)];
 
         float2 normal_sample = normal.Sample(sampler, varyings.uv).xy;
         float3 tangent_normal = 0;
