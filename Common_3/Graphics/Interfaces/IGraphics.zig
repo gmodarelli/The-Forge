@@ -2322,7 +2322,7 @@ pub extern fn exitCmd_n(pRenderer: [*c]Renderer, cmdCount: u32, ppCmds: [*c][*c]
 /// All buffer, texture loading handled by resource system -> IResourceLoader.*
 pub extern fn addRenderTarget(pRenderer: [*c]Renderer, pDesc: [*c]const RenderTargetDesc, ppRenderTarget: [*c][*c]RenderTarget) void;
 pub extern fn removeRenderTarget(pRenderer: [*c]Renderer, pRenderTarget: [*c]RenderTarget) void;
-pub extern fn addSampler(pRenderer: [*c]Renderer, pDesc: [*c]const SamplerDesc, ppSampler: [*c][*c]Sampler) void;
+pub extern fn addSampler(pRenderer: [*c]Renderer, pDesc: [*c]const SamplerDesc, bBindless: bool, ppSampler: [*c][*c]Sampler) void;
 pub extern fn removeSampler(pRenderer: [*c]Renderer, pSampler: [*c]Sampler) void;
 /// shader functions
 pub extern fn addShaderBinary(pRenderer: [*c]Renderer, pDesc: [*c]const BinaryShaderDesc, ppShaderProgram: [*c][*c]Shader) void;

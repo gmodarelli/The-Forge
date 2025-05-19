@@ -1,7 +1,5 @@
 #include "Globals.hlsli"
 
-SamplerState g_linear_repeat_sampler : register(s0, SPACE_Persistent);
-
 struct Vertex
 {
     float3 position;
@@ -57,7 +55,14 @@ float4 ObjectPS(Varyings varyings) : SV_Target0
 
     if (hasValidDescriptor(material.albedo_texture_index)) {
         Texture2D albedo = ResourceDescriptorHeap[material.albedo_texture_index];
-        float4 albedo_sample = albedo.Sample(g_linear_repeat_sampler, varyings.uv);
+
+        uint sampler_index = material.albedo_sampler_index;
+        if (!hasValidDescriptor(sampler_index)) {
+            sampler_index = g_frame.linear_repeat_sampler_index;
+        }
+        SamplerState sampler = SamplerDescriptorHeap[sampler_index];
+
+        float4 albedo_sample = albedo.Sample(sampler, varyings.uv);
         clip(albedo_sample.a - 0.5);
 
         color = albedo_sample.rgb;
@@ -65,7 +70,14 @@ float4 ObjectPS(Varyings varyings) : SV_Target0
 
     if (false && hasValidDescriptor(material.normal_texture_index)) {
         Texture2D normal = ResourceDescriptorHeap[material.normal_texture_index];
-        float2 normal_sample = normal.Sample(g_linear_repeat_sampler, varyings.uv).xy;
+
+        uint sampler_index = material.normal_sampler_index;
+        if (!hasValidDescriptor(sampler_index)) {
+            sampler_index = g_frame.linear_repeat_sampler_index;
+        }
+        SamplerState sampler = SamplerDescriptorHeap[sampler_index];
+
+        float2 normal_sample = normal.Sample(sampler, varyings.uv).xy;
         float3 tangent_normal = 0;
         tangent_normal.xy = normal_sample * 2.0 - 1.0;
         tangent_normal.z = sqrt(1.0 - saturate(dot(tangent_normal, tangent_normal)));

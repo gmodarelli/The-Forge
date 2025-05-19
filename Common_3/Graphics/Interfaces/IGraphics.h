@@ -2860,7 +2860,7 @@ void exitCmd_n(Renderer* pRenderer, uint32_t cmdCount, Cmd** ppCmds);
 
 void addRenderTarget(Renderer* pRenderer, const RenderTargetDesc* pDesc, RenderTarget** ppRenderTarget);
 void removeRenderTarget(Renderer* pRenderer, RenderTarget* pRenderTarget);
-void addSampler(Renderer* pRenderer, const SamplerDesc* pDesc, Sampler** ppSampler);
+void addSampler(Renderer* pRenderer, const SamplerDesc* pDesc, bool bBindless, Sampler** ppSampler);
 void removeSampler(Renderer* pRenderer, Sampler* pSampler);
 
 // shader functions

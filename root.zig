@@ -92,6 +92,7 @@ const Gpu = struct {
     textures: TexturePool = undefined,
     buffers: BufferPool = undefined,
     static_samplers: StaticSamplerPool = undefined,
+    samplers: SamplerPool = undefined,
 
     // Callbacks
     update_descriptor_sets_fn: updateDescriptorSetsFn = null,
@@ -114,6 +115,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
     gpu.textures = TexturePool.init(gpu.allocator);
     gpu.buffers = BufferPool.init(gpu.allocator);
     gpu.static_samplers = StaticSamplerPool.initMaxCapacity(gpu.allocator) catch unreachable;
+    gpu.samplers = SamplerPool.initMaxCapacity(gpu.allocator) catch unreachable;
 
     // Initialize renderer
     var renderer_desc = std.mem.zeroes(IGraphics.RendererDesc);
@@ -192,6 +194,7 @@ pub fn shutdownGpu() void {
     gpu.textures.deinit();
     gpu.buffers.deinit();
     gpu.static_samplers.deinit();
+    gpu.samplers.deinit();
 
     IGraphicsTides.releaseDefaultRootSignatures(gpu.renderer);
     IGraphics.exitSemaphore(gpu.renderer, gpu.image_acquired_semaphore);
@@ -424,11 +427,28 @@ const StaticSamplerPool = Pool(8, 8, [*c]IGraphics.Sampler, struct {
 });
 pub const StaticSamplerHandle = StaticSamplerPool.Handle;
 
+const SamplerPool = Pool(8, 8, [*c]IGraphics.Sampler, struct {
+    ptr: [*c]IGraphics.Sampler,
+});
+pub const SamplerHandle = SamplerPool.Handle;
+
 pub fn createStaticSampler(desc: IGraphics.SamplerDesc) !StaticSamplerHandle {
     var sampler: [*c]IGraphics.Sampler = null;
-    IGraphics.addSampler(gpu.renderer, &desc, &sampler);
+    IGraphics.addSampler(gpu.renderer, &desc, false, &sampler);
 
     return gpu.static_samplers.add(.{ .ptr = sampler }) catch unreachable;
+}
+
+pub fn createBindlessSampler(desc: IGraphics.SamplerDesc) !SamplerHandle {
+    var sampler: [*c]IGraphics.Sampler = null;
+    IGraphics.addSampler(gpu.renderer, &desc, true, &sampler);
+
+    return gpu.samplers.add(.{ .ptr = sampler }) catch unreachable;
+}
+
+pub fn getSamplerBindlessIndex(handle: SamplerHandle) u32 {
+    const sampler = gpu.samplers.getColumnPtr(handle, .ptr) catch unreachable;
+    return @intCast(sampler.*.*.mDx.mDescriptor);
 }
 
 // ██████╗ ███████╗ ██████╗ ███████╗

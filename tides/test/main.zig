@@ -6,8 +6,12 @@ const zmath = @import("zmath");
 
 pub const Gfx = struct {
     // Static samplers
-    linear_repeat_sampler: zf.StaticSamplerHandle = zf.StaticSamplerHandle.nil,
-    linear_clamp_sampler: zf.StaticSamplerHandle = zf.StaticSamplerHandle.nil,
+    linear_repeat_static_sampler: zf.StaticSamplerHandle = zf.StaticSamplerHandle.nil,
+    linear_clamp_static_sampler: zf.StaticSamplerHandle = zf.StaticSamplerHandle.nil,
+
+    // Bindless samplers
+    linear_repeat_sampler: zf.SamplerHandle = zf.StaticSamplerHandle.nil,
+    linear_clamp_sampler: zf.SamplerHandle = zf.StaticSamplerHandle.nil,
 
     // Shaders
     blit_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
@@ -72,6 +76,9 @@ pub const Frame = struct {
     view_matrix: [16]f32,
     projection_matrix: [16]f32,
     view_projection_matrix: [16]f32,
+    linear_repeat_sampler_index: u32,
+    linear_clamp_sampler_index: u32,
+    _padding: [2]u32,
     time: f32,
     vertex_buffer_index: u32,
     transform_buffer_index: u32,
@@ -85,8 +92,9 @@ pub const Transform = struct {
 
 pub const MaterialData = struct {
     albedo_texture_id: u32 = std.math.maxInt(u32),
+    albedo_sampler_id: u32 = std.math.maxInt(u32),
     normal_texture_id: u32 = std.math.maxInt(u32),
-    _padding: [2]u32 = .{ 42, 42 },
+    normal_sampler_id: u32 = std.math.maxInt(u32),
 };
 
 pub const InstanceData = struct {
@@ -119,6 +127,24 @@ pub const GfxMaterialPass = struct {
     persistent_samplers_descriptor_set: zf.DescriptorSetHandle,
 
     pass: Pass,
+
+    pub fn bindPipeline(self: *GfxMaterialPass) void {
+        zf.cmdBindPipeline(self.pso);
+    }
+
+    pub fn bindDescriptorSets(self: *GfxMaterialPass, frame_index: u32) void {
+        bindDescriptorSet(self.per_draw_descriptor_set, frame_index);
+        bindDescriptorSet(self.per_batch_descriptor_set, frame_index);
+        bindDescriptorSet(self.per_frame_descriptor_set, frame_index);
+        bindDescriptorSet(self.persistent_descriptor_set, 0);
+        bindDescriptorSet(self.persistent_samplers_descriptor_set, 0);
+    }
+
+    fn bindDescriptorSet(handle: zf.DescriptorSetHandle, frame_index: u32) void {
+        if (handle.id != zf.DescriptorSetHandle.nil.id) {
+            zf.cmdBindDescriptorSet(frame_index, handle);
+        }
+    }
 };
 
 const material_passes_max_count: u32 = 8;
@@ -126,6 +152,12 @@ const material_passes_max_count: u32 = 8;
 pub const GfxMaterial = struct {
     passes: [material_passes_max_count]GfxMaterialPass,
     passes_count: u32,
+
+    pub fn bindMaterialPass(self: *GfxMaterial, pass: Pass, frame_index: u32) void {
+        const pass_index: usize = @intFromEnum(pass);
+        self.passes[pass_index].bindPipeline();
+        self.passes[pass_index].bindDescriptorSets(frame_index);
+    }
 };
 
 var gfx: *Gfx = undefined;
@@ -164,12 +196,29 @@ pub fn main() !void {
         sampler_desc.mAddressU = zf.AddressMode.ADDRESS_MODE_REPEAT;
         sampler_desc.mAddressV = zf.AddressMode.ADDRESS_MODE_REPEAT;
         sampler_desc.mAddressW = zf.AddressMode.ADDRESS_MODE_REPEAT;
-        gfx.linear_repeat_sampler = zf.createStaticSampler(sampler_desc) catch unreachable;
+        gfx.linear_repeat_static_sampler = zf.createStaticSampler(sampler_desc) catch unreachable;
 
         sampler_desc.mAddressW = zf.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
         sampler_desc.mAddressV = zf.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
         sampler_desc.mAddressU = zf.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
-        gfx.linear_clamp_sampler = zf.createStaticSampler(sampler_desc) catch unreachable;
+        gfx.linear_clamp_static_sampler = zf.createStaticSampler(sampler_desc) catch unreachable;
+    }
+
+    // Bindless Samplers
+    {
+        var sampler_desc = std.mem.zeroes(zf.SamplerDesc);
+        sampler_desc.mMinFilter = zf.FilterType.FILTER_LINEAR;
+        sampler_desc.mMagFilter = zf.FilterType.FILTER_LINEAR;
+        sampler_desc.mMipMapMode = zf.MipMapMode.MIPMAP_MODE_LINEAR;
+        sampler_desc.mAddressU = zf.AddressMode.ADDRESS_MODE_REPEAT;
+        sampler_desc.mAddressV = zf.AddressMode.ADDRESS_MODE_REPEAT;
+        sampler_desc.mAddressW = zf.AddressMode.ADDRESS_MODE_REPEAT;
+        gfx.linear_repeat_sampler = zf.createBindlessSampler(sampler_desc) catch unreachable;
+
+        sampler_desc.mAddressW = zf.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler_desc.mAddressV = zf.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler_desc.mAddressU = zf.AddressMode.ADDRESS_MODE_CLAMP_TO_EDGE;
+        gfx.linear_clamp_sampler = zf.createBindlessSampler(sampler_desc) catch unreachable;
     }
 
     // Shaders
@@ -584,6 +633,9 @@ pub fn main() !void {
             .view_matrix = undefined,
             .projection_matrix = undefined,
             .view_projection_matrix = undefined,
+            .linear_repeat_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_repeat_sampler),
+            .linear_clamp_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_clamp_sampler),
+            ._padding = .{ std.math.maxInt(u32), std.math.maxInt(u32) },
             .time = @floatCast(zglfw.getTime()),
             .vertex_buffer_index = zf.getBufferBindlessIndex(gfx.vertex_buffer),
             .transform_buffer_index = zf.getBufferBindlessIndex(gfx.transform_buffers[frame_index]),
@@ -611,8 +663,7 @@ pub fn main() !void {
             };
 
             zf.cmdResourceBarrier(null, &texture_barriers, null);
-            zf.cmdBindPipeline(gfx.clear_screen_pso);
-            zf.cmdBindDescriptorSet(frame_index, gfx.clear_screen_material.passes[0].per_frame_descriptor_set);
+            gfx.clear_screen_material.bindMaterialPass(.default, frame_index);
             zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8) + 1), @intCast(@divTrunc(frame_buffer_size[1], 8) + 1), 1);
 
             texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
@@ -651,14 +702,10 @@ pub fn main() !void {
 
             zf.cmdSetDefaultViewportAndScissor(@intCast(frame_buffer_size[0]), @intCast(frame_buffer_size[1]));
 
-            zf.cmdBindPipeline(gfx.blit_pso);
-            zf.cmdBindDescriptorSet(0, gfx.blit_material_1.passes[0].persistent_samplers_descriptor_set);
-            zf.cmdBindDescriptorSet(frame_index, gfx.blit_material_1.passes[0].per_frame_descriptor_set);
+            gfx.blit_material_1.bindMaterialPass(.default, frame_index);
             zf.cmdDraw(3, 0);
 
-            zf.cmdBindPipeline(gfx.object_pso);
-            zf.cmdBindDescriptorSet(0, gfx.object_material.passes[0].persistent_samplers_descriptor_set);
-            zf.cmdBindDescriptorSet(frame_index, gfx.object_material.passes[0].per_frame_descriptor_set);
+            gfx.object_material.bindMaterialPass(.default, frame_index);
             zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
 
             for (0..gfx.birch_1_mesh.sub_meshes_count) |sub_mesh_index| {
@@ -724,9 +771,7 @@ pub fn main() !void {
                 };
                 zf.cmdResourceBarrier(null, &texture_barriers, null);
 
-                zf.cmdBindPipeline(gfx.gauss_horizontal_pso);
-                zf.cmdBindDescriptorSet(0, gfx.gauss_blur_horizontal_material.passes[0].persistent_descriptor_set);
-                zf.cmdBindDescriptorSet(frame_index, gfx.gauss_blur_horizontal_material.passes[0].per_frame_descriptor_set);
+                gfx.gauss_blur_horizontal_material.bindMaterialPass(.default, frame_index);
                 zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8) + 1), @intCast(@divTrunc(frame_buffer_size[1], 8) + 1), 1);
 
                 texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
@@ -746,9 +791,7 @@ pub fn main() !void {
                 };
                 zf.cmdResourceBarrier(null, &texture_barriers, null);
 
-                zf.cmdBindPipeline(gfx.gauss_vertical_pso);
-                zf.cmdBindDescriptorSet(0, gfx.gauss_blur_vertical_material.passes[0].persistent_descriptor_set);
-                zf.cmdBindDescriptorSet(frame_index, gfx.gauss_blur_vertical_material.passes[0].per_frame_descriptor_set);
+                gfx.gauss_blur_vertical_material.bindMaterialPass(.default, frame_index);
                 zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8) + 1), @intCast(@divTrunc(frame_buffer_size[1], 8) + 1), 1);
 
                 texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
@@ -781,9 +824,7 @@ pub fn main() !void {
 
             zf.cmdSetDefaultViewportAndScissor(@intCast(frame_buffer_size[0]), @intCast(frame_buffer_size[1]));
 
-            zf.cmdBindPipeline(gfx.blit_swapchain_pso);
-            zf.cmdBindDescriptorSet(0, gfx.blit_material_2.passes[0].persistent_samplers_descriptor_set);
-            zf.cmdBindDescriptorSet(frame_index, gfx.blit_material_2.passes[0].per_frame_descriptor_set);
+            gfx.blit_material_2.bindMaterialPass(.default, frame_index);
             zf.cmdDraw(3, 0);
 
             rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
@@ -826,7 +867,7 @@ fn updateDescriptorSets() void {
             .{
                 .name = "g_linear_repeat_sampler",
                 .binding_type = .sampler,
-                .static_sampler_handle = gfx.linear_repeat_sampler,
+                .static_sampler_handle = gfx.linear_repeat_static_sampler,
             },
         };
 
@@ -869,7 +910,7 @@ fn updateDescriptorSets() void {
             .{
                 .name = "g_linear_repeat_sampler",
                 .binding_type = .sampler,
-                .static_sampler_handle = gfx.linear_repeat_sampler,
+                .static_sampler_handle = gfx.linear_repeat_static_sampler,
             },
         };
 
@@ -879,25 +920,6 @@ fn updateDescriptorSets() void {
             0,
             gfx.blit_shader,
             gfx.blit_material_2.passes[0].persistent_samplers_descriptor_set
-        );
-    }
-
-    // Object Material: Persistent Sampler
-    {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_linear_repeat_sampler",
-                .binding_type = .sampler,
-                .static_sampler_handle = gfx.linear_repeat_sampler,
-            },
-        };
-
-        zf.updateDescriptorSet(
-            &resource_binding_descs,
-            .persistent_sampler,
-            0,
-            gfx.object_shader,
-            gfx.object_material.passes[0].persistent_samplers_descriptor_set
         );
     }
 

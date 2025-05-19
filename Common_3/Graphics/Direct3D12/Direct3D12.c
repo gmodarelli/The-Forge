@@ -4223,7 +4223,11 @@ void removeRenderTarget(Renderer* pRenderer, RenderTarget* pRenderTarget)
     SAFE_FREE(pRenderTarget);
 }
 
+#ifdef TIDES
+void addSampler(Renderer* pRenderer, const SamplerDesc* pDesc, bool bindless, Sampler** ppSampler)
+#else
 void addSampler(Renderer* pRenderer, const SamplerDesc* pDesc, Sampler** ppSampler)
+#endif
 {
     ASSERT(pRenderer);
     ASSERT(pRenderer->mDx.pDevice);
@@ -4259,7 +4263,16 @@ void addSampler(Renderer* pRenderer, const SamplerDesc* pDesc, Sampler** ppSampl
         .MaxLOD = maxSamplerLod,
     };
     pSampler->mDx.mDesc = desc;
+#ifdef TIDES
+    DescriptorHeap* pPersistentHeap = NULL;
+    if (bindless)
+    {
+        pPersistentHeap = pRenderer->mDx.pSamplerHeaps[0];
+    }
+    AddSampler(pRenderer, pPersistentHeap, &pSampler->mDx.mDesc, &pSampler->mDx.mDescriptor);
+#else
     AddSampler(pRenderer, NULL, &pSampler->mDx.mDesc, &pSampler->mDx.mDescriptor);
+#endif
 
     *ppSampler = pSampler;
 }

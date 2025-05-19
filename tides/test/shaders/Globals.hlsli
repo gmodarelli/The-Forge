@@ -8,6 +8,10 @@ struct Frame
     float4x4 view;
     float4x4 projection;
     float4x4 view_proj;
+    // Default samplers
+    uint linear_repeat_sampler_index;
+    uint linear_clamp_sampler_index;
+    uint2 _padding; // TODO: Add more default samplers
     // TODO: Add inverted view, projection and view_projection
     float time;
     uint vertex_buffer_index;
@@ -25,8 +29,9 @@ struct Transform
 struct MaterialData
 {
     uint albedo_texture_index;
+    uint albedo_sampler_index;
     uint normal_texture_index;
-    uint2 _padding;
+    uint normal_sampler_index;
 };
 
 struct InstanceData

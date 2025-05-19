@@ -22,7 +22,7 @@
     "SAMPLER(s0, numDescriptors = unbounded, space = " #space ", offset = 0)),"
 
 #define DefaultRootSignature                                                                                                        \
-    "RootFlags(CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED)," DESCRIPTOR_TABLE(3) DESCRIPTOR_TABLE(2) DESCRIPTOR_TABLE(1) DESCRIPTOR_TABLE(0) \
+    "RootFlags(CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED | SAMPLER_HEAP_DIRECTLY_INDEXED)," DESCRIPTOR_TABLE(3) DESCRIPTOR_TABLE(2) DESCRIPTOR_TABLE(1) DESCRIPTOR_TABLE(0) \
         SAMPLER_DESCRIPTOR_TABLE(                                                                                                   \
             0) "StaticSampler(s0, space = 100,"                                                                                     \
                "filter = FILTER_MIN_MAG_MIP_POINT,"                                                                                 \
