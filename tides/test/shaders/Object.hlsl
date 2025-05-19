@@ -1,5 +1,7 @@
 #include "Globals.hlsli"
 
+SamplerState g_linear_repeat_sampler : register(s0, SPACE_Persistent);
+
 struct Vertex
 {
     float3 position;
@@ -20,6 +22,7 @@ struct Varyings
     float4 position : SV_Position;
     float2 uv : TEXCOORD0;
     float3 normal : NORMAL;
+    uint instance_index : SV_INSTANCEID;
 };
 
 [RootSignature(DefaultRootSignature)]
@@ -28,8 +31,8 @@ Varyings ObjectVS(VertexShaderInput input)
     Varyings output = (Varyings) 0;
 
     uint instance_index = input.instance_id + input.start_instance_location;
-    ByteAddressBuffer transform_buffer = ResourceDescriptorHeap[g_frame.transform_buffer_index];
-    Transform transform = transform_buffer.Load<Transform>(instance_index * sizeof(Transform));
+    InstanceData instance = getInstanceData(instance_index);
+    Transform transform = getTransform(instance.transform_index);
 
     uint vertex_index = input.vertex_id + input.start_vertex_location;
     ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[g_frame.vertex_buffer_index];
@@ -39,6 +42,7 @@ Varyings ObjectVS(VertexShaderInput input)
     output.position = mul(mvp, float4(vertex.position, 1));
     output.uv = vertex.uv;
     output.normal = vertex.normal;
+    output.instance_index = instance_index;
 
     return output;
 }
@@ -46,5 +50,28 @@ Varyings ObjectVS(VertexShaderInput input)
 [RootSignature(DefaultRootSignature)]
 float4 ObjectPS(Varyings varyings) : SV_Target0
 {
-    return float4(varyings.normal * 0.5 + 0.5, 1.0f);
+    InstanceData instance = getInstanceData(varyings.instance_index);
+    MaterialData material = getMaterial(instance.material_index);
+
+    float3 color = 0.0;
+
+    if (hasValidDescriptor(material.albedo_texture_index)) {
+        Texture2D albedo = ResourceDescriptorHeap[material.albedo_texture_index];
+        float4 albedo_sample = albedo.Sample(g_linear_repeat_sampler, varyings.uv);
+        clip(albedo_sample.a - 0.5);
+
+        color = albedo_sample.rgb;
+    }
+
+    if (false && hasValidDescriptor(material.normal_texture_index)) {
+        Texture2D normal = ResourceDescriptorHeap[material.normal_texture_index];
+        float2 normal_sample = normal.Sample(g_linear_repeat_sampler, varyings.uv).xy;
+        float3 tangent_normal = 0;
+        tangent_normal.xy = normal_sample * 2.0 - 1.0;
+        tangent_normal.z = sqrt(1.0 - saturate(dot(tangent_normal, tangent_normal)));
+
+        color = tangent_normal * 0.5 + 0.5;
+    }
+
+    return float4(color, 1.0f);
 }

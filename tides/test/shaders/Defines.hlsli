@@ -98,4 +98,6 @@
     "filter = FILTER_ANISOTROPIC, maxAnisotropy = 8,"                                                           \
     "addressU = TEXTURE_ADDRESS_WRAP, addressV = TEXTURE_ADDRESS_WRAP, addressW = TEXTURE_ADDRESS_WRAP)"
 
+#define k_invalid_descriptor_index 0xffffffff;
+
 #endif // _DEFINES_HLSLI
