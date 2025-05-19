@@ -4,6 +4,63 @@ const zglfw = @import("zglfw");
 const zgltf = @import("zgltf");
 const zmath = @import("zmath");
 
+// App State
+pub const Camera = struct {
+    position: zmath.Vec = .{ 0.0, 0.0, -20.0, 1.0 },
+    forward: zmath.Vec = .{ 0.0, 0.0, 1.0, 0.0 },
+    up: zmath.Vec = .{ 0.0, 1.0, 0.0, 0.0 },
+    speed: f32 = 10.0,
+    view: zmath.Mat = undefined,
+    yaw: f32 = 90,
+    pitch: f32 = 0,
+
+    pub fn updateView(self: *Camera) void {
+        self.view = zmath.lookAtLh(self.position, self.position + self.forward, self.up);
+    }
+
+    pub fn updateOrientation(self: *Camera) void {
+        self.forward[0] = std.math.cos(std.math.degreesToRadians(self.yaw)) * std.math.cos(std.math.degreesToRadians(self.pitch));
+        self.forward[1] = std.math.sin(std.math.degreesToRadians(self.pitch));
+        self.forward[2] = std.math.sin(std.math.degreesToRadians(self.yaw)) * std.math.cos(std.math.degreesToRadians(self.pitch));
+        self.forward = zmath.normalize3(self.forward);
+    }
+};
+
+var camera: Camera = .{};
+var last_time: f64 = 0.0;
+var first_cursor = true;
+var cursor_last = [2]f32{0.0, 0.0};
+var cursor_sensitivity: f32 = 0.1;
+
+fn cursorPosCallback(window: *zglfw.Window, xpos: f64, ypos: f64) callconv(.c) void {
+    _ = window;
+
+    if (first_cursor) {
+        cursor_last[0] = @floatCast(xpos);
+        cursor_last[1] = @floatCast(ypos);
+        first_cursor = false;
+    }
+
+    const offset = [2]f32{
+        (cursor_last[0] - @as(f32, @floatCast(xpos))) * cursor_sensitivity,
+        (cursor_last[1] - @as(f32, @floatCast(ypos))) * cursor_sensitivity,
+    };
+    cursor_last[0] = @floatCast(xpos);
+    cursor_last[1] = @floatCast(ypos);
+
+    camera.yaw += offset[0];
+    camera.pitch += offset[1];
+
+    if (camera.pitch > 89.0) {
+        camera.pitch = 89.0;
+    }
+    if (camera.pitch < -89.0) {
+        camera.pitch = -89.0;
+    }
+
+    camera.updateOrientation();
+}
+
 pub const Gfx = struct {
     // Static samplers
     linear_repeat_static_sampler: zf.StaticSamplerHandle = zf.StaticSamplerHandle.nil,
@@ -173,6 +230,11 @@ pub fn main() !void {
     zglfw.windowHint(.client_api, .no_api);
     const window = zglfw.Window.create(window_width, window_height, "Ze-Forge Test", null) catch unreachable;
     defer zglfw.Window.destroy(window);
+
+    window.setInputMode(.cursor, .disabled) catch unreachable;
+    _ = zglfw.setCursorPosCallback(window, cursorPosCallback);
+
+    camera.updateView();
 
     const gpu_desc = zf.GpuDesc{
         .graphics_root_signature_path = "shaders/GraphicsRootSignature.rs",
@@ -601,6 +663,9 @@ pub fn main() !void {
     updateDescriptorSets();
 
     while (!window.shouldClose()) {
+        const time_now = zglfw.getTime();
+        const delta_time: f32 = @floatCast(time_now - last_time);
+
         zglfw.pollEvents();
 
         const frame_buffer_size = window.getFramebufferSize();
@@ -616,12 +681,35 @@ pub fn main() !void {
             zf.requestResize();
         }
 
+        // Camera movement
+        const movement = zmath.f32x4s(camera.speed * delta_time);
+        const forward = movement * camera.forward;
+        const right = movement * zmath.cross3(camera.forward, camera.up);
+        const up = movement * zmath.cross3(camera.forward, zmath.cross3(camera.forward, camera.up));
+
+        if (zglfw.getKey(window, .w) == .press) {
+            camera.position += forward;
+        }
+        if (zglfw.getKey(window, .s) == .press) {
+            camera.position -= forward;
+        }
+        if (zglfw.getKey(window, .a) == .press) {
+            camera.position += right;
+        }
+        if (zglfw.getKey(window, .d) == .press) {
+            camera.position -= right;
+        }
+        if (zglfw.getKey(window, .q) == .press) {
+            camera.position += up;
+        }
+        if (zglfw.getKey(window, .e) == .press) {
+            camera.position -= up;
+        }
+
         const frame_index = zf.frameStart();
 
-        const z_view = zmath.lookAtLh(
-            zmath.f32x4(0.0, 0.0, -20.0, 1.0),
-            zmath.f32x4(0.0, 0.0, 0.0, 1.0),
-            zmath.f32x4(0.0, 1.0, 0.0, 0.0));
+        camera.updateView();
+        const z_view = camera.view;
 
         const z_proj = zmath.perspectiveFovLh(
             std.math.degreesToRadians(45.0),
@@ -652,25 +740,25 @@ pub fn main() !void {
         };
         zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
 
-        // Clear screen: Scene Color
-        {
-            var texture_barriers = [_]zf.TextureBarrier{
-                .{
-                    .render_texture_handle = gfx.scene_color,
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                },
-            };
+        // // Clear screen: Scene Color
+        // {
+        //     var texture_barriers = [_]zf.TextureBarrier{
+        //         .{
+        //             .render_texture_handle = gfx.scene_color,
+        //             .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+        //             .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+        //         },
+        //     };
 
-            zf.cmdResourceBarrier(null, &texture_barriers, null);
-            gfx.clear_screen_material.bindMaterialPass(.default, frame_index);
-            zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8) + 1), @intCast(@divTrunc(frame_buffer_size[1], 8) + 1), 1);
+        //     zf.cmdResourceBarrier(null, &texture_barriers, null);
+        //     gfx.clear_screen_material.bindMaterialPass(.default, frame_index);
+        //     zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8) + 1), @intCast(@divTrunc(frame_buffer_size[1], 8) + 1), 1);
 
-            texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        //     texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+        //     texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
 
-            zf.cmdResourceBarrier(null, &texture_barriers, null);
-        }
+        //     zf.cmdResourceBarrier(null, &texture_barriers, null);
+        // }
 
         // Blit: Scene Color -> GBuffer0
         {
@@ -702,8 +790,8 @@ pub fn main() !void {
 
             zf.cmdSetDefaultViewportAndScissor(@intCast(frame_buffer_size[0]), @intCast(frame_buffer_size[1]));
 
-            gfx.blit_material_1.bindMaterialPass(.default, frame_index);
-            zf.cmdDraw(3, 0);
+            // gfx.blit_material_1.bindMaterialPass(.default, frame_index);
+            // zf.cmdDraw(3, 0);
 
             gfx.object_material.bindMaterialPass(.default, frame_index);
             zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
@@ -833,6 +921,7 @@ pub fn main() !void {
         }
 
         zf.frameSubmit();
+        last_time = time_now;
     }
 }
 
