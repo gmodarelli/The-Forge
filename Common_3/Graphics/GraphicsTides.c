@@ -50,6 +50,16 @@ void cmdUpdateBufferEx(Cmd* pCmd, Buffer* pBuffer, uint64_t dstOffset, Buffer* p
     cmdUpdateBuffer(pCmd, pBuffer, dstOffset, pSrcBuffer, srcOffset, size);
 }
 
+void cmdUpdateSubresourceEx(Cmd* pCmd, Texture* pTexture, Buffer* pSrcBuffer, const SubResourceDataDesc* pSubresourceDesc)
+{
+    cmdUpdateSubresource(pCmd, pTexture, pSrcBuffer, pSubresourceDesc);
+}
+
+void cmdCopySubresourceEx(Cmd* pCmd, Buffer* pDstBuffer, Texture* pTexture, const SubResourceDataDesc* pSubresourceDesc)
+{
+    cmdCopySubresource(pCmd, pDstBuffer, pTexture, pSubresourceDesc);
+}
+
 bool loadRootSignature(Renderer* pRenderer, const char* path, ID3D12RootSignature** ppRootSignature);
 
 bool loadDefaultRootSignatures(Renderer* pRenderer, const char* graphicsRootSignaturePath, const char* computeRootSignaturePath)

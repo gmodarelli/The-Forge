@@ -11,7 +11,14 @@ typedef struct SpaceDescriptors
     Descriptor pDescriptors[TIDES_SPACE_DESCRIPTORS_MAX_COUNT];
 } SpaceDescriptors;
 
-// From ShaderInterop.h
+typedef struct SubResourceDataDesc
+{
+    uint64_t mSrcOffset;
+    uint32_t mMipLevel;
+    uint32_t mArrayLayer;
+} SubResourceDataDesc;
+
+// From Defines.hlsli
 // #define ROOT_PARAM_Persistent_SAMPLER 4
 // #define ROOT_PARAM_Persistent         3
 // #define ROOT_PARAM_PerFrame           2
@@ -34,6 +41,8 @@ void removeTextureEx(Renderer* pRenderer, Texture* pTexture);
 void addBufferEx(Renderer* pRenderer, const BufferDesc* pDesc, bool bBindless, Buffer** ppBuffer);
 void removeBufferEx(Renderer* pRenderer, Buffer* pBuffer);
 void cmdUpdateBufferEx(Cmd* pCmd, Buffer* pBuffer, uint64_t dstOffset, Buffer* pSrcBuffer, uint64_t srcOffset, uint64_t size);
+void cmdUpdateSubresourceEx(Cmd* pCmd, Texture* pTexture, Buffer* pSrcBuffer, const SubResourceDataDesc* pSubresourceDesc);
+void cmdCopySubresourceEx(Cmd* pCmd, Buffer* pDstBuffer, Texture* pTexture, const SubResourceDataDesc* pSubresourceDesc);
 
 bool loadDefaultRootSignatures(Renderer* pRenderer, const char* graphicsRootSignaturePath, const char* computeRootSignaturePath);
 void releaseDefaultRootSignatures(Renderer* pRenderer);

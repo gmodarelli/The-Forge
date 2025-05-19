@@ -15,13 +15,21 @@ pub const Descriptors = extern struct {
     pSpaceDescriptors: [TIDES_DESCRIPTOR_SPACES_COUNT]SpaceDescriptors,
 };
 
+pub const SubResourceDataDesc = extern struct {
+    mSrcOffset: u64,
+    mMipLevel: u32,
+    mArrayLayer: u32,
+};
+
 pub extern fn initGPUConfigurationEx(pExtendedSettings: [*c]zgraphics.ExtendedSettings) void;
 pub extern fn exitGPUConfigurationEx() void;
 pub extern fn addTextureEx(pRenderer: [*c]zgraphics.Renderer, pTextureDesc: [*c]const zgraphics.TextureDesc, bBindless: bool, texture: [*c][*c]zgraphics.Texture) void;
-pub extern fn removeTextureEx(pRenderer: [*c]zgraphics.Renderer, ppTexture: [*c]zgraphics.Texture) void;
+pub extern fn removeTextureEx(pRenderer: [*c]zgraphics.Renderer, pTexture: [*c]zgraphics.Texture) void;
 pub extern fn addBufferEx(pRenderer: [*c]zgraphics.Renderer, pDesc: [*c]const zgraphics.BufferDesc, bBindless: bool, ppBuffer: [*c][*c]zgraphics.Buffer) void;
 pub extern fn removeBufferEx(pRenderer: [*c]zgraphics.Renderer, pBuffer: [*c]zgraphics.Buffer) void;
 pub extern fn cmdUpdateBufferEx(pCmd: [*c]zgraphics.Cmd, pBuffer: [*c]zgraphics.Buffer, dstOffset: u64, pSrcBuffer: [*c]zgraphics.Buffer, srcOffset: u64, size: u64) void;
+pub extern fn cmdUpdateSubresourceEx(pCmd: [*c]zgraphics.Cmd, pTexture: [*c]zgraphics.Texture, pSrcBuffer: [*c]zgraphics.Buffer, pSubresourceDesc: [*c]SubResourceDataDesc) void;
+pub extern fn cmdCopySubresourceEx(pCmd: [*c]zgraphics.Cmd, pDstBuffer: [*c]zgraphics.Buffer, pTexture: [*c]zgraphics.Texture, pSubresourceDesc: [*c]SubResourceDataDesc) void;
 pub extern fn loadDefaultRootSignatures(pRenderer: [*c]zgraphics.Renderer, graphicsRootSignaturePath: [*c]const u8, computeRootSignaturePath: [*c]const u8) bool;
 pub extern fn releaseDefaultRootSignatures(pRenderer: [*c]zgraphics.Renderer) void;
 pub extern fn getWindowSize(windowHandle: zgraphics.WindowHandle, pWidth: *u32, pHeight: *u32) void;

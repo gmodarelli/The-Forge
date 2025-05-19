@@ -1223,10 +1223,10 @@ fn loadDdsTexture(file_path: []const u8, bindless: bool, allocator: std.mem.Allo
     texture_desc.mDescriptors.bits = zf.DescriptorType.DESCRIPTOR_TYPE_TEXTURE.bits;
     texture_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
     texture_desc.mSampleQuality = 0;
-    texture_desc.pName = @ptrCast(&file_path);
     const texture_handle = zf.createTexture(texture_desc, bindless) catch unreachable;
 
     // Update texture
+    zf.updateTexture(texture_handle, format, texture_desc.mWidth, texture_desc.mHeight, texture_desc.mDepth, texture_desc.mMipLevels, data);
 
     return texture_handle;
 }

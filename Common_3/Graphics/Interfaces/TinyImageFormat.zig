@@ -242,6 +242,155 @@ pub const TinyImageFormat = enum(u32) {
     G16_B16R16_2PLANE_422_UNORM = 238,
 };
 
+pub fn widthOfBlock(fmt: TinyImageFormat) u32 {
+	return switch(fmt)	{
+		.UNDEFINED => 1,
+		.R1_UNORM => 8,
+		.R2_UNORM => 4,
+		.R4_UNORM => 2,
+		.DXBC1_RGB_UNORM => 4,
+		.DXBC1_RGB_SRGB => 4,
+		.DXBC1_RGBA_UNORM => 4,
+		.DXBC1_RGBA_SRGB => 4,
+		.DXBC2_UNORM => 4,
+		.DXBC2_SRGB => 4,
+		.DXBC3_UNORM => 4,
+		.DXBC3_SRGB => 4,
+		.DXBC4_UNORM => 4,
+		.DXBC4_SNORM => 4,
+		.DXBC5_UNORM => 4,
+		.DXBC5_SNORM => 4,
+		.DXBC6H_UFLOAT => 4,
+		.DXBC6H_SFLOAT => 4,
+		.DXBC7_UNORM => 4,
+		.DXBC7_SRGB => 4,
+		.PVRTC1_2BPP_UNORM => 8,
+		.PVRTC1_4BPP_UNORM => 4,
+		.PVRTC2_2BPP_UNORM => 8,
+		.PVRTC2_4BPP_UNORM => 4,
+		.PVRTC1_2BPP_SRGB => 8,
+		.PVRTC1_4BPP_SRGB => 4,
+		.PVRTC2_2BPP_SRGB => 8,
+		.PVRTC2_4BPP_SRGB => 4,
+		.ETC2_R8G8B8_UNORM => 4,
+		.ETC2_R8G8B8_SRGB => 4,
+		.ETC2_R8G8B8A1_UNORM => 4,
+		.ETC2_R8G8B8A1_SRGB => 4,
+		.ETC2_R8G8B8A8_UNORM => 4,
+		.ETC2_R8G8B8A8_SRGB => 4,
+		.ETC2_EAC_R11_UNORM => 4,
+		.ETC2_EAC_R11_SNORM => 4,
+		.ETC2_EAC_R11G11_UNORM => 4,
+		.ETC2_EAC_R11G11_SNORM => 4,
+		.ASTC_4x4_UNORM => 4,
+		.ASTC_4x4_SRGB => 4,
+		.ASTC_5x4_UNORM => 5,
+		.ASTC_5x4_SRGB => 5,
+		.ASTC_5x5_UNORM => 5,
+		.ASTC_5x5_SRGB => 5,
+		.ASTC_6x5_UNORM => 6,
+		.ASTC_6x5_SRGB => 6,
+		.ASTC_6x6_UNORM => 6,
+		.ASTC_6x6_SRGB => 6,
+		.ASTC_8x5_UNORM => 8,
+		.ASTC_8x5_SRGB => 8,
+		.ASTC_8x6_UNORM => 8,
+		.ASTC_8x6_SRGB => 8,
+		.ASTC_8x8_UNORM => 8,
+		.ASTC_8x8_SRGB => 8,
+		.ASTC_10x5_UNORM =>10,
+		.ASTC_10x5_SRGB =>10,
+		.ASTC_10x6_UNORM =>10,
+		.ASTC_10x6_SRGB =>10,
+		.ASTC_10x8_UNORM =>10,
+		.ASTC_10x8_SRGB =>10,
+		.ASTC_10x10_UNORM =>10,
+		.ASTC_10x10_SRGB =>10,
+		.ASTC_12x10_UNORM =>12,
+		.ASTC_12x10_SRGB =>12,
+		.ASTC_12x12_UNORM =>12,
+		.ASTC_12x12_SRGB =>12,
+		.CLUT_P4 => 2,
+		else => 1,
+	};
+}
+
+pub fn heightOfBlock(fmt: TinyImageFormat) u32 {
+	return switch(fmt) {
+		.UNDEFINED => 1,
+		.DXBC1_RGB_UNORM => 4,
+		.DXBC1_RGB_SRGB => 4,
+		.DXBC1_RGBA_UNORM => 4,
+		.DXBC1_RGBA_SRGB => 4,
+		.DXBC2_UNORM => 4,
+		.DXBC2_SRGB => 4,
+		.DXBC3_UNORM => 4,
+		.DXBC3_SRGB => 4,
+		.DXBC4_UNORM => 4,
+		.DXBC4_SNORM => 4,
+		.DXBC5_UNORM => 4,
+		.DXBC5_SNORM => 4,
+		.DXBC6H_UFLOAT => 4,
+		.DXBC6H_SFLOAT => 4,
+		.DXBC7_UNORM => 4,
+		.DXBC7_SRGB => 4,
+		.PVRTC1_2BPP_UNORM => 4,
+		.PVRTC1_4BPP_UNORM => 4,
+		.PVRTC2_2BPP_UNORM => 4,
+		.PVRTC2_4BPP_UNORM => 4,
+		.PVRTC1_2BPP_SRGB => 4,
+		.PVRTC1_4BPP_SRGB => 4,
+		.PVRTC2_2BPP_SRGB => 4,
+		.PVRTC2_4BPP_SRGB => 4,
+		.ETC2_R8G8B8_UNORM => 4,
+		.ETC2_R8G8B8_SRGB => 4,
+		.ETC2_R8G8B8A1_UNORM => 4,
+		.ETC2_R8G8B8A1_SRGB => 4,
+		.ETC2_R8G8B8A8_UNORM => 4,
+		.ETC2_R8G8B8A8_SRGB => 4,
+		.ETC2_EAC_R11_UNORM => 4,
+		.ETC2_EAC_R11_SNORM => 4,
+		.ETC2_EAC_R11G11_UNORM => 4,
+		.ETC2_EAC_R11G11_SNORM => 4,
+		.ASTC_4x4_UNORM => 4,
+		.ASTC_4x4_SRGB => 4,
+		.ASTC_5x4_UNORM => 4,
+		.ASTC_5x4_SRGB => 4,
+		.ASTC_5x5_UNORM => 5,
+		.ASTC_5x5_SRGB => 5,
+		.ASTC_6x5_UNORM => 5,
+		.ASTC_6x5_SRGB => 5,
+		.ASTC_6x6_UNORM => 6,
+		.ASTC_6x6_SRGB => 6,
+		.ASTC_8x5_UNORM => 5,
+		.ASTC_8x5_SRGB => 5,
+		.ASTC_8x6_UNORM => 6,
+		.ASTC_8x6_SRGB => 6,
+		.ASTC_8x8_UNORM => 8,
+		.ASTC_8x8_SRGB => 8,
+		.ASTC_10x5_UNORM => 5,
+		.ASTC_10x5_SRGB => 5,
+		.ASTC_10x6_UNORM => 6,
+		.ASTC_10x6_SRGB => 6,
+		.ASTC_10x8_UNORM => 8,
+		.ASTC_10x8_SRGB => 8,
+		.ASTC_10x10_UNORM =>10,
+		.ASTC_10x10_SRGB =>10,
+		.ASTC_12x10_UNORM =>10,
+		.ASTC_12x10_SRGB =>10,
+		.ASTC_12x12_UNORM =>12,
+		.ASTC_12x12_SRGB =>12,
+		else => 1,
+	};
+}
+
+pub fn depthOfBlock(fmt: TinyImageFormat) u32 {
+	return switch(fmt) {
+		.UNDEFINED => 1,
+		else => 1,
+	};
+}
+
 pub fn bitSizeOfBlock(format: TinyImageFormat) u32 {
     const bit_size: u32 = switch (format) {
         .UNDEFINED => 0,
@@ -300,4 +449,234 @@ pub fn bitSizeOfBlock(format: TinyImageFormat) u32 {
     };
 
     return bit_size;
+}
+
+pub fn isCompressedDXBC(fmt: TinyImageFormat) bool {
+	return switch(fmt) {
+        .DXBC1_RGB_UNORM => true,
+        .DXBC1_RGB_SRGB => true,
+        .DXBC1_RGBA_UNORM => true,
+        .DXBC1_RGBA_SRGB => true,
+        .DXBC2_UNORM => true,
+        .DXBC2_SRGB => true,
+        .DXBC3_UNORM => true,
+        .DXBC3_SRGB => true,
+        .DXBC4_UNORM => true,
+        .DXBC4_SNORM => true,
+        .DXBC5_UNORM => true,
+        .DXBC5_SNORM => true,
+        .DXBC6H_UFLOAT => true,
+        .DXBC6H_SFLOAT => true,
+        .DXBC7_UNORM => true,
+        .DXBC7_SRGB => true,
+        else => false
+	};
+}
+
+pub fn isCompressedASTC(fmt: TinyImageFormat) bool {
+	return switch(fmt)	{
+        .ASTC_4x4_UNORM => true,
+        .ASTC_4x4_SRGB => true,
+        .ASTC_5x4_UNORM => true,
+        .ASTC_5x4_SRGB => true,
+        .ASTC_5x5_UNORM => true,
+        .ASTC_5x5_SRGB => true,
+        .ASTC_6x5_UNORM => true,
+        .ASTC_6x5_SRGB => true,
+        .ASTC_6x6_UNORM => true,
+        .ASTC_6x6_SRGB => true,
+        .ASTC_8x5_UNORM => true,
+        .ASTC_8x5_SRGB => true,
+        .ASTC_8x6_UNORM => true,
+        .ASTC_8x6_SRGB => true,
+        .ASTC_8x8_UNORM => true,
+        .ASTC_8x8_SRGB => true,
+        .ASTC_10x5_UNORM => true,
+        .ASTC_10x5_SRGB => true,
+        .ASTC_10x6_UNORM => true,
+        .ASTC_10x6_SRGB => true,
+        .ASTC_10x8_UNORM => true,
+        .ASTC_10x8_SRGB => true,
+        .ASTC_10x10_UNORM => true,
+        .ASTC_10x10_SRGB => true,
+        .ASTC_12x10_UNORM => true,
+        .ASTC_12x10_SRGB => true,
+        .ASTC_12x12_UNORM => true,
+        .ASTC_12x12_SRGB => true,
+        else => false,
+	};
+}
+
+pub fn isCompressedPVRTC1(fmt: TinyImageFormat) bool {
+	return switch(fmt) {
+        .PVRTC1_2BPP_UNORM => true,
+        .PVRTC1_4BPP_UNORM => true,
+        .PVRTC1_2BPP_SRGB => true,
+        .PVRTC1_4BPP_SRGB => true,
+        else => false,
+	};
+}
+
+pub fn isCompressedPVRTC2(fmt: TinyImageFormat) bool {
+	return switch(fmt) {
+        .PVRTC2_2BPP_UNORM => true,
+        .PVRTC2_4BPP_UNORM => true,
+        .PVRTC2_2BPP_SRGB => true,
+        .PVRTC2_4BPP_SRGB => true,
+        else => false,
+	};
+}
+
+pub fn isCompressedETC2(fmt: TinyImageFormat) bool {
+	return switch(fmt) {
+        .ETC2_R8G8B8_UNORM => true,
+        .ETC2_R8G8B8_SRGB => true,
+        .ETC2_R8G8B8A1_UNORM => true,
+        .ETC2_R8G8B8A1_SRGB => true,
+        .ETC2_R8G8B8A8_UNORM => true,
+        .ETC2_R8G8B8A8_SRGB => true,
+        .ETC2_EAC_R11_UNORM => true,
+        .ETC2_EAC_R11_SNORM => true,
+        .ETC2_EAC_R11G11_UNORM => true,
+        .ETC2_EAC_R11G11_SNORM => true,
+        else => false,
+	};
+}
+
+pub fn isCompressed(fmt: TinyImageFormat) bool {
+	return isCompressedDXBC(fmt) or
+		isCompressedASTC(fmt) or
+		isCompressedPVRTC1(fmt) or
+		isCompressedPVRTC2(fmt) or
+		isCompressedETC2(fmt);
+}
+
+pub fn isPlanar(fmt: TinyImageFormat) bool {
+	return switch(fmt)	{
+		.G8_B8R8_2PLANE_420_UNORM,
+		.G8_B8R8_2PLANE_422_UNORM,
+		.G8_B8_R8_3PLANE_420_UNORM,
+		.G8_B8_R8_3PLANE_422_UNORM,
+		.G8_B8_R8_3PLANE_444_UNORM,
+		.G16_B16R16_2PLANE_420_UNORM,
+		.G16_B16R16_2PLANE_422_UNORM,
+		.G16_B16_R16_3PLANE_420_UNORM,
+		.G16_B16_R16_3PLANE_422_UNORM,
+		.G16_B16_R16_3PLANE_444_UNORM,
+		.G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,
+		.G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16,
+		.G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,
+		.G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16,
+		.G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,
+		.G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16,
+		.G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16,
+		.G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,
+		.G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16,
+		.G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16 => true,
+
+		else => false,
+   };
+}
+
+pub fn numOfPlanes(fmt: TinyImageFormat) u32 {
+	return switch(fmt) {
+		.G8_B8_R8_3PLANE_420_UNORM,
+		.G8_B8_R8_3PLANE_422_UNORM,
+		.G8_B8_R8_3PLANE_444_UNORM,
+		.G16_B16_R16_3PLANE_420_UNORM,
+		.G16_B16_R16_3PLANE_422_UNORM,
+		.G16_B16_R16_3PLANE_444_UNORM,
+		.G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,
+		.G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16,
+		.G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16,
+		.G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,
+		.G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16,
+		.G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16 => 3,
+
+		.G8_B8R8_2PLANE_420_UNORM,
+		.G8_B8R8_2PLANE_422_UNORM,
+		.G16_B16R16_2PLANE_420_UNORM,
+		.G16_B16R16_2PLANE_422_UNORM,
+		.G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,
+		.G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16,
+		.G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,
+		.G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16 => 2,
+
+		else => 1,
+   };
+}
+
+pub fn planeWidth(fmt: TinyImageFormat, plane: u32, width: u32) u32 {
+	if (plane == 0) {
+		return width;
+    }
+
+	return switch(fmt) {
+		.G8_B8_R8_3PLANE_420_UNORM,
+		.G8_B8R8_2PLANE_420_UNORM,
+		.G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,
+		.G8_B8_R8_3PLANE_422_UNORM,
+		.G8_B8R8_2PLANE_422_UNORM,
+		.G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16,
+		.G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,
+		.G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16,
+		.G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16,
+		.G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,
+		.G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16,
+		.G16_B16_R16_3PLANE_420_UNORM,
+		.G16_B16_R16_3PLANE_422_UNORM,
+		.G16_B16R16_2PLANE_420_UNORM,
+		.G16_B16R16_2PLANE_422_UNORM => width >> 1,
+
+		else => width,
+	};
+}
+
+pub fn planeHeight(fmt: TinyImageFormat, plane: u32, height: u32) u32 {
+	if (plane == 0) {
+		return height;
+    }
+
+	return switch(fmt)	{
+		.G8_B8_R8_3PLANE_420_UNORM,
+		.G8_B8R8_2PLANE_420_UNORM,
+		.G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,
+		.G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,
+		.G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,
+		.G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,
+		.G16_B16_R16_3PLANE_420_UNORM,
+		.G16_B16R16_2PLANE_420_UNORM => height >> 1,
+
+		else => height,
+	};
+}
+
+pub fn planeSizeOfBlock(fmt: TinyImageFormat, plane: u32) u32 {
+	return switch(fmt) {
+		.G8_B8_R8_3PLANE_420_UNORM,
+		.G8_B8_R8_3PLANE_422_UNORM,
+		.G8_B8_R8_3PLANE_444_UNORM => 1,
+
+		.G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,
+		.G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16,
+		.G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16,
+		.G16_B16_R16_3PLANE_420_UNORM,
+		.G16_B16_R16_3PLANE_422_UNORM,
+		.G16_B16_R16_3PLANE_444_UNORM,
+		.G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,
+		.G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16,
+		.G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16 => 2,
+
+		.G8_B8R8_2PLANE_420_UNORM,
+		.G8_B8R8_2PLANE_422_UNORM => if (plane == 0) 1 else 2,
+
+		.G16_B16R16_2PLANE_420_UNORM,
+		.G16_B16R16_2PLANE_422_UNORM,
+		.G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,
+		.G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16,
+		.G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,
+		.G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16 => if (plane == 0) 2 else 4,
+
+		else => 1,
+	};
 }

@@ -3,7 +3,7 @@ const std = @import("std");
 //const cpp = @import("cpp");
 
 // TIDES: BEGIN MANUAL CHANGES
-const tiny_image_format = @import("TinyImageFormat.zig");
+pub const tiny_image_format = @import("TinyImageFormat.zig");
 pub const TinyImageFormat = tiny_image_format.TinyImageFormat;
 
 const DWORD = u32;

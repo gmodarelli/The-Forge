@@ -721,10 +721,172 @@ pub fn destroyTexture(handle: TextureHandle) !void {
     texture.* = null;
     gpu.textures.removeAssumeLive(handle);
 }
+
 pub fn getTextureBindlessIndex(handle: TextureHandle) u32 {
     const texture = gpu.textures.getColumnPtr(handle, .ptr) catch unreachable;
     return @intCast(texture.*.*.mDx.mDescriptors);
 }
+
+pub fn updateTexture(handle: TextureHandle, format: IGraphics.TinyImageFormat, width: u32, height: u32, depth: u32, mips: u32, data: []u8) void {
+    const slice_alignment = getTextureSubResourceAlignment(format);
+    const row_alignment = getTextureRowAlignment();
+    const required_size = getSurfaceSize(
+        format,
+        width,
+        height,
+        depth,
+        row_alignment,
+        slice_alignment,
+        0,
+        mips,
+        0,
+        1);
+
+    const texture = gpu.textures.getColumnPtr(handle, .ptr) catch unreachable;
+
+    var upload_context = gpu.upload_ring_buffer.begin(@intCast(required_size));
+    var dest_offset: u64 = 0;
+    var source_offset: u64 = 0;
+
+    for (0..mips) |mip_index| {
+        const w = @max(1, width >> @intCast(mip_index));
+        const h = @max(1, height >> @intCast(mip_index));
+        const d = @max(1, depth >> @intCast(mip_index));
+
+        const surface_info = getSurfaceInfo(w, h, format);
+        const sub_row_pitch = roundUp(u32, surface_info.row_bytes, row_alignment);
+        const sub_slice_pitch = roundUp(u32, sub_row_pitch * surface_info.num_rows, slice_alignment);
+        const sub_num_rows = surface_info.num_rows;
+        const sub_depth = d;
+        const upload_data = @intFromPtr(upload_context.buffer.*.pCpuMappedAddress.?) + dest_offset;
+
+        for (0..sub_depth) |z| {
+            const dest_data = upload_data + sub_slice_pitch * z;
+            for (0..sub_num_rows) |r| {
+                memcpy(@ptrFromInt(dest_data + r * sub_row_pitch), @ptrCast(data[source_offset..]), surface_info.row_bytes);
+                source_offset += @intCast(surface_info.row_bytes);
+            }
+        }
+
+        const subresource_desc = IGraphicsTides.SubResourceDataDesc{
+            .mArrayLayer = 0,
+            .mMipLevel = @intCast(mip_index),
+            .mSrcOffset = upload_context.buffer_offset + dest_offset,
+        };
+        IGraphicsTides.cmdUpdateSubresourceEx(upload_context.cmd, texture.*, upload_context.buffer, @constCast(&subresource_desc));
+        dest_offset += sub_depth * sub_slice_pitch;
+    }
+
+    gpu.upload_ring_buffer.end(&upload_context, true);
+}
+
+fn getTextureRowAlignment() u32 {
+    return @max(1, gpu.renderer.*.pGpu.*.mUploadBufferTextureRowAlignment);
+}
+
+fn getTextureSubResourceAlignment(format: IGraphics.TinyImageFormat) u32 {
+    const block_size = @max(1, IGraphics.tiny_image_format.bitSizeOfBlock(format) >> 3);
+    const alignment = roundUp(u32, gpu.renderer.*.pGpu.*.mUploadBufferTextureAlignment, block_size);
+    return roundUp(u32, alignment, getTextureRowAlignment());
+}
+
+fn getSurfaceSize(
+    format: IGraphics.TinyImageFormat,
+    width: u32,
+    height: u32,
+    depth: u32,
+    row_stride: u32,
+    slice_stride: u32,
+    base_mip_level: u32,
+    mip_levels: u32,
+    base_array_layer: u32,
+    array_layers: u32,
+) u32 {
+    var required_size: u32 = 0;
+
+    for (base_array_layer..(base_array_layer + array_layers)) |_| {
+        var w = width;
+        var h = height;
+        var d = depth;
+
+        for (base_mip_level..(base_mip_level + mip_levels)) |_| {
+            const surface_info = getSurfaceInfo(w, h, format);
+
+            required_size += roundUp(u32, d * roundUp(u32, surface_info.row_bytes, row_stride) * surface_info.num_rows, slice_stride);
+
+            w = w >> 1;
+            h = h >> 1;
+            d = d >> 1;
+            if (w == 0) {
+                w = 1;
+            }
+            if (h == 0) {
+                h = 1;
+            }
+            if (d == 0) {
+                d = 1;
+            }
+        }
+    }
+
+    return required_size;
+}
+
+fn getSurfaceInfo(width: u32, height: u32, format: IGraphics.TinyImageFormat) struct {
+    num_bytes: u32,
+    row_bytes: u32,
+    num_rows: u32,
+} {
+    const bpp = IGraphics.tiny_image_format.bitSizeOfBlock(format);
+    const compressed = IGraphics.tiny_image_format.isCompressed(format);
+    const planar = IGraphics.tiny_image_format.isPlanar(format);
+
+    var num_bytes: u32 = 0;
+    var row_bytes: u32 = 0;
+    var num_rows: u32 = 0;
+
+    if (compressed) {
+        const block_width = IGraphics.tiny_image_format.widthOfBlock(format);
+        const block_height = IGraphics.tiny_image_format.heightOfBlock(format);
+        var num_blocks_wide: u32 = 0;
+        var num_blocks_high: u32 = 0;
+        if (width > 0) {
+            num_blocks_wide = @max(1, (width + (block_width - 1)) / block_width);
+        }
+
+        if (height > 0) {
+            num_blocks_high = @max(1, (height + (block_height - 1)) / block_height);
+        }
+
+        row_bytes = num_blocks_wide * (bpp >> 3);
+        num_rows = num_blocks_high;
+        num_bytes = row_bytes * num_blocks_high;
+    } else if (planar) {
+        const num_planes = IGraphics.tiny_image_format.numOfPlanes(format);
+
+        for (0..num_planes) |i| {
+            num_bytes += IGraphics.tiny_image_format.planeWidth(format, @intCast(i), width) *
+                IGraphics.tiny_image_format.planeHeight(format, @intCast(i), height) *
+                IGraphics.tiny_image_format.planeSizeOfBlock(format, @intCast(i));
+        }
+
+        num_rows = 1;
+        row_bytes = num_bytes;
+    } else {
+        if (bpp > 0) {
+            row_bytes = (width * bpp + 7) / 8;
+            num_rows = height;
+            num_bytes = row_bytes * height;
+        }
+    }
+
+    return .{
+        .num_bytes = num_bytes,
+        .row_bytes = row_bytes,
+        .num_rows = num_rows,
+    };
+}
+
 // ██████╗ ██╗   ██╗███████╗███████╗███████╗██████╗ ███████╗
 // ██╔══██╗██║   ██║██╔════╝██╔════╝██╔════╝██╔══██╗██╔════╝
 // ██████╔╝██║   ██║█████╗  █████╗  █████╗  ██████╔╝███████╗
@@ -1495,7 +1657,7 @@ const UploadRingBuffer = struct {
     pub fn begin(self: *UploadRingBuffer, size: u64) UploadContext {
         std.debug.assert(size > 0);
         // D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT
-        const aligned_size = alignTo(size, 512);
+        const aligned_size = alignTo(u64, size, 512);
 
         if (aligned_size > self.buffer_size) {
             self.mutex.lock();
@@ -1567,7 +1729,11 @@ fn memcpy(dst: *anyopaque, src: *const anyopaque, byte_count: u64) void {
     }
 }
 
-inline fn alignTo(num: u64, alignment: u64) u64 {
+inline fn alignTo(comptime T: type, num: T, alignment: T) T {
     std.debug.assert(alignment > 0);
     return @divTrunc(num + alignment - 1, alignment) * alignment;
+}
+
+inline fn roundUp(comptime T: type, value: T, multiple: T) T {
+    return ((value + multiple - 1) / multiple) * multiple;
 }
