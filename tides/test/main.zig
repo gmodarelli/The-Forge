@@ -861,25 +861,6 @@ fn updateDescriptorSets() void {
         );
     }
 
-    // Blit Material 1: Persistent Sampler
-    {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_linear_repeat_sampler",
-                .binding_type = .sampler,
-                .static_sampler_handle = gfx.linear_repeat_static_sampler,
-            },
-        };
-
-        zf.updateDescriptorSet(
-            &resource_binding_descs,
-            .persistent_sampler,
-            0,
-            gfx.blit_shader,
-            gfx.blit_material_1.passes[0].persistent_samplers_descriptor_set
-        );
-    }
-
     // Blit Material 2: Per Frame
     for (0..zf.frames_in_flight_count) |frame_index| {
         const resource_binding_descs = [_]zf.ResourceBindingDesc{
@@ -901,25 +882,6 @@ fn updateDescriptorSets() void {
             @intCast(frame_index),
             gfx.blit_shader,
             gfx.blit_material_2.passes[0].per_frame_descriptor_set
-        );
-    }
-
-    // Blit Material 2: Persistent Sampler
-    {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_linear_repeat_sampler",
-                .binding_type = .sampler,
-                .static_sampler_handle = gfx.linear_repeat_static_sampler,
-            },
-        };
-
-        zf.updateDescriptorSet(
-            &resource_binding_descs,
-            .persistent_sampler,
-            0,
-            gfx.blit_shader,
-            gfx.blit_material_2.passes[0].persistent_samplers_descriptor_set
         );
     }
 

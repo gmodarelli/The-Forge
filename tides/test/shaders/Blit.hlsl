@@ -1,6 +1,5 @@
 #include "Globals.hlsli"
 
-SamplerState g_linear_repeat_sampler : register(s0, SPACE_Persistent);
 Texture2D<float4> g_source : register(t1, SPACE_PerFrame);
 
 struct Varyings
@@ -22,6 +21,7 @@ Varyings FullscreenVertex(uint VertexID : SV_VertexID)
 [RootSignature(DefaultRootSignature)]
 float4 BlitFragment(Varyings varyings) : SV_Target0
 {
-    float3 color = g_source.Sample(g_linear_repeat_sampler, varyings.UV).rgb;
+    SamplerState sampler = SamplerDescriptorHeap[g_frame.linear_clamp_sampler_index];
+    float3 color = g_source.Sample(sampler, varyings.UV).rgb;
     return float4(color, saturate(g_frame.time));
 }
