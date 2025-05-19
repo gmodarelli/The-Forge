@@ -727,20 +727,20 @@ pub fn getTextureBindlessIndex(handle: TextureHandle) u32 {
     return @intCast(texture.*.*.mDx.mDescriptors);
 }
 
-pub fn updateTexture(handle: TextureHandle, format: IGraphics.TinyImageFormat, width: u32, height: u32, depth: u32, mips: u32, data: []u8) void {
-    const slice_alignment = getTextureSubResourceAlignment(format);
+pub fn updateTexture(handle: TextureHandle, desc: TextureDesc, data: []u8) void {
+    const slice_alignment = getTextureSubResourceAlignment(desc.mFormat);
     const row_alignment = getTextureRowAlignment();
     const required_size = getSurfaceSize(
-        format,
-        width,
-        height,
-        depth,
+        desc.mFormat,
+        desc.mWidth,
+        desc.mHeight,
+        desc.mDepth,
         row_alignment,
         slice_alignment,
         0,
-        mips,
+        desc.mMipLevels,
         0,
-        1);
+        desc.mArraySize);
 
     const texture = gpu.textures.getColumnPtr(handle, .ptr) catch unreachable;
 
@@ -748,12 +748,12 @@ pub fn updateTexture(handle: TextureHandle, format: IGraphics.TinyImageFormat, w
     var dest_offset: u64 = 0;
     var source_offset: u64 = 0;
 
-    for (0..mips) |mip_index| {
-        const w = @max(1, width >> @intCast(mip_index));
-        const h = @max(1, height >> @intCast(mip_index));
-        const d = @max(1, depth >> @intCast(mip_index));
+    for (0..desc.mMipLevels) |mip_index| {
+        const w = @max(1, desc.mWidth >> @intCast(mip_index));
+        const h = @max(1, desc.mHeight >> @intCast(mip_index));
+        const d = @max(1, desc.mDepth >> @intCast(mip_index));
 
-        const surface_info = getSurfaceInfo(w, h, format);
+        const surface_info = getSurfaceInfo(w, h, desc.mFormat);
         const sub_row_pitch = roundUp(u32, surface_info.row_bytes, row_alignment);
         const sub_slice_pitch = roundUp(u32, sub_row_pitch * surface_info.num_rows, slice_alignment);
         const sub_num_rows = surface_info.num_rows;

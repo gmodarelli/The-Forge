@@ -1226,7 +1226,7 @@ fn loadDdsTexture(file_path: []const u8, bindless: bool, allocator: std.mem.Allo
     const texture_handle = zf.createTexture(texture_desc, bindless) catch unreachable;
 
     // Update texture
-    zf.updateTexture(texture_handle, format, texture_desc.mWidth, texture_desc.mHeight, texture_desc.mDepth, texture_desc.mMipLevels, data);
+    zf.updateTexture(texture_handle, texture_desc, data);
 
     return texture_handle;
 }
