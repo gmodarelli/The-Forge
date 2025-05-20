@@ -3,7 +3,7 @@ const std = @import("std");
 pub fn buildExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
     const exe = b.addExecutable(.{
         .name = "ze-forge-test",
-        .root_source_file = b.path("main.zig"),
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });

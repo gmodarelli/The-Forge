@@ -1,65 +1,9 @@
 const std = @import("std");
+const Camera = @import("camera.zig").Camera;
 const zf = @import("ze_forge");
 const zglfw = @import("zglfw");
 const zgltf = @import("zgltf");
 const zmath = @import("zmath");
-
-// App State
-pub const Camera = struct {
-    position: zmath.Vec = .{ 0.0, 0.0, -20.0, 1.0 },
-    forward: zmath.Vec = .{ 0.0, 0.0, 1.0, 0.0 },
-    up: zmath.Vec = .{ 0.0, 1.0, 0.0, 0.0 },
-    speed: f32 = 10.0,
-    view: zmath.Mat = undefined,
-    yaw: f32 = 90,
-    pitch: f32 = 0,
-
-    pub fn updateView(self: *Camera) void {
-        self.view = zmath.lookAtLh(self.position, self.position + self.forward, self.up);
-    }
-
-    pub fn updateOrientation(self: *Camera) void {
-        self.forward[0] = std.math.cos(std.math.degreesToRadians(self.yaw)) * std.math.cos(std.math.degreesToRadians(self.pitch));
-        self.forward[1] = std.math.sin(std.math.degreesToRadians(self.pitch));
-        self.forward[2] = std.math.sin(std.math.degreesToRadians(self.yaw)) * std.math.cos(std.math.degreesToRadians(self.pitch));
-        self.forward = zmath.normalize3(self.forward);
-    }
-};
-
-var camera: Camera = .{};
-var last_time: f64 = 0.0;
-var first_cursor = true;
-var cursor_last = [2]f32{0.0, 0.0};
-var cursor_sensitivity: f32 = 0.1;
-
-fn cursorPosCallback(window: *zglfw.Window, xpos: f64, ypos: f64) callconv(.c) void {
-    _ = window;
-
-    if (first_cursor) {
-        cursor_last[0] = @floatCast(xpos);
-        cursor_last[1] = @floatCast(ypos);
-        first_cursor = false;
-    }
-
-    const offset = [2]f32{
-        (cursor_last[0] - @as(f32, @floatCast(xpos))) * cursor_sensitivity,
-        (cursor_last[1] - @as(f32, @floatCast(ypos))) * cursor_sensitivity,
-    };
-    cursor_last[0] = @floatCast(xpos);
-    cursor_last[1] = @floatCast(ypos);
-
-    camera.yaw += offset[0];
-    camera.pitch += offset[1];
-
-    if (camera.pitch > 89.0) {
-        camera.pitch = 89.0;
-    }
-    if (camera.pitch < -89.0) {
-        camera.pitch = -89.0;
-    }
-
-    camera.updateOrientation();
-}
 
 pub const Gfx = struct {
     // Static samplers
@@ -217,35 +161,21 @@ pub const GfxMaterial = struct {
     }
 };
 
+var gfx_allocator: std.mem.Allocator = undefined;
 var gfx: *Gfx = undefined;
 
-pub fn main() !void {
-    // Create a window
-    zglfw.init() catch unreachable;
-    defer zglfw.terminate();
-
-    var window_width: c_int = 1920;
-    var window_height: c_int = 1080;
-
-    zglfw.windowHint(.client_api, .no_api);
-    const window = zglfw.Window.create(window_width, window_height, "Ze-Forge Test", null) catch unreachable;
-    defer zglfw.Window.destroy(window);
-
-    window.setInputMode(.cursor, .disabled) catch unreachable;
-    _ = zglfw.setCursorPosCallback(window, cursorPosCallback);
-
-    camera.updateView();
-
+pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) void {
     const gpu_desc = zf.GpuDesc{
         .graphics_root_signature_path = "shaders/GraphicsRootSignature.rs",
         .compute_root_signature_path = "shaders/ComputeRootSignature.rs",
-        .hwnd = zglfw.getWin32Window(window).?,
+        .hwnd = hwnd,
     };
-    zf.initializeGpu(gpu_desc, std.heap.page_allocator) catch unreachable;
-    defer zf.shutdownGpu();
 
-    gfx = std.heap.page_allocator.create(Gfx) catch unreachable;
-    defer std.heap.page_allocator.destroy(gfx);
+    gfx_allocator = std.heap.page_allocator;
+
+    zf.initializeGpu(gpu_desc, gfx_allocator) catch unreachable;
+
+    gfx = gfx_allocator.create(Gfx) catch unreachable;
 
     zf.registerUpdateDescriptorSetFn(updateDescriptorSets);
 
@@ -403,6 +333,18 @@ pub fn main() !void {
         depth_state_desc.mDepthFunc = zf.CompareMode.CMP_GEQUAL;
         graphics_desc.pDepthState = @ptrCast(&depth_state_desc);
         graphics_desc.mDepthStencilFormat = .D32_SFLOAT;
+
+        // var blend_state_desc = std.mem.zeroes(zf.BlendStateDesc);
+        // blend_state_desc.mSrcFactors[0] = .BC_SRC_ALPHA;
+        // blend_state_desc.mDstFactors[0] = .BC_ONE_MINUS_SRC_ALPHA;
+        // blend_state_desc.mBlendModes[0] = .BM_ADD;
+        // blend_state_desc.mSrcAlphaFactors[0] = .BC_ONE;
+        // blend_state_desc.mDstAlphaFactors[0] = .BC_ZERO;
+        // blend_state_desc.mBlendAlphaModes[0] = .BM_ADD;
+        // blend_state_desc.mColorWriteMasks[0] = .COLOR_MASK_ALL;
+        // blend_state_desc.mRenderTargetMask = .BLEND_STATE_TARGET_0;
+        // blend_state_desc.mAlphaToCoverage = true;
+        // graphics_desc.pBlendState = @ptrCast(&blend_state_desc);
 
         gfx.object_pso = zf.createPso(pipeline_desc, gfx.object_shader) catch unreachable;
     }
@@ -661,268 +603,232 @@ pub fn main() !void {
     }
 
     updateDescriptorSets();
+}
 
-    while (!window.shouldClose()) {
-        const time_now = zglfw.getTime();
-        const delta_time: f32 = @floatCast(time_now - last_time);
+pub fn shutdown() void {
+    zf.shutdownGpu();
+    gfx_allocator.destroy(gfx);
+}
 
-        zglfw.pollEvents();
+pub fn resize() void {
+    zf.requestResize();
+}
 
-        const frame_buffer_size = window.getFramebufferSize();
-        if (frame_buffer_size[0] != window_width or frame_buffer_size[1] != window_height) {
-            window_width = frame_buffer_size[0];
-            window_height = frame_buffer_size[1];
+pub fn draw(camera: *Camera, window_width: u32, window_height: u32) void {
+    const frame_index = zf.frameStart();
 
-            std.log.info(
-                "Window resized to {d}x{d}",
-                .{ window_width, window_height },
-            );
+    const z_view = camera.view;
 
-            zf.requestResize();
-        }
+    const z_proj = zmath.perspectiveFovLh(
+        std.math.degreesToRadians(45.0),
+        @as(f32, @floatFromInt(window_width)) / @as(f32, @floatFromInt(window_height)),
+        100.0,
+        0.01);
 
-        // Camera movement
-        const movement = zmath.f32x4s(camera.speed * delta_time);
-        const forward = movement * camera.forward;
-        const right = movement * zmath.cross3(camera.forward, camera.up);
-        const up = movement * zmath.cross3(camera.forward, zmath.cross3(camera.forward, camera.up));
+    var frame = Frame{
+        .view_matrix = undefined,
+        .projection_matrix = undefined,
+        .view_projection_matrix = undefined,
+        .linear_repeat_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_repeat_sampler),
+        .linear_clamp_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_clamp_sampler),
+        ._padding = .{ std.math.maxInt(u32), std.math.maxInt(u32) },
+        .time = @floatCast(zglfw.getTime()),
+        .vertex_buffer_index = zf.getBufferBindlessIndex(gfx.vertex_buffer),
+        .transform_buffer_index = zf.getBufferBindlessIndex(gfx.transform_buffers[frame_index]),
+        .material_buffer_index = zf.getBufferBindlessIndex(gfx.material_buffers[frame_index]),
+        .instance_buffer_index = zf.getBufferBindlessIndex(gfx.instance_buffers[frame_index]),
+    };
+    zmath.storeMat(&frame.view_matrix, zmath.transpose(z_view));
+    zmath.storeMat(&frame.projection_matrix, zmath.transpose(z_proj));
+    zmath.storeMat(&frame.view_projection_matrix, zmath.mul(z_view, z_proj));
 
-        if (zglfw.getKey(window, .w) == .press) {
-            camera.position += forward;
-        }
-        if (zglfw.getKey(window, .s) == .press) {
-            camera.position -= forward;
-        }
-        if (zglfw.getKey(window, .a) == .press) {
-            camera.position += right;
-        }
-        if (zglfw.getKey(window, .d) == .press) {
-            camera.position -= right;
-        }
-        if (zglfw.getKey(window, .q) == .press) {
-            camera.position += up;
-        }
-        if (zglfw.getKey(window, .e) == .press) {
-            camera.position -= up;
-        }
+    const frame_data = zf.DataSlice{
+        .data = @ptrCast(&frame),
+        .size = @sizeOf(Frame),
+    };
+    zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
 
-        const frame_index = zf.frameStart();
+    // // Clear screen: Scene Color
+    // {
+    //     var texture_barriers = [_]zf.TextureBarrier{
+    //         .{
+    //             .render_texture_handle = gfx.scene_color,
+    //             .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+    //             .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+    //         },
+    //     };
 
-        camera.updateView();
-        const z_view = camera.view;
+    //     zf.cmdResourceBarrier(null, &texture_barriers, null);
+    //     gfx.clear_screen_material.bindMaterialPass(.default, frame_index);
+    //     zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8) + 1), @intCast(@divTrunc(frame_buffer_size[1], 8) + 1), 1);
 
-        const z_proj = zmath.perspectiveFovLh(
-            std.math.degreesToRadians(45.0),
-            @as(f32, @floatFromInt(frame_buffer_size[0])) / @as(f32, @floatFromInt(frame_buffer_size[1])),
-            100.0,
-            0.01);
+    //     texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+    //     texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
 
-        var frame = Frame{
-            .view_matrix = undefined,
-            .projection_matrix = undefined,
-            .view_projection_matrix = undefined,
-            .linear_repeat_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_repeat_sampler),
-            .linear_clamp_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_clamp_sampler),
-            ._padding = .{ std.math.maxInt(u32), std.math.maxInt(u32) },
-            .time = @floatCast(zglfw.getTime()),
-            .vertex_buffer_index = zf.getBufferBindlessIndex(gfx.vertex_buffer),
-            .transform_buffer_index = zf.getBufferBindlessIndex(gfx.transform_buffers[frame_index]),
-            .material_buffer_index = zf.getBufferBindlessIndex(gfx.material_buffers[frame_index]),
-            .instance_buffer_index = zf.getBufferBindlessIndex(gfx.instance_buffers[frame_index]),
+    //     zf.cmdResourceBarrier(null, &texture_barriers, null);
+    // }
+
+    // Blit: Scene Color -> GBuffer0
+    {
+        var rt_barriers = [_]zf.RenderTargetBarrier{
+            .{
+                .render_target_handle = gfx.gbuffer0,
+                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
+            },
+            .{
+                .render_target_handle = gfx.depth_buffer,
+                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                .new_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE,
+            },
         };
-        zmath.storeMat(&frame.view_matrix, zmath.transpose(z_view));
-        zmath.storeMat(&frame.projection_matrix, zmath.transpose(z_proj));
-        zmath.storeMat(&frame.view_projection_matrix, zmath.mul(z_view, z_proj));
+        zf.cmdResourceBarrier(null, null, &rt_barriers);
 
-        const frame_data = zf.DataSlice{
-            .data = @ptrCast(&frame),
-            .size = @sizeOf(Frame),
+        var bind_render_targets = [_]zf.BindRenderTarget{
+            .{
+                .render_target_handle = gfx.gbuffer0,
+                .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
+            },
+            .{
+                .render_target_handle = gfx.depth_buffer,
+                .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
+            },
         };
-        zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
+        zf.cmdBindRenderTargets(&bind_render_targets);
 
-        // // Clear screen: Scene Color
-        // {
-        //     var texture_barriers = [_]zf.TextureBarrier{
-        //         .{
-        //             .render_texture_handle = gfx.scene_color,
-        //             .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-        //             .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-        //         },
-        //     };
+        zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
 
-        //     zf.cmdResourceBarrier(null, &texture_barriers, null);
-        //     gfx.clear_screen_material.bindMaterialPass(.default, frame_index);
-        //     zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8) + 1), @intCast(@divTrunc(frame_buffer_size[1], 8) + 1), 1);
+        // gfx.blit_material_1.bindMaterialPass(.default, frame_index);
+        // zf.cmdDraw(3, 0);
 
-        //     texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-        //     texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        gfx.object_material.bindMaterialPass(.default, frame_index);
+        zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
 
-        //     zf.cmdResourceBarrier(null, &texture_barriers, null);
-        // }
-
-        // Blit: Scene Color -> GBuffer0
-        {
-            var rt_barriers = [_]zf.RenderTargetBarrier{
-                .{
-                    .render_target_handle = gfx.gbuffer0,
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
-                },
-                .{
-                    .render_target_handle = gfx.depth_buffer,
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE,
-                },
-            };
-            zf.cmdResourceBarrier(null, null, &rt_barriers);
-
-            var bind_render_targets = [_]zf.BindRenderTarget{
-                .{
-                    .render_target_handle = gfx.gbuffer0,
-                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-                },
-                .{
-                    .render_target_handle = gfx.depth_buffer,
-                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-                },
-            };
-            zf.cmdBindRenderTargets(&bind_render_targets);
-
-            zf.cmdSetDefaultViewportAndScissor(@intCast(frame_buffer_size[0]), @intCast(frame_buffer_size[1]));
-
-            // gfx.blit_material_1.bindMaterialPass(.default, frame_index);
-            // zf.cmdDraw(3, 0);
-
-            gfx.object_material.bindMaterialPass(.default, frame_index);
-            zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
-
-            for (0..gfx.birch_1_mesh.sub_meshes_count) |sub_mesh_index| {
-                const sub_mesh = gfx.birch_1_mesh.sub_meshes[sub_mesh_index];
-                zf.cmdDrawIndexedInstanced(
-                    sub_mesh.index_count,
-                    sub_mesh.first_index,
-                    1,
-                    sub_mesh.first_vertex,
-                    0 + @as(u32, @intCast(sub_mesh_index)));
-            }
-
-            for (0..gfx.birch_2_mesh.sub_meshes_count) |sub_mesh_index| {
-                const sub_mesh = gfx.birch_2_mesh.sub_meshes[sub_mesh_index];
-                zf.cmdDrawIndexedInstanced(
-                    sub_mesh.index_count,
-                    sub_mesh.first_index,
-                    1,
-                    sub_mesh.first_vertex,
-                    2 + @as(u32, @intCast(sub_mesh_index)));
-            }
-
-            for (0..gfx.bush_large_mesh.sub_meshes_count) |sub_mesh_index| {
-                const sub_mesh = gfx.bush_large_mesh.sub_meshes[sub_mesh_index];
-                zf.cmdDrawIndexedInstanced(
-                    sub_mesh.index_count,
-                    sub_mesh.first_index,
-                    1,
-                    sub_mesh.first_vertex,
-                    4);
-            }
-
-            rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
-            rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            rt_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
-            rt_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            zf.cmdResourceBarrier(null, null, &rt_barriers);
+        for (0..gfx.birch_1_mesh.sub_meshes_count) |sub_mesh_index| {
+            const sub_mesh = gfx.birch_1_mesh.sub_meshes[sub_mesh_index];
+            zf.cmdDrawIndexedInstanced(
+                sub_mesh.index_count,
+                sub_mesh.first_index,
+                1,
+                sub_mesh.first_vertex,
+                0 + @as(u32, @intCast(sub_mesh_index)));
         }
 
-        // Blur
-        {
-            var blur = BlurData{
-                .sigma = 0.0,
-                .support = 0.995,
-                .sRGB = 1.0,
-                .padding = 42.0,
-            };
-
-            const blur_data = zf.DataSlice{
-                .data = @ptrCast(&blur),
-                .size = @sizeOf(BlurData),
-            };
-            zf.updateUniformBuffer(blur_data, gfx.gauss_blur_constant_buffers[frame_index]);
-
-            // Horizontal Blur
-            {
-                var texture_barriers = [_]zf.TextureBarrier{
-                    .{
-                        .render_texture_handle = gfx.gauss_blur_a,
-                        .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                        .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                    },
-                };
-                zf.cmdResourceBarrier(null, &texture_barriers, null);
-
-                gfx.gauss_blur_horizontal_material.bindMaterialPass(.default, frame_index);
-                zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8) + 1), @intCast(@divTrunc(frame_buffer_size[1], 8) + 1), 1);
-
-                texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-                texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-                zf.cmdResourceBarrier(null, &texture_barriers, null);
-            }
-
-            // Vertical Blur
-            {
-                var texture_barriers = [_]zf.TextureBarrier{
-                    .{
-                        .render_texture_handle = gfx.gauss_blur_b,
-                        .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                        .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                    },
-                };
-                zf.cmdResourceBarrier(null, &texture_barriers, null);
-
-                gfx.gauss_blur_vertical_material.bindMaterialPass(.default, frame_index);
-                zf.cmdDispacth(@intCast(@divTrunc(frame_buffer_size[0], 8) + 1), @intCast(@divTrunc(frame_buffer_size[1], 8) + 1), 1);
-
-                texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-                texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-                zf.cmdResourceBarrier(null, &texture_barriers, null);
-            }
+        for (0..gfx.birch_2_mesh.sub_meshes_count) |sub_mesh_index| {
+            const sub_mesh = gfx.birch_2_mesh.sub_meshes[sub_mesh_index];
+            zf.cmdDrawIndexedInstanced(
+                sub_mesh.index_count,
+                sub_mesh.first_index,
+                1,
+                sub_mesh.first_vertex,
+                2 + @as(u32, @intCast(sub_mesh_index)));
         }
 
-        // Blit to swapchain
-        {
-            const swap_chain_buffer_handle = zf.getSwapChainBufferHandle();
-
-            var rt_barriers = [_]zf.RenderTargetBarrier{
-                .{
-                    .render_target_handle = swap_chain_buffer_handle,
-                    .current_state = zf.ResourceState.RESOURCE_STATE_PRESENT,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
-                },
-            };
-            zf.cmdResourceBarrier(null, null, &rt_barriers);
-
-            var bind_render_targets = [_]zf.BindRenderTarget{
-                .{
-                    .render_target_handle = swap_chain_buffer_handle,
-                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-                },
-            };
-            zf.cmdBindRenderTargets(&bind_render_targets);
-
-            zf.cmdSetDefaultViewportAndScissor(@intCast(frame_buffer_size[0]), @intCast(frame_buffer_size[1]));
-
-            gfx.blit_material_2.bindMaterialPass(.default, frame_index);
-            zf.cmdDraw(3, 0);
-
-            rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
-            rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_PRESENT;
-            zf.cmdResourceBarrier(null, null, &rt_barriers);
+        for (0..gfx.bush_large_mesh.sub_meshes_count) |sub_mesh_index| {
+            const sub_mesh = gfx.bush_large_mesh.sub_meshes[sub_mesh_index];
+            zf.cmdDrawIndexedInstanced(
+                sub_mesh.index_count,
+                sub_mesh.first_index,
+                1,
+                sub_mesh.first_vertex,
+                4);
         }
 
-        zf.frameSubmit();
-        last_time = time_now;
+        rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
+        rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        rt_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
+        rt_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        zf.cmdResourceBarrier(null, null, &rt_barriers);
     }
+
+    // Blur
+    {
+        var blur = BlurData{
+            .sigma = 0.0,
+            .support = 0.995,
+            .sRGB = 1.0,
+            .padding = 42.0,
+        };
+
+        const blur_data = zf.DataSlice{
+            .data = @ptrCast(&blur),
+            .size = @sizeOf(BlurData),
+        };
+        zf.updateUniformBuffer(blur_data, gfx.gauss_blur_constant_buffers[frame_index]);
+
+        // Horizontal Blur
+        {
+            var texture_barriers = [_]zf.TextureBarrier{
+                .{
+                    .render_texture_handle = gfx.gauss_blur_a,
+                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+                },
+            };
+            zf.cmdResourceBarrier(null, &texture_barriers, null);
+
+            gfx.gauss_blur_horizontal_material.bindMaterialPass(.default, frame_index);
+            zf.cmdDispacth(@intCast(@divTrunc(window_width, 8) + 1), @intCast(@divTrunc(window_height, 8) + 1), 1);
+
+            texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+            texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+
+            zf.cmdResourceBarrier(null, &texture_barriers, null);
+        }
+
+        // Vertical Blur
+        {
+            var texture_barriers = [_]zf.TextureBarrier{
+                .{
+                    .render_texture_handle = gfx.gauss_blur_b,
+                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+                },
+            };
+            zf.cmdResourceBarrier(null, &texture_barriers, null);
+
+            gfx.gauss_blur_vertical_material.bindMaterialPass(.default, frame_index);
+            zf.cmdDispacth(@intCast(@divTrunc(window_width, 8) + 1), @intCast(@divTrunc(window_height, 8) + 1), 1);
+
+            texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+            texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+
+            zf.cmdResourceBarrier(null, &texture_barriers, null);
+        }
+    }
+
+    // Blit to swapchain
+    {
+        const swap_chain_buffer_handle = zf.getSwapChainBufferHandle();
+
+        var rt_barriers = [_]zf.RenderTargetBarrier{
+            .{
+                .render_target_handle = swap_chain_buffer_handle,
+                .current_state = zf.ResourceState.RESOURCE_STATE_PRESENT,
+                .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
+            },
+        };
+        zf.cmdResourceBarrier(null, null, &rt_barriers);
+
+        var bind_render_targets = [_]zf.BindRenderTarget{
+            .{
+                .render_target_handle = swap_chain_buffer_handle,
+                .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
+            },
+        };
+        zf.cmdBindRenderTargets(&bind_render_targets);
+
+        zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
+
+        gfx.blit_material_2.bindMaterialPass(.default, frame_index);
+        zf.cmdDraw(3, 0);
+
+        rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
+        rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_PRESENT;
+        zf.cmdResourceBarrier(null, null, &rt_barriers);
+    }
+
+    zf.frameSubmit();
 }
 
 fn updateDescriptorSets() void {
@@ -1509,51 +1415,6 @@ fn dxgiFormatToTinyImageFormat(dxgiFormat: DXGI_FORMAT) zf.IGraphics.TinyImageFo
         .BC7_UNORM_SRGB => .DXBC7_SRGB,
         else => .UNDEFINED,
     };
-}
-
-fn ddsFormatToTinyImageFormat(pixelFormat: DDS_PIXELFORMAT) zf.IGraphics.TinyImageFormat {
-    // NOTE: We only support loading BC-encoded DDS textures
-
-    if ((pixelFormat.dwFlags & DDS_FOURCC) == DDS_FOURCC) {
-        if (makeFourCC('D', 'X', 'T', '1') == pixelFormat.dwFourCC) {
-            return .DXBC1_RGBA_UNORM;
-        }
-        if (makeFourCC('D', 'X', 'T', '2') == pixelFormat.dwFourCC) {
-            return .DXBC2_UNORM;
-        }
-        if (makeFourCC('D', 'X', 'T', '3') == pixelFormat.dwFourCC) {
-            return .DXBC2_UNORM;
-        }
-        if (makeFourCC('D', 'X', 'T', '4') == pixelFormat.dwFourCC) {
-            return .DXBC3_UNORM;
-        }
-        if (makeFourCC('D', 'X', 'T', '5') == pixelFormat.dwFourCC) {
-            return .DXBC3_UNORM;
-        }
-        if (makeFourCC('A', 'T', 'I', '1') == pixelFormat.dwFourCC) {
-            return .DXBC4_UNORM;
-        }
-        if (makeFourCC('A', 'T', 'I', '2') == pixelFormat.dwFourCC) {
-            return .DXBC5_UNORM;
-        }
-        if (makeFourCC('B', 'C', '4', 'U') == pixelFormat.dwFourCC) {
-            return .DXBC4_UNORM;
-        }
-        if (makeFourCC('B', 'C', '4', 'S') == pixelFormat.dwFourCC) {
-            return .DXBC4_SNORM;
-        }
-        if (makeFourCC('B', 'C', '5', 'U') == pixelFormat.dwFourCC) {
-            return .DXBC5_UNORM;
-        }
-        if (makeFourCC('B', 'C', '5', 'S') == pixelFormat.dwFourCC) {
-            return .DXBC5_SNORM;
-        }
-
-        // TODO: If we even need these 2 formats we need to enable the DX10 extender header
-        // // BC6H and BC7 are written using the "DX10" extended header
-    }
-
-    return .UNDEFINED;
 }
 
 const DXGI_FORMAT = enum(u32) {

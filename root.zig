@@ -16,6 +16,7 @@ pub export const D3D12SDKPath: [*:0]const u8 = ".\\";
 //
 
 pub const AddressMode = IGraphics.AddressMode;
+pub const BlendStateDesc = IGraphics.BlendStateDesc;
 pub const CompareMode = IGraphics.CompareMode;
 pub const CullMode = IGraphics.CullMode;
 pub const DepthStateDesc = IGraphics.DepthStateDesc;
