@@ -26,6 +26,8 @@ pub const FilterType = IGraphics.FilterType;
 pub const FrontFace = IGraphics.FrontFace;
 pub const GraphicsPipelineDesc = IGraphics.GraphicsPipelineDesc;
 pub const IndexType = IGraphics.IndexType;
+pub const IndirectArgumentType = IGraphics.IndirectArgumentType;
+pub const IndirectDrawIndexArguments = IGraphics.IndirectDrawIndexArguments;
 pub const LoadActionType = IGraphics.LoadActionType;
 pub const MipMapMode = IGraphics.MipMapMode;
 pub const PipelineDesc = IGraphics.PipelineDesc;
@@ -945,14 +947,29 @@ pub fn updateUniformBuffer(data: DataSlice, handle: BufferHandle) void {
 
 pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, name: []const u8) BufferHandle {
     var desc = std.mem.zeroes(IGraphics.BufferDesc);
-    desc.mDescriptors = IGraphics.DescriptorType.DESCRIPTOR_TYPE_BUFFER_RAW;
-    desc.mMemoryUsage = IGraphics.ResourceMemoryUsage.RESOURCE_MEMORY_USAGE_GPU_ONLY;
+    desc.mDescriptors = .DESCRIPTOR_TYPE_BUFFER_RAW;
+    desc.mMemoryUsage = .RESOURCE_MEMORY_USAGE_GPU_ONLY;
     desc.pName = @ptrCast(name);
     desc.mSize = size;
     desc.mElementCount = @intCast(@divTrunc(size, @sizeOf(T)));
 
     var buffer: [*c]IGraphics.Buffer = null;
     IGraphicsTides.addBufferEx(gpu.renderer, @ptrCast(&desc), bindless, &buffer);
+
+    return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
+}
+
+pub fn createIndirectArgsBuffer(size: u64, comptime T: type, name: []const u8) BufferHandle {
+    var desc = std.mem.zeroes(IGraphics.BufferDesc);
+    desc.mDescriptors.bits = IGraphics.DescriptorType.DESCRIPTOR_TYPE_BUFFER.bits | IGraphics.DescriptorType.DESCRIPTOR_TYPE_RW_BUFFER.bits | IGraphics.DescriptorType.DESCRIPTOR_TYPE_INDIRECT_BUFFER.bits;
+    desc.mMemoryUsage = .RESOURCE_MEMORY_USAGE_GPU_ONLY;
+    desc.mElementCount = @intCast(@divTrunc(size, @sizeOf(T)));
+    desc.mStructStride = @sizeOf(u32);
+    desc.mSize = size;
+    desc.pName = @ptrCast(name);
+
+    var buffer: [*c]IGraphics.Buffer = null;
+    IGraphicsTides.addBufferEx(gpu.renderer, @ptrCast(&desc), false, &buffer);
 
     return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
 }
@@ -1387,6 +1404,16 @@ pub fn cmdDraw(vertex_count: u32, first_vertex: u32) void {
 
 pub fn cmdDrawIndexedInstanced(index_count: u32, first_index: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void {
     IGraphics.cmdDrawIndexedInstanced(gpu.cmds[gpu.frame_index], index_count, first_index, instance_count, first_vertex, first_instance);
+}
+
+pub fn cmdExecuteIndirect(argument_type: IndirectArgumentType, max_command_count: u32, indirect_buffer_handle: BufferHandle, buffer_offset: u64, counter_buffer_handle: BufferHandle, counter_buffer_offset: u64) void {
+    const buffer = gpu.buffers.getColumnPtr(indirect_buffer_handle, .ptr) catch unreachable;
+    var counter_buffer: [*c]IGraphics.Buffer = null;
+    if (counter_buffer_handle.id != BufferHandle.nil.id) {
+        const counter_buffer_ptr = gpu.buffers.getColumnPtr(counter_buffer_handle, .ptr) catch unreachable;
+        counter_buffer = counter_buffer_ptr.*;
+    }
+    IGraphics.cmdExecuteIndirect(gpu.cmds[gpu.frame_index], argument_type, @intCast(max_command_count), buffer.*, buffer_offset, counter_buffer, counter_buffer_offset);
 }
 
 pub fn cmdDispacth(group_count_x: u32, group_count_y: u32, group_count_z: u32) void {

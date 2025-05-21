@@ -38,7 +38,8 @@ struct InstanceData
 {
     uint transform_index;
     uint material_index;
-    uint2 _padding;
+    uint mesh_index;
+    uint sub_mesh_index;
 };
 
 cbuffer g_CBO : register(b0, SPACE_PerFrame)
