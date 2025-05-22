@@ -15,6 +15,7 @@ struct Frame
     // TODO: Add inverted view, projection and view_projection
     float time;
     uint vertex_buffer_index;
+    uint bounds_buffer_index;
     uint transform_buffer_index;
     uint material_buffer_index;
     uint instance_buffer_index;
@@ -40,6 +41,15 @@ struct InstanceData
     uint material_index;
     uint mesh_index;
     uint sub_mesh_index;
+};
+
+struct Bounds
+{
+    float3 center;
+    float radius;
+    float3 aabb_min;
+    float3 aabb_max;
+    float2 _padding;
 };
 
 cbuffer g_CBO : register(b0, SPACE_PerFrame)

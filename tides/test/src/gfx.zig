@@ -26,6 +26,14 @@ pub const RenderableItemInstance = struct {
     renderable_hash: u64,
 };
 
+pub const Bounds = struct {
+    center: [3]f32,
+    radius: f32,
+    aabb_min: [3]f32,
+    aabb_max: [3]f32,
+    _padding: [2]f32 = .{ 42, 42 },
+};
+
 pub const Gfx = struct {
     // Static samplers
     linear_repeat_static_sampler: zf.StaticSamplerHandle = zf.StaticSamplerHandle.nil,
@@ -68,8 +76,10 @@ pub const Gfx = struct {
     // TODO: Figure out if we need double-buffering here to be able to stream in meshes
     vertex_buffer: zf.BufferHandle = undefined,
     index_buffer: zf.BufferHandle = undefined,
+    bounds_buffer: zf.BufferHandle = undefined,
     vertex_buffer_offset: u64 = 0,
     index_buffer_offset: u64 = 0,
+    bounds_buffer_offset: u64 = 0,
     geometry_buffer_mutex: std.Thread.Mutex,
 
     // GPU-Scene buffers
@@ -105,6 +115,7 @@ pub const Frame = struct {
     _padding: [2]u32,
     time: f32,
     vertex_buffer_index: u32,
+    bounds_buffer_index: u32,
     transform_buffer_index: u32,
     material_buffer_index: u32,
     instance_buffer_index: u32,
@@ -454,6 +465,8 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.vertex_buffer_offset = 0;
         gfx.index_buffer = zf.createIndexBuffer(8 * 1024 * 1024, zf.IndexType.INDEX_TYPE_UINT32, "Index Buffer");
         gfx.index_buffer_offset = 0;
+        gfx.bounds_buffer = zf.createRawBuffer(8 * 1024, Bounds, true, "Bounds Buffer");
+        gfx.bounds_buffer_offset = 0;
         gfx.geometry_buffer_mutex = std.Thread.Mutex{};
     }
 
@@ -825,6 +838,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32) void {
         ._padding = .{ std.math.maxInt(u32), std.math.maxInt(u32) },
         .time = @floatCast(zglfw.getTime()),
         .vertex_buffer_index = zf.getBufferBindlessIndex(gfx.vertex_buffer),
+        .bounds_buffer_index = zf.getBufferBindlessIndex(gfx.bounds_buffer),
         .transform_buffer_index = zf.getBufferBindlessIndex(gfx.transform_buffers[frame_index]),
         .material_buffer_index = zf.getBufferBindlessIndex(gfx.material_buffers[frame_index]),
         .instance_buffer_index = zf.getBufferBindlessIndex(gfx.instance_buffers[frame_index]),
@@ -1262,8 +1276,26 @@ fn uploadMesh(vertices: *std.ArrayList(geometry.Vertex), indices: *std.ArrayList
     };
     zf.updateBuffer(index_data, gfx.index_buffer_offset, gfx.index_buffer);
 
+    var bounds: [8]Bounds = undefined;
+    var bounds_count: u32 = 0;
+    for (0.. mesh.sub_meshes_count) |sub_mesh_index| {
+        @memcpy(bounds[sub_mesh_index].center[0..], mesh.sub_meshes[sub_mesh_index].center[0..]);
+        bounds[sub_mesh_index].radius = mesh.sub_meshes[sub_mesh_index].radius;
+        @memcpy(bounds[sub_mesh_index].aabb_min[0..], mesh.sub_meshes[sub_mesh_index].aabb_min[0..]);
+        @memcpy(bounds[sub_mesh_index].aabb_max[0..], mesh.sub_meshes[sub_mesh_index].aabb_max[0..]);
+        bounds[sub_mesh_index]._padding = .{ 42, 42 };
+        bounds_count += 1;
+    }
+
+    const bounds_data = zf.DataSlice{
+        .data = @ptrCast(&bounds),
+        .size = @sizeOf(Bounds) * bounds_count,
+    };
+    zf.updateBuffer(bounds_data, gfx.bounds_buffer_offset, gfx.bounds_buffer);
+
     gfx.vertex_buffer_offset += vertex_data.size;
     gfx.index_buffer_offset += index_data.size;
+    gfx.bounds_buffer_offset += bounds_data.size;
 }
 
 // ████████╗███████╗██╗  ██╗████████╗██╗   ██╗██████╗ ███████╗███████╗

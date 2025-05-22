@@ -11,6 +11,10 @@ pub const SubMesh = struct {
     first_index: u32,
     vertex_count: u32,
     first_vertex: u32,
+    center: [3]f32,
+    radius: f32,
+    aabb_min: [3]f32,
+    aabb_max: [3]f32,
 };
 
 pub const Vertex = struct {
@@ -81,6 +85,7 @@ pub fn loadGltfMesh(load_desc: *GltfLoadDesc) void {
 
         for (primitive.attributes.items) |attribute| {
             switch (attribute) {
+                // TODO: Patch zgltf with support for extracting min/max from accessors
                 .position => |accessor_index| {
                     const accessor = gltf.data.accessors.items[accessor_index];
                     std.debug.assert(accessor.type == .vec3);
@@ -118,12 +123,22 @@ pub fn loadGltfMesh(load_desc: *GltfLoadDesc) void {
         }
 
         const positions_count = @divExact(positions.items.len, 3);
-
-        load_desc.mesh.sub_meshes[load_desc.mesh.sub_meshes_count].index_count = @intCast(indices.items.len);
-        load_desc.mesh.sub_meshes[load_desc.mesh.sub_meshes_count].first_index = @intCast(load_desc.mesh_indices.items.len);
-        load_desc.mesh.sub_meshes[load_desc.mesh.sub_meshes_count].vertex_count = @intCast(positions_count);
-        load_desc.mesh.sub_meshes[load_desc.mesh.sub_meshes_count].first_vertex = @intCast(load_desc.mesh_vertices.items.len);
+        const sub_mesh_index = load_desc.mesh.sub_meshes_count;
         load_desc.mesh.sub_meshes_count += 1;
+
+        load_desc.mesh.sub_meshes[sub_mesh_index].index_count = @intCast(indices.items.len);
+        load_desc.mesh.sub_meshes[sub_mesh_index].first_index = @intCast(load_desc.mesh_indices.items.len);
+        load_desc.mesh.sub_meshes[sub_mesh_index].vertex_count = @intCast(positions_count);
+        load_desc.mesh.sub_meshes[sub_mesh_index].first_vertex = @intCast(load_desc.mesh_vertices.items.len);
+
+        // TODO: This won't be necessary once zgltf has support for extracting min/max from accessors
+        const float_max = std.math.floatMax(f32);
+        load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[0] = float_max;
+        load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[1] = float_max;
+        load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[2] = float_max;
+        load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[0] = -float_max;
+        load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[1] = -float_max;
+        load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[2] = -float_max;
 
         for (0..positions_count) |vertex_index| {
             const vertex = Vertex{
@@ -132,7 +147,41 @@ pub fn loadGltfMesh(load_desc: *GltfLoadDesc) void {
                 .uv = .{ uvs.items[vertex_index * 2 + 0], uvs.items[vertex_index * 2 + 1] },
             };
             load_desc.mesh_vertices.append(vertex) catch unreachable;
+
+            // AABB
+            if (vertex.position[0] < load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[0]) {
+                load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[0] = vertex.position[0];
+            }
+
+            if (vertex.position[1] < load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[1]) {
+                load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[1] = vertex.position[1];
+            }
+
+            if (vertex.position[2] < load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[2]) {
+                load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[2] = vertex.position[2];
+            }
+
+            if (vertex.position[0] > load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[0]) {
+                load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[0] = vertex.position[0];
+            }
+
+            if (vertex.position[1] > load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[1]) {
+                load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[1] = vertex.position[1];
+            }
+
+            if (vertex.position[2] > load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[2]) {
+                load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[2] = vertex.position[2];
+            }
         }
+
+        // Bounding Sphere
+        load_desc.mesh.sub_meshes[sub_mesh_index].center[0] = (load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[0] + load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[0]) * 0.5;
+        load_desc.mesh.sub_meshes[sub_mesh_index].center[1] = (load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[1] + load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[1]) * 0.5;
+        load_desc.mesh.sub_meshes[sub_mesh_index].center[2] = (load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[2] + load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[2]) * 0.5;
+        const radius_x = (load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[0] - load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[0]) * 0.5;
+        const radius_y = (load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[1] - load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[1]) * 0.5;
+        const radius_z = (load_desc.mesh.sub_meshes[sub_mesh_index].aabb_max[2] - load_desc.mesh.sub_meshes[sub_mesh_index].aabb_min[2]) * 0.5;
+        load_desc.mesh.sub_meshes[sub_mesh_index].radius = @max(radius_x, @max(radius_y, radius_z));
 
         for (indices.items) |index| {
             load_desc.mesh_indices.append(index) catch unreachable;
