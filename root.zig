@@ -945,9 +945,12 @@ pub fn updateUniformBuffer(data: DataSlice, handle: BufferHandle) void {
     memcpy(@ptrCast(buffer.*.*.pCpuMappedAddress.?), data.data.?, data.size);
 }
 
-pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, name: []const u8) BufferHandle {
+pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, write_access: bool, name: []const u8) BufferHandle {
     var desc = std.mem.zeroes(IGraphics.BufferDesc);
     desc.mDescriptors = .DESCRIPTOR_TYPE_BUFFER_RAW;
+    if (write_access) {
+        desc.mDescriptors.bits |= IGraphics.DescriptorType.DESCRIPTOR_TYPE_RW_BUFFER_RAW.bits;
+    }
     desc.mMemoryUsage = .RESOURCE_MEMORY_USAGE_GPU_ONLY;
     desc.pName = @ptrCast(name);
     desc.mSize = size;

@@ -46,9 +46,10 @@ pub const Gfx = struct {
     // Shaders
     blit_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     object_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
-    clear_screen_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     gauss_blur_horizontal_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     gauss_blur_vertical_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    clear_screen_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    clear_buffer_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
 
     // PSOs
     blit_pso: zf.PsoHandle = zf.PsoHandle.nil,
@@ -57,6 +58,7 @@ pub const Gfx = struct {
     clear_screen_pso: zf.PsoHandle = zf.PsoHandle.nil,
     gauss_horizontal_pso: zf.PsoHandle = zf.PsoHandle.nil,
     gauss_vertical_pso: zf.PsoHandle = zf.PsoHandle.nil,
+    clear_buffer_pso: zf.PsoHandle = zf.PsoHandle.nil,
 
     // Render Targets and Render Textures
     gbuffer0: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
@@ -68,6 +70,7 @@ pub const Gfx = struct {
     // Uniform buffers
     global_frame_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
     gauss_blur_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
+    clear_buffer_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
 
     // Renderables
     renderables: RenderableHashMap,
@@ -84,6 +87,8 @@ pub const Gfx = struct {
 
     // GPU-Scene buffers
     instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    visible_instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    visible_instance_buffers_element_count: u32,
     transform_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     material_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     indirect_args_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
@@ -92,9 +97,10 @@ pub const Gfx = struct {
     blit_material_1: GfxMaterial = undefined,
     blit_material_2: GfxMaterial = undefined,
     object_material: GfxMaterial = undefined,
-    clear_screen_material: GfxMaterial = undefined,
     gauss_blur_horizontal_material: GfxMaterial = undefined,
     gauss_blur_vertical_material: GfxMaterial = undefined,
+    clear_screen_material: GfxMaterial = undefined,
+    clear_buffer_material: GfxMaterial = undefined,
 
     // CPU Geometry data
     meshes: std.ArrayList(geometry.Mesh) = undefined,
@@ -144,6 +150,11 @@ pub const BlurData = struct {
     support: f32,
     sRGB: f32,
     padding: f32,
+};
+
+pub const ClearBufferInput = struct {
+    element_count: u32,
+    buffer_index: u32,
 };
 
 // TODO: List all possible passes (eg. default, shadow_caster, gbuffer, etc.)
@@ -281,14 +292,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
 
     {
         const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-            .path = "shaders/ClearScreen.comp",
-            .entry = "main",
-        }, .vertex = null, .pixel = null };
-        gfx.clear_screen_shader = zf.compileShader(shader_load_desc) catch unreachable;
-    }
-
-    {
-        const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
             .path = "shaders/GaussBlurH.comp",
             .entry = "main",
         }, .vertex = null, .pixel = null };
@@ -303,13 +306,23 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.gauss_blur_vertical_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
-    // PSOs
     {
-        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
-        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
-        gfx.clear_screen_pso = zf.createPso(pipeline_desc, gfx.clear_screen_shader) catch unreachable;
+        const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
+            .path = "shaders/ClearScreen.comp",
+            .entry = "main",
+        }, .vertex = null, .pixel = null };
+        gfx.clear_screen_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
+    {
+        const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
+            .path = "shaders/ClearBuffer.comp",
+            .entry = "main",
+        }, .vertex = null, .pixel = null };
+        gfx.clear_buffer_shader = zf.compileShader(shader_load_desc) catch unreachable;
+    }
+
+    // PSOs
     {
         var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
         pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
@@ -382,6 +395,18 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         // graphics_desc.pBlendState = @ptrCast(&blend_state_desc);
 
         gfx.object_pso = zf.createPso(pipeline_desc, gfx.object_shader) catch unreachable;
+    }
+
+    {
+        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
+        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
+        gfx.clear_screen_pso = zf.createPso(pipeline_desc, gfx.clear_screen_shader) catch unreachable;
+    }
+
+    {
+        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
+        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
+        gfx.clear_buffer_pso = zf.createPso(pipeline_desc, gfx.clear_buffer_shader) catch unreachable;
     }
 
     // Render Targets
@@ -459,13 +484,19 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         }
     }
 
+    {
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            gfx.clear_buffer_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(ClearBufferInput), "Clear Buffer Constant Buffer");
+        }
+    }
+
     // Geometry Buffers
     {
-        gfx.vertex_buffer = zf.createRawBuffer(8 * 1024 * 1024, geometry.Vertex, true, "Vertex Buffer");
+        gfx.vertex_buffer = zf.createRawBuffer(8 * 1024 * 1024, geometry.Vertex, true, false, "Vertex Buffer");
         gfx.vertex_buffer_offset = 0;
         gfx.index_buffer = zf.createIndexBuffer(8 * 1024 * 1024, zf.IndexType.INDEX_TYPE_UINT32, "Index Buffer");
         gfx.index_buffer_offset = 0;
-        gfx.bounds_buffer = zf.createRawBuffer(8 * 1024, Bounds, true, "Bounds Buffer");
+        gfx.bounds_buffer = zf.createRawBuffer(8 * 1024, Bounds, true, false, "Bounds Buffer");
         gfx.bounds_buffer_offset = 0;
         gfx.geometry_buffer_mutex = std.Thread.Mutex{};
     }
@@ -650,7 +681,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         // Materials buffers
         // =================
         for (0..zf.frames_in_flight_count) |frame_index| {
-            gfx.material_buffers[frame_index] = zf.createRawBuffer(8 * 1024, MaterialData, true, "Material Buffer");
+            gfx.material_buffers[frame_index] = zf.createRawBuffer(8 * 1024, MaterialData, true, false, "Material Buffer");
         }
 
         const material_data = zf.DataSlice{
@@ -664,13 +695,15 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         // Transforms buffers
         // ==================
         for (0..zf.frames_in_flight_count) |frame_index| {
-            gfx.transform_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, Transform, true, "Transform Buffer");
+            gfx.transform_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, Transform, true, false, "Transform Buffer");
         }
 
         // Instances buffers
         // =================
+        gfx.visible_instance_buffers_element_count = 8 * 1024;
         for (0..zf.frames_in_flight_count) |frame_index| {
-            gfx.instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024, InstanceData, true, "Instance Buffer");
+            gfx.instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, InstanceData, true, false, "Instance Buffer");
+            gfx.visible_instance_buffers[frame_index] = zf.createRawBuffer(gfx.visible_instance_buffers_element_count, InstanceData, true, true, "Visible Instance Buffer");
         }
     }
 
@@ -687,6 +720,21 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.clear_screen_material.passes[0].per_frame_descriptor_set = descriptor_set_handles.per_frame;
         gfx.clear_screen_material.passes[0].persistent_descriptor_set = descriptor_set_handles.persistent;
         gfx.clear_screen_material.passes[0].persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+    }
+
+    // Clear Buffer material
+    {
+        gfx.clear_buffer_material.passes_count = 1;
+        gfx.clear_buffer_material.passes[0] = std.mem.zeroes(GfxMaterialPass);
+        gfx.clear_buffer_material.passes[0].pass = .default;
+        gfx.clear_buffer_material.passes[0].pso = gfx.clear_buffer_pso;
+
+        const descriptor_set_handles = zf.createDescriptorSets(gfx.clear_buffer_shader) catch unreachable;
+        gfx.clear_buffer_material.passes[0].per_draw_descriptor_set = descriptor_set_handles.per_draw;
+        gfx.clear_buffer_material.passes[0].per_batch_descriptor_set = descriptor_set_handles.per_batch;
+        gfx.clear_buffer_material.passes[0].per_frame_descriptor_set = descriptor_set_handles.per_frame;
+        gfx.clear_buffer_material.passes[0].persistent_descriptor_set = descriptor_set_handles.persistent;
+        gfx.clear_buffer_material.passes[0].persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
     }
 
     // Gauss Blur Horizontal material
@@ -871,6 +919,36 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32) void {
         texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
 
         zf.cmdResourceBarrier(null, &texture_barriers, null);
+    }
+
+    // Clear Buffer: Visible Instances
+    {
+        var clear_buffer_input = ClearBufferInput{
+            .buffer_index = zf.getBufferBindlessIndex(gfx.visible_instance_buffers[frame_index]),
+            .element_count = gfx.visible_instance_buffers_element_count,
+        };
+        const clear_buffer_data = zf.DataSlice{
+            .data = @ptrCast(&clear_buffer_input),
+            .size = @sizeOf(ClearBufferInput),
+        };
+        zf.updateUniformBuffer(clear_buffer_data, gfx.clear_buffer_constant_buffers[frame_index]);
+
+        var buffer_barriers = [_]zf.BufferBarrier{
+            .{
+                .buffer_handle = gfx.visible_instance_buffers[frame_index],
+                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+            },
+        };
+
+        zf.cmdResourceBarrier(&buffer_barriers, null, null);
+        gfx.clear_buffer_material.bindMaterialPass(.default, frame_index);
+        zf.cmdDispacth(@intCast(@divTrunc(gfx.visible_instance_buffers_element_count, 64) + 1), 1, 1);
+
+        buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+        buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+
+        zf.cmdResourceBarrier(&buffer_barriers, null, null);
     }
 
     // Blit: Scene Color -> GBuffer0
@@ -1097,6 +1175,25 @@ fn updateDescriptorSets() void {
             @intCast(frame_index),
             gfx.clear_screen_shader,
             gfx.clear_screen_material.passes[0].per_frame_descriptor_set
+        );
+    }
+
+    // Clear Buffer Material: Per Frame
+    for (0..zf.frames_in_flight_count) |frame_index| {
+        const resource_binding_descs = [_]zf.ResourceBindingDesc{
+            .{
+                .name = "g_CBO",
+                .binding_type = .buffer,
+                .buffer_handle = gfx.clear_buffer_constant_buffers[frame_index],
+            },
+        };
+
+        zf.updateDescriptorSet(
+            &resource_binding_descs,
+            .per_frame,
+            @intCast(frame_index),
+            gfx.clear_buffer_shader,
+            gfx.clear_buffer_material.passes[0].per_frame_descriptor_set
         );
     }
 
