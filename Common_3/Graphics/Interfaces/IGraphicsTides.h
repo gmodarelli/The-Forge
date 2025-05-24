@@ -49,7 +49,7 @@ void releaseDefaultRootSignatures(Renderer* pRenderer);
 
 void getWindowSize(WindowHandle windowHandle, uint32_t* pWidth, uint32_t* pHeight);
 
-void createShaderDescriptors(Shader* pShaderProgram, Descriptors* pDescriptors);
+void createShaderDescriptors(Shader* pShaderProgram, Descriptors* pDescriptors, uint32_t* pThreadGroupSizeX, uint32_t* pThreadGroupSizeY, uint32_t* pThreadGroupSizeZ);
 void removeShaderDescriptors(Descriptors* pDescriptors);
 
 void queueWaitForFence(Queue* pQueue, Fence* pFence);

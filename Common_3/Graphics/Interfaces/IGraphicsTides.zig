@@ -33,6 +33,6 @@ pub extern fn cmdCopySubresourceEx(pCmd: [*c]zgraphics.Cmd, pDstBuffer: [*c]zgra
 pub extern fn loadDefaultRootSignatures(pRenderer: [*c]zgraphics.Renderer, graphicsRootSignaturePath: [*c]const u8, computeRootSignaturePath: [*c]const u8) bool;
 pub extern fn releaseDefaultRootSignatures(pRenderer: [*c]zgraphics.Renderer) void;
 pub extern fn getWindowSize(windowHandle: zgraphics.WindowHandle, pWidth: *u32, pHeight: *u32) void;
-pub extern fn createShaderDescriptors(pShaderProgram: [*c]zgraphics.Shader, descriptors: [*c]Descriptors) void;
+pub extern fn createShaderDescriptors(pShaderProgram: [*c]zgraphics.Shader, descriptors: [*c]Descriptors, pThreadGroupSizeX: *u32, pThreadGroupSizeY: *u32, pThreadGroupSizeZ: *u32) void;
 pub extern fn removeShaderDescriptors(ppDescriptors: [*c]Descriptors) void;
 pub extern fn queueWaitForFence(pQueue: [*c]zgraphics.Queue, pFence: [*c]zgraphics.Fence) void;

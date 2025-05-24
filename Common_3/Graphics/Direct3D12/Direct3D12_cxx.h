@@ -51,7 +51,7 @@ extern "C"
     extern SIZE_T  IDxcBlobUtf8_GetStringLength(struct IDxcBlobUtf8* pBlob);
     extern HRESULT IDxcUtils_CreateBlob(void* pByteCode, uint32_t byteCodeSize, struct IDxcBlobEncoding** ppEncoding);
 #ifdef TIDES
-    extern void IDxcUtils_GetReflections(struct IDxcBlobEncoding* pEncoding, uint32_t* descriptorsCount, ShaderReflectionDescriptor* pDescriptors);
+    extern void IDxcUtils_GetReflections(struct IDxcBlobEncoding* pEncoding, uint32_t* descriptorsCount, ShaderReflectionDescriptor* pDescriptors, uint32_t* pGroupSizeX, uint32_t* pGroupSizeY, uint32_t* pGroupSizeZ);
 #endif
 
     typedef struct D3D12MA_ALLOCATION_DESC

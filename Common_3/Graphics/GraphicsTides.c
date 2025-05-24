@@ -117,12 +117,12 @@ void getWindowSize(WindowHandle windowHandle, uint32_t* pWidth, uint32_t* pHeigh
     *pHeight = rect.bottom - rect.top;
 }
 
-extern void createShaderReflections(Shader*, Descriptors*);
+extern void createShaderReflections(Shader*, Descriptors*, uint32_t*, uint32_t*, uint32_t*);
 extern void removeShaderReflections(Descriptors*);
 
-void createShaderDescriptors(Shader* pShaderProgram, Descriptors* descriptors)
+void createShaderDescriptors(Shader* pShaderProgram, Descriptors* descriptors, uint32_t* pThreadGroupSizeX, uint32_t* pThreadGroupSizeY, uint32_t* pThreadGroupSizeZ)
 {
-    createShaderReflections(pShaderProgram, descriptors);
+    createShaderReflections(pShaderProgram, descriptors, pThreadGroupSizeX, pThreadGroupSizeY, pThreadGroupSizeZ);
 }
 
 

@@ -130,11 +130,11 @@ extern "C" HRESULT IDxcUtils_CreateBlob(void* pByteCode, uint32_t byteCodeSize, 
 }
 
 #ifdef TIDES
-extern void IDxcUtils_GetReflections(struct IDxcBlobEncoding* pEncoding, uint32_t* descriptorsCount, ShaderReflectionDescriptor* pDescriptors)
+extern void IDxcUtils_GetReflections(struct IDxcBlobEncoding* pEncoding, uint32_t* descriptorsCount, ShaderReflectionDescriptor* pDescriptors, uint32_t* pGroupSizeX, uint32_t* pGroupSizeY, uint32_t* pGroupSizeZ)
 {
     assert(pDescriptors);
     assert(*descriptorsCount == 0);
-    
+
     IDxcUtils* pUtils;
     HRESULT res = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&pUtils));
     assert(res == S_OK);
@@ -155,7 +155,7 @@ extern void IDxcUtils_GetReflections(struct IDxcBlobEncoding* pEncoding, uint32_
     {
         D3D12_SHADER_INPUT_BIND_DESC shaderInputBindDesc = {};
         res = pReflection->GetResourceBindingDesc(i, &shaderInputBindDesc);
-        
+
         memcpy((void*)pDescriptors[i].Name, shaderInputBindDesc.Name, strlen(shaderInputBindDesc.Name));
         pDescriptors[i].Type = shaderInputBindDesc.Type;
         pDescriptors[i].Dimension = shaderInputBindDesc.Dimension;
@@ -163,6 +163,8 @@ extern void IDxcUtils_GetReflections(struct IDxcBlobEncoding* pEncoding, uint32_
         pDescriptors[i].BindPoint = shaderInputBindDesc.BindPoint;
         pDescriptors[i].Space = shaderInputBindDesc.Space;
     }
+
+    uint32_t totalGroupSize = pReflection->GetThreadGroupSize(pGroupSizeX, pGroupSizeY, pGroupSizeZ);
 
     pReflection->Release();
 }

@@ -165,7 +165,9 @@ pub const Pass = enum {
 };
 
 pub const GfxMaterialPass = struct {
+    pass: Pass,
     pso: zf.PsoHandle,
+    shader: zf.ShaderHandle,
 
     per_draw_descriptor_set: zf.DescriptorSetHandle,
     per_batch_descriptor_set: zf.DescriptorSetHandle,
@@ -173,7 +175,6 @@ pub const GfxMaterialPass = struct {
     persistent_descriptor_set: zf.DescriptorSetHandle,
     persistent_samplers_descriptor_set: zf.DescriptorSetHandle,
 
-    pass: Pass,
 
     pub fn bindPipeline(self: *GfxMaterialPass) void {
         zf.cmdBindPipeline(self.pso);
@@ -204,6 +205,11 @@ pub const GfxMaterial = struct {
         const pass_index: usize = @intFromEnum(pass);
         self.passes[pass_index].bindPipeline();
         self.passes[pass_index].bindDescriptorSets(frame_index);
+    }
+
+    pub fn getPassShaderHandle(self: *GfxMaterial, pass: Pass) zf.ShaderHandle {
+        const pass_index: usize = @intFromEnum(pass);
+        return self.passes[pass_index].shader;
     }
 };
 
@@ -713,6 +719,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.clear_screen_material.passes[0] = std.mem.zeroes(GfxMaterialPass);
         gfx.clear_screen_material.passes[0].pass = .default;
         gfx.clear_screen_material.passes[0].pso = gfx.clear_screen_pso;
+        gfx.clear_screen_material.passes[0].shader = gfx.clear_screen_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.clear_screen_shader) catch unreachable;
         gfx.clear_screen_material.passes[0].per_draw_descriptor_set = descriptor_set_handles.per_draw;
@@ -728,6 +735,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.clear_buffer_material.passes[0] = std.mem.zeroes(GfxMaterialPass);
         gfx.clear_buffer_material.passes[0].pass = .default;
         gfx.clear_buffer_material.passes[0].pso = gfx.clear_buffer_pso;
+        gfx.clear_buffer_material.passes[0].shader = gfx.clear_buffer_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.clear_buffer_shader) catch unreachable;
         gfx.clear_buffer_material.passes[0].per_draw_descriptor_set = descriptor_set_handles.per_draw;
@@ -743,6 +751,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.gauss_blur_horizontal_material.passes[0] = std.mem.zeroes(GfxMaterialPass);
         gfx.gauss_blur_horizontal_material.passes[0].pass = .default;
         gfx.gauss_blur_horizontal_material.passes[0].pso = gfx.gauss_horizontal_pso;
+        gfx.gauss_blur_horizontal_material.passes[0].shader = gfx.gauss_blur_horizontal_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.gauss_blur_horizontal_shader) catch unreachable;
         gfx.gauss_blur_horizontal_material.passes[0].per_draw_descriptor_set = descriptor_set_handles.per_draw;
@@ -758,6 +767,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.gauss_blur_vertical_material.passes[0] = std.mem.zeroes(GfxMaterialPass);
         gfx.gauss_blur_vertical_material.passes[0].pass = .default;
         gfx.gauss_blur_vertical_material.passes[0].pso = gfx.gauss_vertical_pso;
+        gfx.gauss_blur_vertical_material.passes[0].shader = gfx.gauss_blur_vertical_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.gauss_blur_vertical_shader) catch unreachable;
         gfx.gauss_blur_vertical_material.passes[0].per_draw_descriptor_set = descriptor_set_handles.per_draw;
@@ -773,6 +783,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.blit_material_1.passes[0] = std.mem.zeroes(GfxMaterialPass);
         gfx.blit_material_1.passes[0].pass = .default;
         gfx.blit_material_1.passes[0].pso = gfx.blit_pso;
+        gfx.blit_material_1.passes[0].shader = gfx.blit_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.blit_shader) catch unreachable;
         gfx.blit_material_1.passes[0].per_draw_descriptor_set = descriptor_set_handles.per_draw;
@@ -788,6 +799,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.blit_material_2.passes[0] = std.mem.zeroes(GfxMaterialPass);
         gfx.blit_material_2.passes[0].pass = .default;
         gfx.blit_material_2.passes[0].pso = gfx.blit_swapchain_pso;
+        gfx.blit_material_2.passes[0].shader = gfx.blit_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.blit_shader) catch unreachable;
         gfx.blit_material_2.passes[0].per_draw_descriptor_set = descriptor_set_handles.per_draw;
@@ -803,6 +815,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.object_material.passes[0] = std.mem.zeroes(GfxMaterialPass);
         gfx.object_material.passes[0].pass = .default;
         gfx.object_material.passes[0].pso = gfx.object_pso;
+        gfx.object_material.passes[0].shader = gfx.object_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.object_shader) catch unreachable;
         gfx.object_material.passes[0].per_draw_descriptor_set = descriptor_set_handles.per_draw;
@@ -913,7 +926,11 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32) void {
 
         zf.cmdResourceBarrier(null, &texture_barriers, null);
         gfx.clear_screen_material.bindMaterialPass(.default, frame_index);
-        zf.cmdDispacth(@intCast(@divTrunc(window_width, 8) + 1), @intCast(@divTrunc(window_height, 8) + 1), 1);
+        const thread_group_size = zf.getShaderThreadGroupSize(gfx.clear_screen_material.getPassShaderHandle(.default));
+        zf.cmdDispatch(
+            (window_width + thread_group_size.x - 1) / thread_group_size.x,
+            (window_height + thread_group_size.y - 1) / thread_group_size.y,
+            thread_group_size.z);
 
         texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
         texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
@@ -943,7 +960,12 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32) void {
 
         zf.cmdResourceBarrier(&buffer_barriers, null, null);
         gfx.clear_buffer_material.bindMaterialPass(.default, frame_index);
-        zf.cmdDispacth(@intCast(@divTrunc(gfx.visible_instance_buffers_element_count, 64) + 1), 1, 1);
+
+        const thread_group_size = zf.getShaderThreadGroupSize(gfx.clear_buffer_material.getPassShaderHandle(.default));
+        zf.cmdDispatch(
+            (gfx.visible_instance_buffers_element_count + thread_group_size.x - 1) / thread_group_size.x,
+            thread_group_size.y,
+            thread_group_size.z);
 
         buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
         buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
@@ -1023,7 +1045,11 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32) void {
             zf.cmdResourceBarrier(null, &texture_barriers, null);
 
             gfx.gauss_blur_horizontal_material.bindMaterialPass(.default, frame_index);
-            zf.cmdDispacth(@intCast(@divTrunc(window_width, 8) + 1), @intCast(@divTrunc(window_height, 8) + 1), 1);
+            const thread_group_size = zf.getShaderThreadGroupSize(gfx.gauss_blur_horizontal_material.getPassShaderHandle(.default));
+            zf.cmdDispatch(
+                (window_width + thread_group_size.x - 1) / thread_group_size.x,
+                (window_height + thread_group_size.y - 1) / thread_group_size.y,
+                thread_group_size.z);
 
             texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
             texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
@@ -1043,7 +1069,11 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32) void {
             zf.cmdResourceBarrier(null, &texture_barriers, null);
 
             gfx.gauss_blur_vertical_material.bindMaterialPass(.default, frame_index);
-            zf.cmdDispacth(@intCast(@divTrunc(window_width, 8) + 1), @intCast(@divTrunc(window_height, 8) + 1), 1);
+            const thread_group_size = zf.getShaderThreadGroupSize(gfx.gauss_blur_vertical_material.getPassShaderHandle(.default));
+            zf.cmdDispatch(
+                (window_width + thread_group_size.x - 1) / thread_group_size.x,
+                (window_height + thread_group_size.y - 1) / thread_group_size.y,
+                thread_group_size.z);
 
             texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
             texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;

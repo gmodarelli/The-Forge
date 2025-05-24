@@ -345,10 +345,16 @@ fn onLoad(reload_desc: IGraphics.ReloadDesc) void {
             const descriptors = gpu.shaders.getColumnPtr(handle, .descriptors) catch unreachable;
             const descriptor_sets_mappings = gpu.shaders.getColumnPtr(handle, .descriptor_sets_mappings) catch unreachable;
             const desc = gpu.shaders.getColumnPtr(handle, .desc) catch unreachable;
+            const thread_group_size_x = gpu.shaders.getColumnPtr(handle, .thread_group_size_x) catch unreachable;
+            const thread_group_size_y = gpu.shaders.getColumnPtr(handle, .thread_group_size_y) catch unreachable;
+            const thread_group_size_z = gpu.shaders.getColumnPtr(handle, .thread_group_size_z) catch unreachable;
             const compilation_result = compileShaderInternal(desc.*) catch unreachable;
             shader.* = compilation_result.shader;
             descriptors.* = compilation_result.descriptors;
             descriptor_sets_mappings.* = compilation_result.descriptor_sets_mappings;
+            thread_group_size_x.* = compilation_result.thread_group_size_x;
+            thread_group_size_y.* = compilation_result.thread_group_size_y;
+            thread_group_size_z.* = compilation_result.thread_group_size_z;
         }
     }
 
@@ -540,6 +546,9 @@ const ShaderPool = Pool(8, 8, [*c]IGraphics.Shader, struct {
     descriptors: IGraphicsTides.Descriptors,
     descriptor_sets_mappings: DescriptorSetsMappings,
     desc: ShaderLoadDesc,
+    thread_group_size_x: u32,
+    thread_group_size_y: u32,
+    thread_group_size_z: u32,
 });
 pub const ShaderHandle = ShaderPool.Handle;
 
@@ -579,13 +588,31 @@ pub fn compileShader(shader_load_desc: ShaderLoadDesc) !ShaderHandle {
         .descriptors = compilation_result.descriptors,
         .descriptor_sets_mappings = compilation_result.descriptor_sets_mappings,
         .desc = desc,
+        .thread_group_size_x = compilation_result.thread_group_size_x,
+        .thread_group_size_y = compilation_result.thread_group_size_y,
+        .thread_group_size_z = compilation_result.thread_group_size_z,
     }) catch unreachable;
+}
+
+pub fn getShaderThreadGroupSize(handle: ShaderHandle) struct { x: u32, y: u32, z: u32 } {
+    const thread_group_size_x = gpu.shaders.getColumn(handle, .thread_group_size_x) catch unreachable;
+    const thread_group_size_y = gpu.shaders.getColumn(handle, .thread_group_size_y) catch unreachable;
+    const thread_group_size_z = gpu.shaders.getColumn(handle, .thread_group_size_z) catch unreachable;
+
+    return .{
+        .x = thread_group_size_x,
+        .y = thread_group_size_y,
+        .z = thread_group_size_z,
+    };
 }
 
 fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) !struct {
     shader: [*c]IGraphics.Shader,
     descriptors: IGraphicsTides.Descriptors,
     descriptor_sets_mappings: DescriptorSetsMappings,
+    thread_group_size_x: u32,
+    thread_group_size_y: u32,
+    thread_group_size_z: u32,
 } {
     var binary_shader_desc = std.mem.zeroes(IGraphics.BinaryShaderDesc);
 
@@ -607,8 +634,11 @@ fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) !struct {
     var shader: [*c]IGraphics.Shader = null;
     IGraphics.addShaderBinary(gpu.renderer, &binary_shader_desc, &shader);
 
+    var thread_group_size_x: u32 = 0;
+    var thread_group_size_y: u32 = 0;
+    var thread_group_size_z: u32 = 0;
     var descriptors = std.mem.zeroes(IGraphicsTides.Descriptors);
-    IGraphicsTides.createShaderDescriptors(shader, @ptrCast(&descriptors));
+    IGraphicsTides.createShaderDescriptors(shader, @ptrCast(&descriptors), &thread_group_size_x, &thread_group_size_y, &thread_group_size_z);
 
     var descriptor_sets_mappings: DescriptorSetsMappings = undefined;
     for (0..IGraphicsTides.TIDES_DESCRIPTOR_SPACES_COUNT) |space_index| {
@@ -657,6 +687,9 @@ fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) !struct {
         .shader = shader,
         .descriptors = descriptors,
         .descriptor_sets_mappings = descriptor_sets_mappings,
+        .thread_group_size_x = thread_group_size_x,
+        .thread_group_size_y = thread_group_size_y,
+        .thread_group_size_z = thread_group_size_z,
     };
 }
 
@@ -1419,7 +1452,7 @@ pub fn cmdExecuteIndirect(argument_type: IndirectArgumentType, max_command_count
     IGraphics.cmdExecuteIndirect(gpu.cmds[gpu.frame_index], argument_type, @intCast(max_command_count), buffer.*, buffer_offset, counter_buffer, counter_buffer_offset);
 }
 
-pub fn cmdDispacth(group_count_x: u32, group_count_y: u32, group_count_z: u32) void {
+pub fn cmdDispatch(group_count_x: u32, group_count_y: u32, group_count_z: u32) void {
     IGraphics.cmdDispatch(gpu.cmds[gpu.frame_index], group_count_x, group_count_y, group_count_z);
 }
 

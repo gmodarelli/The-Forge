@@ -4386,7 +4386,7 @@ void processReflections(Descriptors* pDescriptors, ShaderReflectionDescriptor* p
 uint32_t spaceToRootParamSetIndex(uint32_t space, bool isSampler);
 DescriptorType shaderInputTypeToDescriptorType(D3D_SHADER_INPUT_TYPE shaderInputType);
 
-void createShaderReflections(Shader* pShaderProgram, Descriptors* pDescriptors)
+void createShaderReflections(Shader* pShaderProgram, Descriptors* pDescriptors, uint32_t* pGroupSizeX, uint32_t* pGroupSizeY, uint32_t* pGroupSizeZ)
 {
     ASSERT(pShaderProgram);
 
@@ -4394,7 +4394,7 @@ void createShaderReflections(Shader* pShaderProgram, Descriptors* pDescriptors)
     {
         ShaderReflectionDescriptor reflections[8] = { 0 };
         uint32_t reflectionsCount = 0;
-        IDxcUtils_GetReflections(pShaderProgram->mDx.pVSBlob, &reflectionsCount, reflections);
+        IDxcUtils_GetReflections(pShaderProgram->mDx.pVSBlob, &reflectionsCount, reflections, pGroupSizeX, pGroupSizeY, pGroupSizeZ);
 
         for (uint32_t i = 0; i < reflectionsCount; i++)
         {
@@ -4406,7 +4406,7 @@ void createShaderReflections(Shader* pShaderProgram, Descriptors* pDescriptors)
     {
         ShaderReflectionDescriptor reflections[8] = { 0 };
         uint32_t reflectionsCount = 0;
-        IDxcUtils_GetReflections(pShaderProgram->mDx.pPSBlob, &reflectionsCount, reflections);
+        IDxcUtils_GetReflections(pShaderProgram->mDx.pPSBlob, &reflectionsCount, reflections, pGroupSizeX, pGroupSizeY, pGroupSizeZ);
 
         for (uint32_t i = 0; i < reflectionsCount; i++)
         {
@@ -4418,7 +4418,7 @@ void createShaderReflections(Shader* pShaderProgram, Descriptors* pDescriptors)
     {
         ShaderReflectionDescriptor reflections[8] = { 0 };
         uint32_t reflectionsCount = 0;
-        IDxcUtils_GetReflections(pShaderProgram->mDx.pCSBlob, &reflectionsCount, reflections);
+        IDxcUtils_GetReflections(pShaderProgram->mDx.pCSBlob, &reflectionsCount, reflections, pGroupSizeX, pGroupSizeY, pGroupSizeZ);
 
         for (uint32_t i = 0; i < reflectionsCount; i++)
         {
