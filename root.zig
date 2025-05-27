@@ -1806,7 +1806,7 @@ const UploadRingBuffer = struct {
 //  ╚═════╝    ╚═╝   ╚═╝╚══════╝╚═╝   ╚═╝   ╚═╝╚══════╝╚══════╝
 //
 
-fn memcpy(dst: *anyopaque, src: *const anyopaque, byte_count: u64) void {
+pub fn memcpy(dst: *anyopaque, src: *const anyopaque, byte_count: u64) void {
     const src_slice = @as([*]const u8, @ptrCast(src))[0..byte_count];
     const dst_slice = @as([*]u8, @ptrCast(dst))[0..byte_count];
     for (src_slice, 0..) |byte, i| {
@@ -1819,6 +1819,6 @@ inline fn alignTo(comptime T: type, num: T, alignment: T) T {
     return @divTrunc(num + alignment - 1, alignment) * alignment;
 }
 
-inline fn roundUp(comptime T: type, value: T, multiple: T) T {
+pub inline fn roundUp(comptime T: type, value: T, multiple: T) T {
     return ((value + multiple - 1) / multiple) * multiple;
 }

@@ -144,7 +144,7 @@ pub fn main() !void {
         }
 
         app.camera.updateView();
-        gfx.draw(&app.camera, @intCast(frame_buffer_size[0]), @intCast(frame_buffer_size[1]));
+        gfx.draw(&app.camera, @intCast(frame_buffer_size[0]), @intCast(frame_buffer_size[1]), app.delta_time);
 
         app.last_time = app.current_time;
     }

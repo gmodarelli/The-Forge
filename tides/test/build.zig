@@ -160,6 +160,10 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     const clear_buffer_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ClearBuffer.comp" }) catch unreachable;
     defer allocator.free(clear_buffer_output_path);
     compileShader(step, "shaders/ClearBufferCS.hlsl", clear_buffer_output_path, "main", "", .compute);
+
+    const debug_text_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "DebugText.comp" }) catch unreachable;
+    defer allocator.free(debug_text_output_path);
+    compileShader(step, "shaders/DebugTextCS.hlsl", debug_text_output_path, "main", "", .compute);
 }
 
 const ShaderType = enum {

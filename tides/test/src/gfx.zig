@@ -27,11 +27,10 @@ pub const RenderableItemInstance = struct {
 };
 
 pub const Bounds = struct {
-    center: [3]f32,
-    radius: f32,
     aabb_min: [3]f32,
+    radius: f32,
     aabb_max: [3]f32,
-    _padding: [2]f32 = .{ 42, 42 },
+    _padding: f32 = 42,
 };
 
 pub const Gfx = struct {
@@ -50,6 +49,7 @@ pub const Gfx = struct {
     gauss_blur_vertical_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     clear_screen_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     clear_buffer_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    debug_text_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
 
     // PSOs
     blit_pso: zf.PsoHandle = zf.PsoHandle.nil,
@@ -59,6 +59,7 @@ pub const Gfx = struct {
     gauss_horizontal_pso: zf.PsoHandle = zf.PsoHandle.nil,
     gauss_vertical_pso: zf.PsoHandle = zf.PsoHandle.nil,
     clear_buffer_pso: zf.PsoHandle = zf.PsoHandle.nil,
+    debug_text_pso: zf.PsoHandle = zf.PsoHandle.nil,
 
     // Render Targets and Render Textures
     gbuffer0: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
@@ -71,6 +72,10 @@ pub const Gfx = struct {
     global_frame_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
     gauss_blur_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
     clear_buffer_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
+    timings_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
+
+    // Misc buffers
+    debug_text_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
 
     // Renderables
     renderables: RenderableHashMap,
@@ -101,6 +106,7 @@ pub const Gfx = struct {
     gauss_blur_vertical_material: GfxMaterial = undefined,
     clear_screen_material: GfxMaterial = undefined,
     clear_buffer_material: GfxMaterial = undefined,
+    timings_material: GfxMaterial = undefined,
 
     // CPU Geometry data
     meshes: std.ArrayList(geometry.Mesh) = undefined,
@@ -155,6 +161,15 @@ pub const BlurData = struct {
 pub const ClearBufferInput = struct {
     element_count: u32,
     buffer_index: u32,
+};
+
+pub const TextData = struct {
+    color: [3]f32,
+    scale: i32,
+    offset: [2]i32,
+    debug_text_buffer: u32,
+    debug_text_offset: u32,
+    debug_text_length: u32,
 };
 
 // TODO: List all possible passes (eg. default, shadow_caster, gbuffer, etc.)
@@ -328,6 +343,14 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.clear_buffer_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
+    {
+        const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
+            .path = "shaders/DebugText.comp",
+            .entry = "main",
+        }, .vertex = null, .pixel = null };
+        gfx.debug_text_shader = zf.compileShader(shader_load_desc) catch unreachable;
+    }
+
     // PSOs
     {
         var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
@@ -415,6 +438,12 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.clear_buffer_pso = zf.createPso(pipeline_desc, gfx.clear_buffer_shader) catch unreachable;
     }
 
+    {
+        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
+        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
+        gfx.debug_text_pso = zf.createPso(pipeline_desc, gfx.debug_text_shader) catch unreachable;
+    }
+
     // Render Targets
     {
         var gbuffer0_desc = std.mem.zeroes(zf.RenderTargetDesc);
@@ -493,6 +522,19 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     {
         for (0..zf.frames_in_flight_count) |frame_index| {
             gfx.clear_buffer_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(ClearBufferInput), "Clear Buffer Constant Buffer");
+        }
+    }
+
+    {
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            gfx.timings_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(TextData), "Timings Constant Buffer");
+        }
+    }
+
+    // Misc Buffers
+    {
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            gfx.debug_text_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, [4]f32, true, false, "Debug Text Buffer");
         }
     }
 
@@ -729,6 +771,22 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.clear_screen_material.passes[0].persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
     }
 
+    // Timings material
+    {
+        gfx.timings_material.passes_count = 1;
+        gfx.timings_material.passes[0] = std.mem.zeroes(GfxMaterialPass);
+        gfx.timings_material.passes[0].pass = .default;
+        gfx.timings_material.passes[0].pso = gfx.debug_text_pso;
+        gfx.timings_material.passes[0].shader = gfx.debug_text_shader;
+
+        const descriptor_set_handles = zf.createDescriptorSets(gfx.debug_text_shader) catch unreachable;
+        gfx.timings_material.passes[0].per_draw_descriptor_set = descriptor_set_handles.per_draw;
+        gfx.timings_material.passes[0].per_batch_descriptor_set = descriptor_set_handles.per_batch;
+        gfx.timings_material.passes[0].per_frame_descriptor_set = descriptor_set_handles.per_frame;
+        gfx.timings_material.passes[0].persistent_descriptor_set = descriptor_set_handles.persistent;
+        gfx.timings_material.passes[0].persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+    }
+
     // Clear Buffer material
     {
         gfx.clear_buffer_material.passes_count = 1;
@@ -879,7 +937,7 @@ pub fn recordRenderableItemInstances(renderableItemInstances: *std.ArrayList(Ren
     }
 }
 
-pub fn draw(camera: *Camera, window_width: u32, window_height: u32) void {
+pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: f32) void {
     const frame_index = zf.frameStart();
 
     const z_view = camera.view;
@@ -974,6 +1032,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32) void {
     }
 
     // Blit: Scene Color -> GBuffer0
+    // Draw: Object -> GBuffer0
     {
         var rt_barriers = [_]zf.RenderTargetBarrier{
             .{
@@ -1074,6 +1133,63 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32) void {
                 (window_width + thread_group_size.x - 1) / thread_group_size.x,
                 (window_height + thread_group_size.y - 1) / thread_group_size.y,
                 thread_group_size.z);
+
+            texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+            texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+
+            zf.cmdResourceBarrier(null, &texture_barriers, null);
+        }
+
+        // Debug Text: Timings
+        {
+            var debug_text_buffer: [32]u8 = undefined;
+            const debug_text = std.fmt.bufPrintZ(
+                debug_text_buffer[0..],
+                "cpu: {d:.3}ms",
+                .{delta_time * 1_000},
+            ) catch unreachable;
+
+            // const debug_text = "cpu: 3.14ms | gpu: 0.12ms";
+            const encoded_text = encodeDebugText(debug_text, gfx_allocator) catch unreachable;
+            defer gfx_allocator.free(encoded_text);
+
+            var text_data = TextData {
+                .color = .{ 1.0, 1.0, 1.0 },
+                .scale = 2,
+                .offset = .{ 1, 2 },
+                .debug_text_buffer = zf.getBufferBindlessIndex(gfx.debug_text_buffers[frame_index]),
+                .debug_text_offset = 0,
+                .debug_text_length = @intCast(encoded_text.len),
+            };
+
+            const text_data_slize = zf.DataSlice{
+                .data = @ptrCast(&text_data),
+                .size = @sizeOf(TextData),
+            };
+            zf.updateUniformBuffer(text_data_slize, gfx.timings_constant_buffers[frame_index]);
+
+            const debug_text_slize = zf.DataSlice{
+                .data = @ptrCast(encoded_text[0..]),
+                .size = @sizeOf(u32) * encoded_text.len,
+            };
+            zf.updateBuffer(debug_text_slize, 0, gfx.debug_text_buffers[frame_index]);
+
+            var texture_barriers = [_]zf.TextureBarrier{
+                .{
+                    .render_texture_handle = gfx.gauss_blur_b,
+                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+                },
+            };
+            zf.cmdResourceBarrier(null, &texture_barriers, null);
+
+            gfx.timings_material.bindMaterialPass(.default, frame_index);
+            const thread_group_size = zf.getShaderThreadGroupSize(gfx.timings_material.getPassShaderHandle(.default));
+            zf.cmdDispatch(
+                (window_width + thread_group_size.x - 1) / thread_group_size.x,
+                (window_height + thread_group_size.y - 1) / thread_group_size.y,
+                thread_group_size.z);
+            zf.cmdDispatch(@intCast(debug_text.len), 1, 1);
 
             texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
             texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
@@ -1205,6 +1321,30 @@ fn updateDescriptorSets() void {
             @intCast(frame_index),
             gfx.clear_screen_shader,
             gfx.clear_screen_material.passes[0].per_frame_descriptor_set
+        );
+    }
+
+    // Timings Material: Per Frame
+    for (0..zf.frames_in_flight_count) |frame_index| {
+        const resource_binding_descs = [_]zf.ResourceBindingDesc{
+            .{
+                .name = "g_CBO",
+                .binding_type = .buffer,
+                .buffer_handle = gfx.timings_constant_buffers[frame_index],
+            },
+            .{
+                .name = "g_output",
+                .binding_type = .render_texture,
+                .render_texture_handle = gfx.gauss_blur_b,
+            },
+        };
+
+        zf.updateDescriptorSet(
+            &resource_binding_descs,
+            .per_frame,
+            @intCast(frame_index),
+            gfx.debug_text_shader,
+            gfx.timings_material.passes[0].per_frame_descriptor_set
         );
     }
 
@@ -1406,11 +1546,10 @@ fn uploadMesh(vertices: *std.ArrayList(geometry.Vertex), indices: *std.ArrayList
     var bounds: [8]Bounds = undefined;
     var bounds_count: u32 = 0;
     for (0.. mesh.sub_meshes_count) |sub_mesh_index| {
-        @memcpy(bounds[sub_mesh_index].center[0..], mesh.sub_meshes[sub_mesh_index].center[0..]);
         bounds[sub_mesh_index].radius = mesh.sub_meshes[sub_mesh_index].radius;
         @memcpy(bounds[sub_mesh_index].aabb_min[0..], mesh.sub_meshes[sub_mesh_index].aabb_min[0..]);
         @memcpy(bounds[sub_mesh_index].aabb_max[0..], mesh.sub_meshes[sub_mesh_index].aabb_max[0..]);
-        bounds[sub_mesh_index]._padding = .{ 42, 42 };
+        bounds[sub_mesh_index]._padding = 42;
         bounds_count += 1;
     }
 
@@ -1462,4 +1601,29 @@ fn loadDdsTexture(file_path: []const u8, bindless: bool, allocator: std.mem.Allo
     zf.updateTexture(texture_handle, texture_desc, dds_image.data);
 
     return texture_handle;
+}
+
+// ██████╗ ███████╗██████╗ ██╗   ██╗ ██████╗     ████████╗███████╗██╗  ██╗████████╗
+// ██╔══██╗██╔════╝██╔══██╗██║   ██║██╔════╝     ╚══██╔══╝██╔════╝╚██╗██╔╝╚══██╔══╝
+// ██║  ██║█████╗  ██████╔╝██║   ██║██║  ███╗       ██║   █████╗   ╚███╔╝    ██║
+// ██║  ██║██╔══╝  ██╔══██╗██║   ██║██║   ██║       ██║   ██╔══╝   ██╔██╗    ██║
+// ██████╔╝███████╗██████╔╝╚██████╔╝╚██████╔╝       ██║   ███████╗██╔╝ ██╗   ██║
+// ╚═════╝ ╚══════╝╚═════╝  ╚═════╝  ╚═════╝        ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝
+//
+
+fn encodeDebugText(text: []const u8, allocator: std.mem.Allocator) ![]u32 {
+    const size = zf.roundUp(usize, text.len, @sizeOf(u32));
+
+    var encoded_text: []u32 = allocator.alloc(u32, size) catch unreachable;
+    @memset(encoded_text[0..], 0);
+    var encode_index: usize = 0;
+    for (0..text.len) |i| {
+        if (i >= 4 and i % 4 == 0) {
+            encode_index += 1;
+        }
+
+        encoded_text[encode_index] |= (@as(u32, text[i] - 32) << @intCast((i % 4) * 8));
+
+    }
+    return encoded_text;
 }
