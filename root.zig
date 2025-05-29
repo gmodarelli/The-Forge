@@ -1915,6 +1915,7 @@ pub const Profiler = struct {
             .mIndex = @intCast(profile_index),
         };
 
+        IGraphics.cmdBeginDebugMarker(gpu.cmds[gpu.frame_index], 0.1, 0.8, 0.1, @ptrCast(name[0..]));
         IGraphics.cmdBeginQuery(gpu.cmds[gpu.frame_index], self.query_pools[gpu.frame_index], @constCast(&query_desc));
 
         return profile_index;
@@ -1935,6 +1936,7 @@ pub const Profiler = struct {
 
         // Resolve the data
         IGraphics.cmdResolveQuery(gpu.cmds[gpu.frame_index],self.query_pools[gpu.frame_index], query_desc.mIndex, 1);
+        IGraphics.cmdEndDebugMarker(gpu.cmds[gpu.frame_index]);
 
         profile_data.query_started = false;
         profile_data.query_finished = true;

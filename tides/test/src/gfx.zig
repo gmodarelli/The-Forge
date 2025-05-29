@@ -974,6 +974,9 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
     // Clear screen: Scene Color
     {
+        const profile_index = zf.startGpuProfile("Animated background");
+        defer zf.endGpuProfile(profile_index);
+
         var texture_barriers = [_]zf.TextureBarrier{
             .{
                 .render_texture_handle = gfx.scene_color,
@@ -998,6 +1001,9 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
     // Clear Buffer: Visible Instances
     {
+        const profile_index = zf.startGpuProfile("Clear Visible Instances");
+        defer zf.endGpuProfile(profile_index);
+
         var clear_buffer_input = ClearBufferInput{
             .buffer_index = zf.getBufferBindlessIndex(gfx.visible_instance_buffers[frame_index]),
             .element_count = gfx.visible_instance_buffers_element_count,
@@ -1046,41 +1052,55 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 .new_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE,
             },
         };
-        zf.cmdResourceBarrier(null, null, &rt_barriers);
 
-        var bind_render_targets = [_]zf.BindRenderTarget{
-            .{
-                .render_target_handle = gfx.gbuffer0,
-                .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-            },
-            .{
-                .render_target_handle = gfx.depth_buffer,
-                .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-            },
-        };
-        zf.cmdBindRenderTargets(&bind_render_targets);
+        {
+            const profile_index = zf.startGpuProfile("Blit Background");
+            defer zf.endGpuProfile(profile_index);
 
-        zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
+            zf.cmdResourceBarrier(null, null, &rt_barriers);
 
-        gfx.blit_material_1.bindMaterialPass(.default, frame_index);
-        zf.cmdDraw(3, 0);
+            var bind_render_targets = [_]zf.BindRenderTarget{
+                .{
+                    .render_target_handle = gfx.gbuffer0,
+                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
+                },
+                .{
+                    .render_target_handle = gfx.depth_buffer,
+                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
+                },
+            };
+            zf.cmdBindRenderTargets(&bind_render_targets);
 
-        gfx.object_material.bindMaterialPass(.default, frame_index);
-        zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
+            zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
 
-        zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 5, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
+            gfx.blit_material_1.bindMaterialPass(.default, frame_index);
+            zf.cmdDraw(3, 0);
+        }
 
-        rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
-        rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-        rt_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
-        rt_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-        zf.cmdResourceBarrier(null, null, &rt_barriers);
+        {
+            const profile_index = zf.startGpuProfile("Draw Objects");
+            defer zf.endGpuProfile(profile_index);
+
+            gfx.object_material.bindMaterialPass(.default, frame_index);
+            zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
+
+            zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 5, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
+
+            rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
+            rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+            rt_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
+            rt_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+            zf.cmdResourceBarrier(null, null, &rt_barriers);
+        }
     }
 
     // Blur
     {
+        const profile_index = zf.startGpuProfile("Gaussian Blur");
+        defer zf.endGpuProfile(profile_index);
+
         var blur = BlurData{
-            .sigma = 0.0,
+            .sigma = 8.0,
             .support = 0.995,
             .sRGB = 1.0,
             .padding = 42.0,
@@ -1139,6 +1159,11 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
             zf.cmdResourceBarrier(null, &texture_barriers, null);
         }
+    }
+
+    {
+        const profile_index = zf.startGpuProfile("Debug Text");
+        defer zf.endGpuProfile(profile_index);
 
         // Debug Text: Timings
         {
@@ -1190,7 +1215,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 (window_width + thread_group_size.x - 1) / thread_group_size.x,
                 (window_height + thread_group_size.y - 1) / thread_group_size.y,
                 thread_group_size.z);
-            zf.cmdDispatch(@intCast(debug_text.len), 1, 1);
 
             texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
             texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
@@ -1201,6 +1225,9 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
     // Blit to swapchain
     {
+        const profile_index = zf.startGpuProfile("Final Blit");
+        defer zf.endGpuProfile(profile_index);
+
         const swap_chain_buffer_handle = zf.getSwapChainBufferHandle();
 
         var rt_barriers = [_]zf.RenderTargetBarrier{
