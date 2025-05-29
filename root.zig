@@ -983,13 +983,6 @@ pub fn createUniformBuffer(size: u64, name: []const u8) BufferHandle {
     return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
 }
 
-pub fn updateUniformBuffer(data: DataSlice, handle: BufferHandle) void {
-    const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
-    std.debug.assert(buffer.*.*.bitfield_1.mDescriptors == IGraphics.DescriptorType.DESCRIPTOR_TYPE_UNIFORM_BUFFER.bits);
-    std.debug.assert(data.size <= buffer.*.*.bitfield_1.mSize);
-    memcpy(@ptrCast(buffer.*.*.pCpuMappedAddress.?), data.data.?, data.size);
-}
-
 pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, write_access: bool, name: []const u8) BufferHandle {
     var desc = std.mem.zeroes(IGraphics.BufferDesc);
     desc.mDescriptors = .DESCRIPTOR_TYPE_BUFFER_RAW;
@@ -1022,18 +1015,6 @@ pub fn createIndirectArgsBuffer(size: u64, comptime T: type, name: []const u8) B
     return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
 }
 
-pub fn updateBuffer(data: DataSlice, dest_offset: u64, handle: BufferHandle) void {
-    const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
-    std.debug.assert(data.size <= buffer.*.*.bitfield_1.mSize);
-
-    var upload_context = gpu.upload_ring_buffer.begin(data.size);
-    memcpy(@ptrCast(upload_context.buffer.*.pCpuMappedAddress.?), data.data.?, data.size);
-
-    IGraphicsTides.cmdUpdateBufferEx(upload_context.cmd, buffer.*, dest_offset, upload_context.buffer, upload_context.buffer_offset, data.size);
-
-    gpu.upload_ring_buffer.end(&upload_context, true);
-}
-
 pub fn createIndexBuffer(size: u64, index_type: IGraphics.IndexType, name: []const u8) BufferHandle {
     var desc = std.mem.zeroes(IGraphics.BufferDesc);
     desc.mDescriptors = IGraphics.DescriptorType.DESCRIPTOR_TYPE_INDEX_BUFFER;
@@ -1052,6 +1033,38 @@ pub fn createIndexBuffer(size: u64, index_type: IGraphics.IndexType, name: []con
     IGraphicsTides.addBufferEx(gpu.renderer, @ptrCast(&desc), false, &buffer);
 
     return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
+}
+
+pub fn createReadbackBuffer(size: u64, name: []const u8) BufferHandle {
+    var desc = std.mem.zeroes(IGraphics.BufferDesc);
+    desc.mDescriptors = .DESCRIPTOR_TYPE_BUFFER;
+    desc.mMemoryUsage = .RESOURCE_MEMORY_USAGE_GPU_TO_CPU;
+    desc.pName = @ptrCast(name);
+    desc.mSize = size;
+    desc.mStartState = .RESOURCE_STATE_COPY_DEST;
+
+    var buffer: [*c]IGraphics.Buffer = null;
+    IGraphicsTides.addBufferEx(gpu.renderer, @ptrCast(&desc), false, &buffer);
+    return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
+}
+
+pub fn updateUniformBuffer(data: DataSlice, handle: BufferHandle) void {
+    const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
+    std.debug.assert(buffer.*.*.bitfield_1.mDescriptors == IGraphics.DescriptorType.DESCRIPTOR_TYPE_UNIFORM_BUFFER.bits);
+    std.debug.assert(data.size <= buffer.*.*.bitfield_1.mSize);
+    memcpy(@ptrCast(buffer.*.*.pCpuMappedAddress.?), data.data.?, data.size);
+}
+
+pub fn updateBuffer(data: DataSlice, dest_offset: u64, handle: BufferHandle) void {
+    const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
+    std.debug.assert(data.size <= buffer.*.*.bitfield_1.mSize);
+
+    var upload_context = gpu.upload_ring_buffer.begin(data.size);
+    memcpy(@ptrCast(upload_context.buffer.*.pCpuMappedAddress.?), data.data.?, data.size);
+
+    IGraphicsTides.cmdUpdateBufferEx(upload_context.cmd, buffer.*, dest_offset, upload_context.buffer, upload_context.buffer_offset, data.size);
+
+    gpu.upload_ring_buffer.end(&upload_context, true);
 }
 
 pub fn getBufferBindlessIndex(handle: BufferHandle) u32 {
