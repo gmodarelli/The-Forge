@@ -77,6 +77,9 @@ const Gpu = struct {
     image_acquired_semaphore: [*c]IGraphics.Semaphore = null,
     swap_chain: [*c]IGraphics.SwapChain = null,
 
+    profiler: Profiler,
+    frame_profiler_index: usize,
+
     linear_repeat_sampler: [*c]IGraphics.Sampler = null,
     linear_clamp_sampler: [*c]IGraphics.Sampler = null,
 
@@ -161,6 +164,9 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
 
     gpu.hwnd = gpu_desc.hwnd;
 
+    gpu.profiler.init(gpu.allocator);
+    gpu.frame_profiler_index = 0;
+
     // Initialize uploads
     gpu.upload_queue = UploadQueue.init();
     gpu.upload_ring_buffer = UploadRingBuffer.init(&gpu.upload_queue);
@@ -200,6 +206,8 @@ pub fn shutdownGpu() void {
     gpu.static_samplers.deinit();
     gpu.samplers.deinit();
 
+    gpu.profiler.shutdown();
+
     IGraphicsTides.releaseDefaultRootSignatures(gpu.renderer);
     IGraphics.exitSemaphore(gpu.renderer, gpu.image_acquired_semaphore);
 
@@ -236,8 +244,9 @@ pub fn frameStart() u32 {
     const cmd_pool = gpu.cmd_pools[gpu.frame_index];
     IGraphics.resetCmdPool(gpu.renderer, cmd_pool);
     const cmd = gpu.cmds[gpu.frame_index];
-
     IGraphics.beginCmd(cmd);
+
+    gpu.frame_profiler_index = gpu.profiler.startProfile("Frame");
 
     IGraphics.acquireNextImage(gpu.renderer, gpu.swap_chain, gpu.image_acquired_semaphore, null, &gpu.swap_chain_image_index);
     const swap_chain_buffer = gpu.swap_chain.*.ppRenderTargets[gpu.swap_chain_image_index];
@@ -248,6 +257,9 @@ pub fn frameStart() u32 {
 
 pub fn frameSubmit() void {
     std.debug.assert(gpu.frame_started);
+
+    gpu.profiler.endProfile(gpu.frame_profiler_index);
+    gpu.profiler.endFrame();
 
     var cmd = gpu.cmds[gpu.frame_index];
     IGraphics.endCmd(cmd);
@@ -1796,6 +1808,161 @@ const UploadRingBuffer = struct {
 
         upload_context.* = .{};
     }
+};
+
+// ██████╗ ██████╗  ██████╗ ███████╗██╗██╗     ███████╗██████╗
+// ██╔══██╗██╔══██╗██╔═══██╗██╔════╝██║██║     ██╔════╝██╔══██╗
+// ██████╔╝██████╔╝██║   ██║█████╗  ██║██║     █████╗  ██████╔╝
+// ██╔═══╝ ██╔══██╗██║   ██║██╔══╝  ██║██║     ██╔══╝  ██╔══██╗
+// ██║     ██║  ██║╚██████╔╝██║     ██║███████╗███████╗██║  ██║
+// ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝
+//
+
+// Ported from: https://github.com/TheRealMJP/DXRPathTracer/blob/master/SampleFramework12/v1.02/Graphics/Profiler.h
+
+pub fn startGpuProfile(name: []const u8) usize {
+    return gpu.profiler.startProfile(name);
+}
+
+pub fn endGpuProfile(profile_index: usize) void {
+    gpu.profiler.endProfile(profile_index);
+}
+
+pub fn getFrameAvgTimeMs() f32 {
+    const profile_data = gpu.profiler.profiles.items[gpu.frame_profiler_index];
+    var sum: f64 = 0;
+
+    for(0..ProfileData.filter_size) |i| {
+        sum += profile_data.time_samples[i];
+    }
+    sum /= 64.0;
+    return @floatCast(sum);
+}
+
+pub const Profiler = struct {
+    const profiles_max_count: usize = 64;
+    const invalid_profile_index: usize = std.math.maxInt(usize);
+
+    profiles: std.ArrayList(ProfileData),
+    query_pools: [frames_in_flight_count][*c]IGraphics.QueryPool,
+
+    pub fn init(self: *Profiler, allocator: std.mem.Allocator) void {
+        self.profiles = std.ArrayList(ProfileData).init(allocator);
+
+        for (0..frames_in_flight_count) |frame_index| {
+            const query_pool_desc = IGraphics.QueryPoolDesc{
+                .pName = "GPU Profiler",
+                .mType = .QUERY_TYPE_TIMESTAMP,
+                .mQueryCount = profiles_max_count,
+                .mNodeIndex = 0,
+            };
+
+            IGraphics.initQueryPool(gpu.renderer, @ptrCast(&query_pool_desc), &self.query_pools[frame_index]);
+        }
+    }
+
+    pub fn shutdown(self: *Profiler) void {
+        for (0..frames_in_flight_count) |frame_index| {
+            IGraphics.exitQueryPool(gpu.renderer, self.query_pools[frame_index]);
+        }
+        self.profiles.deinit();
+        self.profiles_count = 0;
+    }
+
+    pub fn startProfile(self: *Profiler, name: []const u8) usize {
+        const hash: u64 = std.hash.Wyhash.hash(0, name);
+
+        var profile_index: usize = invalid_profile_index;
+        for (self.profiles.items, 0..) |profile, index| {
+            if (profile.hash == hash) {
+                profile_index = index;
+                break;
+            }
+        }
+
+        if (profile_index == invalid_profile_index) {
+            std.debug.assert(self.profiles.items.len < profiles_max_count);
+            profile_index = self.profiles.items.len;
+
+            var profile = std.mem.zeroes(ProfileData);
+            profile.hash = hash;
+            memcpy(&profile.name, @ptrCast(&name.ptr), name.len);
+            @memset(profile.time_samples[0..], 0);
+            self.profiles.append(profile) catch unreachable;
+        }
+
+        var profile_data = &self.profiles.items[profile_index];
+        std.debug.assert(profile_data.query_started == false);
+        std.debug.assert(profile_data.query_finished == false);
+        profile_data.active = true;
+        profile_data.query_started = true;
+
+        // Insert the start timestamp
+        const query_desc = IGraphics.QueryDesc{
+            .mIndex = @intCast(profile_index),
+        };
+
+        IGraphics.cmdBeginQuery(gpu.cmds[gpu.frame_index], self.query_pools[gpu.frame_index], @constCast(&query_desc));
+
+        return profile_index;
+    }
+
+    pub fn endProfile(self: *Profiler, profile_index: usize) void {
+        std.debug.assert(profile_index < self.profiles.items.len);
+
+        var profile_data = &self.profiles.items[profile_index];
+        std.debug.assert(profile_data.query_started == true);
+        std.debug.assert(profile_data.query_finished == false);
+
+        // Insert the end timestamp
+        const query_desc = IGraphics.QueryDesc{
+            .mIndex = @intCast(profile_index),
+        };
+        IGraphics.cmdEndQuery(gpu.cmds[gpu.frame_index], self.query_pools[gpu.frame_index], @constCast(&query_desc));
+
+        // Resolve the data
+        IGraphics.cmdResolveQuery(gpu.cmds[gpu.frame_index],self.query_pools[gpu.frame_index], query_desc.mIndex, 1);
+
+        profile_data.query_started = false;
+        profile_data.query_finished = true;
+    }
+
+    pub fn endFrame(self: *Profiler) void {
+        var timestamp_frequency: f64 = 0;
+        IGraphics.getTimestampFrequency(gpu.graphics_queue, @ptrCast(&timestamp_frequency));
+
+        for (self.profiles.items, 0..) |*profile, profile_index| {
+            profile.query_finished = false;
+
+            var query_data = std.mem.zeroes(IGraphics.QueryData);
+            IGraphics.getQueryData(gpu.renderer, self.query_pools[gpu.frame_index], @intCast(profile_index), @ptrCast(&query_data));
+
+            var time: f64 = 0.0;
+            const start_time = query_data.__union_field1.__struct_field3.mBeginTimestamp;
+            const end_time = query_data.__union_field1.__struct_field3.mEndTimestamp;
+            if (end_time > start_time) {
+                const delta = end_time - start_time;
+                time = @as(f64, @floatFromInt(delta)) / timestamp_frequency * 1000.0;
+            }
+
+            profile.time_samples[profile.current_sample] = time;
+            profile.current_sample = (profile.current_sample + 1) % ProfileData.filter_size;
+
+            profile.active = false;
+        }
+    }
+};
+
+const ProfileData = struct {
+    pub const filter_size: usize = 64;
+
+    name: [256]u8,
+    hash: u64,
+    query_started: bool,
+    query_finished: bool,
+    active: bool,
+    time_samples: [filter_size]f64 = undefined,
+    current_sample: usize,
 };
 
 // ██╗   ██╗████████╗██╗██╗     ██╗████████╗██╗███████╗███████╗

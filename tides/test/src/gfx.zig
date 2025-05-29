@@ -1142,11 +1142,12 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         // Debug Text: Timings
         {
+            const gpu_frame_time = zf.getFrameAvgTimeMs();
             var debug_text_buffer: [32]u8 = undefined;
             const debug_text = std.fmt.bufPrintZ(
                 debug_text_buffer[0..],
-                "cpu: {d:.3}ms",
-                .{delta_time * 1_000},
+                "cpu: {d:.3}ms | gpu: {d:.3}ms",
+                .{delta_time * 1_000, gpu_frame_time},
             ) catch unreachable;
 
             // const debug_text = "cpu: 3.14ms | gpu: 0.12ms";
