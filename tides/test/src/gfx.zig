@@ -63,6 +63,7 @@ pub const Gfx = struct {
 
     // Render Targets and Render Textures
     gbuffer0: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
+    gbuffer1: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     scene_color: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
     gauss_blur_a: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
@@ -122,6 +123,7 @@ pub const Frame = struct {
     view_matrix: [16]f32,
     projection_matrix: [16]f32,
     view_projection_matrix: [16]f32,
+    camera_position: [4]f32,
     linear_repeat_sampler_index: u32,
     linear_clamp_sampler_index: u32,
     _padding: [2]u32,
@@ -388,7 +390,10 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     }
 
     {
-        var render_targets = [_]zf.IGraphics.TinyImageFormat{.R8G8B8A8_SRGB};
+        var render_targets = [_]zf.IGraphics.TinyImageFormat{
+            .R8G8B8A8_SRGB,     // TODO: Read from gbuffer0 format
+            .R8G8B8A8_UNORM,    // TODO: Read from gbuffer1 format
+        };
         var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
         pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_GRAPHICS;
         var graphics_desc = &pipeline_desc.__union_field1.mGraphicsDesc;
@@ -458,6 +463,19 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gbuffer0_desc.mSampleQuality = 0;
         gbuffer0_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
         gfx.gbuffer0 = zf.createRenderTarget(gbuffer0_desc) catch unreachable;
+
+        var gbuffer1_desc = std.mem.zeroes(zf.RenderTargetDesc);
+        gbuffer1_desc.pName = "GBuffer 1";
+        gbuffer1_desc.mArraySize = 1;
+        gbuffer1_desc.mDepth = 1;
+        gbuffer1_desc.mFormat = .R8G8B8A8_UNORM;
+        gbuffer1_desc.mStartState = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        gbuffer1_desc.mWidth = @intCast(window_width);
+        gbuffer1_desc.mHeight = @intCast(window_height);
+        gbuffer1_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
+        gbuffer1_desc.mSampleQuality = 0;
+        gbuffer1_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
+        gfx.gbuffer1 = zf.createRenderTarget(gbuffer1_desc) catch unreachable;
     }
 
     {
@@ -952,6 +970,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         .view_matrix = undefined,
         .projection_matrix = undefined,
         .view_projection_matrix = undefined,
+        .camera_position = undefined,
         .linear_repeat_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_repeat_sampler),
         .linear_clamp_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_clamp_sampler),
         ._padding = .{ std.math.maxInt(u32), std.math.maxInt(u32) },
@@ -965,6 +984,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     zmath.storeMat(&frame.view_matrix, zmath.transpose(z_view));
     zmath.storeMat(&frame.projection_matrix, zmath.transpose(z_proj));
     zmath.storeMat(&frame.view_projection_matrix, zmath.mul(z_view, z_proj));
+    zmath.storeArr4(&frame.camera_position, camera.position);
 
     const frame_data = zf.DataSlice{
         .data = @ptrCast(&frame),
@@ -1038,11 +1058,16 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     }
 
     // Blit: Scene Color -> GBuffer0
-    // Draw: Object -> GBuffer0
+    // Draw: Object -> GBuffer0, GBuffer1
     {
         var rt_barriers = [_]zf.RenderTargetBarrier{
             .{
                 .render_target_handle = gfx.gbuffer0,
+                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
+            },
+            .{
+                .render_target_handle = gfx.gbuffer1,
                 .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
                 .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
             },
@@ -1081,6 +1106,23 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             const profile_index = zf.startGpuProfile("Draw Objects");
             defer zf.endGpuProfile(profile_index);
 
+            var bind_render_targets = [_]zf.BindRenderTarget{
+                .{
+                    .render_target_handle = gfx.gbuffer0,
+                    .load_action = zf.LoadActionType.LOAD_ACTION_LOAD,
+                },
+                .{
+                    .render_target_handle = gfx.gbuffer1,
+                    .load_action = zf.LoadActionType.LOAD_ACTION_LOAD,
+                },
+                .{
+                    .render_target_handle = gfx.depth_buffer,
+                    .load_action = zf.LoadActionType.LOAD_ACTION_LOAD,
+                },
+            };
+            zf.cmdBindRenderTargets(&bind_render_targets);
+            zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
+
             gfx.object_material.bindMaterialPass(.default, frame_index);
             zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
 
@@ -1088,8 +1130,10 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
             rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
             rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            rt_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
+            rt_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
             rt_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+            rt_barriers[2].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
+            rt_barriers[2].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
             zf.cmdResourceBarrier(null, null, &rt_barriers);
         }
     }
@@ -1100,7 +1144,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         defer zf.endGpuProfile(profile_index);
 
         var blur = BlurData{
-            .sigma = 8.0,
+            .sigma = 0.0,
             .support = 0.995,
             .sRGB = 1.0,
             .padding = 42.0,
@@ -1181,7 +1225,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
             var text_data = TextData {
                 .color = .{ 1.0, 1.0, 1.0 },
-                .scale = 2,
+                .scale = 1,
                 .offset = .{ 1, 2 },
                 .debug_text_buffer = zf.getBufferBindlessIndex(gfx.debug_text_buffers[frame_index]),
                 .debug_text_offset = 0,

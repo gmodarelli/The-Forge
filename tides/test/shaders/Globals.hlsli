@@ -8,6 +8,7 @@ struct Frame
     float4x4 view;
     float4x4 projection;
     float4x4 view_proj;
+    float4 camera_position;
     // Default samplers
     uint linear_repeat_sampler_index;
     uint linear_clamp_sampler_index;

@@ -1,4 +1,5 @@
 #include "Globals.hlsli"
+#include "Utils.hlsli"
 
 struct Vertex
 {
@@ -18,9 +19,16 @@ struct VertexShaderInput
 struct Varyings
 {
     float4 position : SV_Position;
-    float2 uv : TEXCOORD0;
+    float4 position_ws : TEXCOORD0;
+    float2 uv : TEXCOORD1;
     float3 normal : NORMAL;
     uint instance_index : SV_INSTANCEID;
+};
+
+struct GBufferOutput
+{
+    float4 gbuffer0 : SV_TARGET0;
+    float4 gbuffer1 : SV_TARGET1;
 };
 
 [RootSignature(DefaultRootSignature)]
@@ -38,20 +46,24 @@ Varyings ObjectVS(VertexShaderInput input)
 
     float4x4 mvp = mul(g_frame.view_proj, transform.world);
     output.position = mul(mvp, float4(vertex.position, 1));
+    output.position_ws = mul(transform.world, float4(vertex.position, 1));
     output.uv = vertex.uv;
-    output.normal = vertex.normal;
+    output.normal = mul((float3x3)transform.world, vertex.normal);
     output.instance_index = instance_index;
 
     return output;
 }
 
 [RootSignature(DefaultRootSignature)]
-float4 ObjectPS(Varyings varyings) : SV_Target0
+GBufferOutput ObjectPS(Varyings varyings)
 {
+    GBufferOutput gbuffer_output = (GBufferOutput)0;
+
     InstanceData instance = getInstanceData(varyings.instance_index);
     MaterialData material = getMaterial(instance.material_index);
 
     float3 color = 0.0;
+    float3 normal = varyings.normal;
 
     if (hasValidDescriptor(material.albedo_texture_index)) {
         Texture2D albedo = ResourceDescriptorHeap[NonUniformResourceIndex(material.albedo_texture_index)];
@@ -68,8 +80,8 @@ float4 ObjectPS(Varyings varyings) : SV_Target0
         color = albedo_sample.rgb;
     }
 
-    if (false && hasValidDescriptor(material.normal_texture_index)) {
-        Texture2D normal = ResourceDescriptorHeap[NonUniformResourceIndex(material.normal_texture_index)];
+    if (hasValidDescriptor(material.normal_texture_index)) {
+        Texture2D normal_map = ResourceDescriptorHeap[NonUniformResourceIndex(material.normal_texture_index)];
 
         uint sampler_index = material.normal_sampler_index;
         if (!hasValidDescriptor(sampler_index)) {
@@ -77,13 +89,18 @@ float4 ObjectPS(Varyings varyings) : SV_Target0
         }
         SamplerState sampler = SamplerDescriptorHeap[NonUniformResourceIndex(sampler_index)];
 
-        float2 normal_sample = normal.Sample(sampler, varyings.uv).xy;
+        float2 normal_sample = normal_map.Sample(sampler, varyings.uv).xy;
         float3 tangent_normal = 0;
         tangent_normal.xy = normal_sample * 2.0 - 1.0;
         tangent_normal.z = sqrt(1.0 - saturate(dot(tangent_normal, tangent_normal)));
 
-        color = tangent_normal * 0.5 + 0.5;
+        const float3 view = normalize(g_frame.camera_position.xyz - varyings.position_ws.xyz);
+
+        normal = UnpackNormals(varyings.uv, view, tangent_normal, normal);
     }
 
-    return float4(color, 1.0f);
+    gbuffer_output.gbuffer0 = float4(color, 1.0f);
+    gbuffer_output.gbuffer1 = float4(normal * 0.5 + 0.5, 1.0f);
+
+    return gbuffer_output;
 }
