@@ -163,19 +163,18 @@ cbuffer g_CBO : register(b0, SPACE_PerFrame)
 
 RWTexture2D<float4> g_output : register(u1, SPACE_PerFrame);
 
-void output_character(uint ascii_index, uint2 output_uv, float2 uv, inout float2 shadow_print_position, inout float2 print_position)
+float output_character(uint ascii_index, float2 uv, inout float2 print_position)
 {
 	float4 character = char_table[0];
 	if (ascii_index < 96) {
 		character = char_table[ascii_index];
 	}
 
-	g_output[output_uv].rgb -= print_char(character, uv, shadow_print_position);
-	g_output[output_uv].rgb += g_text_data.color * print_char(character, uv, print_position);
+	return print_char(character, uv, print_position);
 }
 
 [RootSignature(ComputeRootSignature)]
-[numthreads(8, 8, 1)]
+[numthreads(32, 32, 1)]
 void main(uint3 DTid : SV_DispatchThreadID, uint3 workGroupId : SV_GroupID, uint3 localInvocationId : SV_GroupThreadID)
 {
 	uint width;
@@ -194,6 +193,8 @@ void main(uint3 DTid : SV_DispatchThreadID, uint3 workGroupId : SV_GroupID, uint
 
 	float2 shadow_print_position = floor(float2(STRWIDTH(g_text_data.offset.x) + 1, res.y - STRHEIGHT(g_text_data.offset.y) - 1));
 	float2 print_position = floor(float2(STRWIDTH(g_text_data.offset.x), res.y - STRHEIGHT(g_text_data.offset.y)));
+	float output_color = 0.0;
+	float output_shadow = 0.0;
 
 	for (uint i = 0; i < g_text_data.text_length; i++) {
     	uint ascii = text_buffer.Load<uint>((g_text_data.text_buffer_offset + i) * sizeof(uint));
@@ -202,9 +203,22 @@ void main(uint3 DTid : SV_DispatchThreadID, uint3 workGroupId : SV_GroupID, uint
 		uint ch2 = (ascii & 0x0000ff00) >> 8;
 		uint ch1 = (ascii & 0x000000ff);
 
-		output_character(ch1, DTid.xy, uv, shadow_print_position, print_position);
-		output_character(ch2, DTid.xy, uv, shadow_print_position, print_position);
-		output_character(ch3, DTid.xy, uv, shadow_print_position, print_position);
-		output_character(ch4, DTid.xy, uv, shadow_print_position, print_position);
+		output_color += output_character(ch1, uv, print_position);
+		output_color += output_character(ch2, uv, print_position);
+		output_color += output_character(ch3, uv, print_position);
+		output_color += output_character(ch4, uv, print_position);
+
+		output_shadow += output_character(ch1, uv, shadow_print_position);
+		output_shadow += output_character(ch2, uv, shadow_print_position);
+		output_shadow += output_character(ch3, uv, shadow_print_position);
+		output_shadow += output_character(ch4, uv, shadow_print_position);
+	}
+
+	if (output_shadow > 0.0) {
+		g_output[DTid.xy].rgb = saturate(g_output[DTid.xy].rgb - output_shadow);
+	}
+
+	if (output_color > 0.0) {
+		g_output[DTid.xy].rgb += g_text_data.color * output_color;
 	}
 }
