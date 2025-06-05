@@ -1352,6 +1352,8 @@ pub const TextureBarrier = struct {
 pub const BindRenderTarget = struct {
     render_target_handle: RenderTargetHandle,
     load_action: IGraphics.LoadActionType,
+    use_array_slice: bool = false,
+    array_slice: u32 = 1,
 };
 
 pub fn cmdResourceBarrier(buffer_barriers: ?[]BufferBarrier, texture_barriers: ?[]TextureBarrier, render_target_barriers: ?[]RenderTargetBarrier) void {
@@ -1428,11 +1430,15 @@ pub fn cmdBindRenderTargets(bind_render_targets: []BindRenderTarget) void {
             bind_render_targets_desc.mDepthStencil = std.mem.zeroes(IGraphics.BindDepthTargetDesc);
             bind_render_targets_desc.mDepthStencil.pDepthStencil = render_target.*;
             bind_render_targets_desc.mDepthStencil.mLoadAction = bind_render_target.load_action;
+            bind_render_targets_desc.mDepthStencil.mArraySlice = bind_render_target.array_slice;
+            bind_render_targets_desc.mDepthStencil.bitfield_1.mUseArraySlice = if (bind_render_target.use_array_slice) 1 else 0;
             bind_render_targets_desc.mRenderTargetCount -= 1;
         } else {
             bind_render_targets_desc.mRenderTargets[i] = std.mem.zeroes(IGraphics.BindRenderTargetDesc);
             bind_render_targets_desc.mRenderTargets[i].pRenderTarget = render_target.*;
             bind_render_targets_desc.mRenderTargets[i].mLoadAction = bind_render_target.load_action;
+            bind_render_targets_desc.mRenderTargets[i].mArraySlice = bind_render_target.array_slice;
+            bind_render_targets_desc.mRenderTargets[i].bitfield_1.mUseArraySlice = if (bind_render_target.use_array_slice) 1 else 0;
         }
     }
 

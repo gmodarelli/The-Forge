@@ -65,6 +65,7 @@ pub const Gfx = struct {
     gbuffer0: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     gbuffer1: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
+    shadow_depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     scene_color: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
     gauss_blur_a: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
     gauss_blur_b: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
@@ -530,6 +531,25 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         depth_buffer_desc.mSampleQuality = 0;
         depth_buffer_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
         gfx.depth_buffer = zf.createRenderTarget(depth_buffer_desc) catch unreachable;
+    }
+
+    {
+        var shadow_buffer_desc = std.mem.zeroes(zf.RenderTargetDesc);
+        shadow_buffer_desc.pName = "Shadow Depth Buffer";
+        shadow_buffer_desc.mArraySize = 4; // Cascade number
+        shadow_buffer_desc.mMipLevels = 1;
+        shadow_buffer_desc.mClearValue.__struct_field3.depth = 0.0;
+        shadow_buffer_desc.mClearValue.__struct_field3.stencil = 0;
+        shadow_buffer_desc.mDepth = 1;
+        shadow_buffer_desc.mFormat = .D32_SFLOAT;
+        shadow_buffer_desc.mStartState = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        shadow_buffer_desc.mWidth = 2048;
+        shadow_buffer_desc.mHeight = 2048;
+        shadow_buffer_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
+        shadow_buffer_desc.mSampleQuality = 0;
+        shadow_buffer_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
+        shadow_buffer_desc.mDescriptors = .DESCRIPTOR_TYPE_RENDER_TARGET_DEPTH_SLICES;
+        gfx.shadow_depth_buffer = zf.createRenderTarget(shadow_buffer_desc) catch unreachable;
     }
 
     // Render Textures
