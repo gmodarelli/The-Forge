@@ -139,12 +139,16 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     compileShader(step, "shaders/Blit.hlsl", blit_vertex_output_path, "FullscreenVertex", "", .vertex);
     compileShader(step, "shaders/Blit.hlsl", blit_pixel_output_path, "BlitFragment", "", .pixel);
 
-    const object_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Object.vert" }) catch unreachable;
-    defer allocator.free(object_vertex_output_path);
-    const object_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Object.frag" }) catch unreachable;
-    defer allocator.free(object_pixel_output_path);
-    compileShader(step, "shaders/Object.hlsl", object_vertex_output_path, "ObjectVS", "", .vertex);
-    compileShader(step, "shaders/Object.hlsl", object_pixel_output_path, "ObjectPS", "", .pixel);
+    const gbuffer_object_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ObjectGBuffer.vert" }) catch unreachable;
+    defer allocator.free(gbuffer_object_vertex_output_path);
+    const gbuffer_object_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ObjectGBuffer.frag" }) catch unreachable;
+    defer allocator.free(gbuffer_object_pixel_output_path);
+    compileShader(step, "shaders/Object.hlsl", gbuffer_object_vertex_output_path, "GBufferVS", "", .vertex);
+    compileShader(step, "shaders/Object.hlsl", gbuffer_object_pixel_output_path, "GBufferPS", "", .pixel);
+
+    const shadow_caster_object_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ObjectShadowCaster.vert" }) catch unreachable;
+    defer allocator.free(shadow_caster_object_vertex_output_path);
+    compileShader(step, "shaders/Object.hlsl", shadow_caster_object_vertex_output_path, "ShadowCasterVS", "", .vertex);
 
     const clear_screen_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ClearScreen.comp" }) catch unreachable;
     defer allocator.free(clear_screen_output_path);

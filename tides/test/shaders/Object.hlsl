@@ -32,7 +32,7 @@ struct GBufferOutput
 };
 
 [RootSignature(DefaultRootSignature)]
-Varyings ObjectVS(VertexShaderInput input)
+Varyings GBufferVS(VertexShaderInput input)
 {
     Varyings output = (Varyings) 0;
 
@@ -55,7 +55,7 @@ Varyings ObjectVS(VertexShaderInput input)
 }
 
 [RootSignature(DefaultRootSignature)]
-GBufferOutput ObjectPS(Varyings varyings)
+GBufferOutput GBufferPS(Varyings varyings)
 {
     GBufferOutput gbuffer_output = (GBufferOutput)0;
 
@@ -103,4 +103,21 @@ GBufferOutput ObjectPS(Varyings varyings)
     gbuffer_output.gbuffer1 = float4(normal * 0.5 + 0.5, 1.0f);
 
     return gbuffer_output;
+}
+
+[RootSignature(DefaultRootSignature)]
+float4 ShadowCasterVS(VertexShaderInput input) : SV_Position
+{
+    Varyings output = (Varyings) 0;
+
+    uint instance_index = input.instance_id + input.start_instance_location;
+    InstanceData instance = getInstanceData(instance_index);
+    Transform transform = getTransform(instance.transform_index);
+
+    uint vertex_index = input.vertex_id + input.start_vertex_location;
+    ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[g_frame.vertex_buffer_index];
+    Vertex vertex = vertex_buffer.Load<Vertex>(vertex_index * sizeof(Vertex));
+
+    float4x4 mvp = mul(g_frame.view_proj, transform.world);
+    return mul(mvp, float4(vertex.position, 1));
 }
