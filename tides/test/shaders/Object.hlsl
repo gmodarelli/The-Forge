@@ -62,7 +62,7 @@ GBufferOutput GBufferPS(Varyings varyings)
     InstanceData instance = getInstanceData(varyings.instance_index);
     MaterialData material = getMaterial(instance.material_index);
 
-    float3 color = 0.0;
+    float3 color = 0.5;
     float3 normal = varyings.normal;
 
     if (hasValidDescriptor(material.albedo_texture_index)) {

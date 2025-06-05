@@ -606,6 +606,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     loadTextures();
     // TODO: Generate materials when loading gltf models and textures
     var materials = [_]MaterialData{
+        .{},
         .{
             .albedo_texture_id = zf.getTextureBindlessIndex(gfx.bark_birch_albedo),
             .normal_texture_id = zf.getTextureBindlessIndex(gfx.bark_birch_normal),
@@ -627,9 +628,9 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     }
 
     // TODO: These should be registered from the app side, but currently we're loading all models, textures and materials here
-    // Birch 1
+    // Plane
     {
-        const key = std.hash.Wyhash.hash(0, "birch_1");
+        const key = std.hash.Wyhash.hash(0, "plane");
         const mesh = &gfx.meshes.items[0];
 
         var renderable: Renderable = undefined;
@@ -646,17 +647,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 .mStartInstance = 0,
             },
         };
-        renderable.renderable_items[1] = .{
-            .sub_mesh_index = 1,
-            .material_index = 1,
-            .indirect_draw_args = .{
-                .mIndexCount = mesh.sub_meshes[1].index_count,
-                .mStartIndex = mesh.sub_meshes[1].first_index,
-                .mVertexOffset = mesh.sub_meshes[1].first_vertex,
-                .mInstanceCount = 0,
-                .mStartInstance = 0,
-            },
-        };
         gfx.renderables.put(key, renderable) catch unreachable;
 
         var indirect_args: [2]zf.IndirectDrawIndexArguments = undefined;
@@ -667,13 +657,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             .mInstanceCount = 1, // Just a test
             .mStartInstance = 0, // just a test
         };
-        indirect_args[1] = .{
-            .mIndexCount = mesh.sub_meshes[1].index_count,
-            .mStartIndex = mesh.sub_meshes[1].first_index,
-            .mVertexOffset = mesh.sub_meshes[1].first_vertex,
-            .mInstanceCount = 1, // Just a test
-            .mStartInstance = 1, // just a test
-        };
 
         const indirect_args_data = zf.DataSlice{
             .data = @ptrCast(&indirect_args),
@@ -683,16 +666,17 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             zf.updateBuffer(indirect_args_data, 0, gfx.indirect_args_buffers[frame_index]);
         }
     }
-    // Birch 2
+    // Birch 1
     {
-        const key = std.hash.Wyhash.hash(0, "birch_2");
+        const key = std.hash.Wyhash.hash(0, "birch_1");
         const mesh = &gfx.meshes.items[1];
+
         var renderable: Renderable = undefined;
         renderable.mesh_index = 1;
         renderable.renderable_item_count = mesh.sub_meshes_count;
         renderable.renderable_items[0] = .{
             .sub_mesh_index = 0,
-            .material_index = 0,
+            .material_index = 1,
             .indirect_draw_args = .{
                 .mIndexCount = mesh.sub_meshes[0].index_count,
                 .mStartIndex = mesh.sub_meshes[0].first_index,
@@ -703,7 +687,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         };
         renderable.renderable_items[1] = .{
             .sub_mesh_index = 1,
-            .material_index = 1,
+            .material_index = 2,
             .indirect_draw_args = .{
                 .mIndexCount = mesh.sub_meshes[1].index_count,
                 .mStartIndex = mesh.sub_meshes[1].first_index,
@@ -720,14 +704,14 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             .mStartIndex = mesh.sub_meshes[0].first_index,
             .mVertexOffset = mesh.sub_meshes[0].first_vertex,
             .mInstanceCount = 1, // Just a test
-            .mStartInstance = 2, // just a test
+            .mStartInstance = 1, // just a test
         };
         indirect_args[1] = .{
             .mIndexCount = mesh.sub_meshes[1].index_count,
             .mStartIndex = mesh.sub_meshes[1].first_index,
             .mVertexOffset = mesh.sub_meshes[1].first_vertex,
             .mInstanceCount = 1, // Just a test
-            .mStartInstance = 3, // just a test
+            .mStartInstance = 2, // just a test
         };
 
         const indirect_args_data = zf.DataSlice{
@@ -735,19 +719,76 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             .size = @sizeOf(zf.IndirectDrawIndexArguments) * indirect_args.len,
         };
         for (0..zf.frames_in_flight_count) |frame_index| {
-            zf.updateBuffer(indirect_args_data, 2 * @sizeOf(zf.IndirectDrawIndexArguments), gfx.indirect_args_buffers[frame_index]);
+            zf.updateBuffer(indirect_args_data, 1 * @sizeOf(zf.IndirectDrawIndexArguments), gfx.indirect_args_buffers[frame_index]);
         }
     }
-    // Bush Large
+
+    // Birch 2
     {
-        const key = std.hash.Wyhash.hash(0, "bush_large");
+        const key = std.hash.Wyhash.hash(0, "birch_2");
         const mesh = &gfx.meshes.items[2];
         var renderable: Renderable = undefined;
         renderable.mesh_index = 2;
         renderable.renderable_item_count = mesh.sub_meshes_count;
         renderable.renderable_items[0] = .{
             .sub_mesh_index = 0,
+            .material_index = 1,
+            .indirect_draw_args = .{
+                .mIndexCount = mesh.sub_meshes[0].index_count,
+                .mStartIndex = mesh.sub_meshes[0].first_index,
+                .mVertexOffset = mesh.sub_meshes[0].first_vertex,
+                .mInstanceCount = 0,
+                .mStartInstance = 0,
+            },
+        };
+        renderable.renderable_items[1] = .{
+            .sub_mesh_index = 1,
             .material_index = 2,
+            .indirect_draw_args = .{
+                .mIndexCount = mesh.sub_meshes[1].index_count,
+                .mStartIndex = mesh.sub_meshes[1].first_index,
+                .mVertexOffset = mesh.sub_meshes[1].first_vertex,
+                .mInstanceCount = 0,
+                .mStartInstance = 0,
+            },
+        };
+        gfx.renderables.put(key, renderable) catch unreachable;
+
+        var indirect_args: [2]zf.IndirectDrawIndexArguments = undefined;
+        indirect_args[0] = .{
+            .mIndexCount = mesh.sub_meshes[0].index_count,
+            .mStartIndex = mesh.sub_meshes[0].first_index,
+            .mVertexOffset = mesh.sub_meshes[0].first_vertex,
+            .mInstanceCount = 1, // Just a test
+            .mStartInstance = 3, // just a test
+        };
+        indirect_args[1] = .{
+            .mIndexCount = mesh.sub_meshes[1].index_count,
+            .mStartIndex = mesh.sub_meshes[1].first_index,
+            .mVertexOffset = mesh.sub_meshes[1].first_vertex,
+            .mInstanceCount = 1, // Just a test
+            .mStartInstance = 4, // just a test
+        };
+
+        const indirect_args_data = zf.DataSlice{
+            .data = @ptrCast(&indirect_args),
+            .size = @sizeOf(zf.IndirectDrawIndexArguments) * indirect_args.len,
+        };
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            zf.updateBuffer(indirect_args_data, 3 * @sizeOf(zf.IndirectDrawIndexArguments), gfx.indirect_args_buffers[frame_index]);
+        }
+    }
+
+    // Bush Large
+    {
+        const key = std.hash.Wyhash.hash(0, "bush_large");
+        const mesh = &gfx.meshes.items[3];
+        var renderable: Renderable = undefined;
+        renderable.mesh_index = 3;
+        renderable.renderable_item_count = mesh.sub_meshes_count;
+        renderable.renderable_items[0] = .{
+            .sub_mesh_index = 0,
+            .material_index = 3,
             .indirect_draw_args = .{
                 .mIndexCount = mesh.sub_meshes[0].index_count,
                 .mStartIndex = mesh.sub_meshes[0].first_index,
@@ -764,7 +805,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             .mStartIndex = mesh.sub_meshes[0].first_index,
             .mVertexOffset = mesh.sub_meshes[0].first_vertex,
             .mInstanceCount = 1, // Just a test
-            .mStartInstance = 4, // just a test
+            .mStartInstance = 5, // just a test
         };
 
         const indirect_args_data = zf.DataSlice{
@@ -772,7 +813,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             .size = @sizeOf(zf.IndirectDrawIndexArguments) * indirect_args.len,
         };
         for (0..zf.frames_in_flight_count) |frame_index| {
-            zf.updateBuffer(indirect_args_data, 4 * @sizeOf(zf.IndirectDrawIndexArguments), gfx.indirect_args_buffers[frame_index]);
+            zf.updateBuffer(indirect_args_data, 5 * @sizeOf(zf.IndirectDrawIndexArguments), gfx.indirect_args_buffers[frame_index]);
         }
     }
 
@@ -1095,7 +1136,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             gfx.object_material.bindMaterialPass(.gbuffer, frame_index);
             zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
 
-            zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 5, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
+            zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 6, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
 
             rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
             rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
@@ -1414,6 +1455,20 @@ fn loadMeshes() void {
     load_desc.allocator = temp_allocator;
     load_desc.mesh_vertices = &mesh_vertices;
     load_desc.mesh_indices = &mesh_indices;
+
+    // Plane
+    {
+        mesh_vertices.clearRetainingCapacity();
+        mesh_indices.clearRetainingCapacity();
+
+        gfx.meshes.append(std.mem.zeroes(geometry.Mesh)) catch unreachable;
+        load_desc.file_name = "Plane.gltf";
+        load_desc.allocator = temp_allocator;
+        load_desc.mesh = &gfx.meshes.items[gfx.meshes.items.len - 1];
+
+        geometry.loadGltfMesh(&load_desc);
+        uploadMesh(&mesh_vertices, &mesh_indices, &gfx.meshes.items[gfx.meshes.items.len - 1]);
+    }
 
     // Birch 1
     {

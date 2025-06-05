@@ -2,7 +2,7 @@ const std = @import("std");
 const zmath = @import("zmath");
 
 pub const Camera = struct {
-    position: zmath.Vec = .{ 0.0, 0.0, -20.0, 1.0 },
+    position: zmath.Vec = .{ 0.0, 0.0, 0.0, 1.0 },
     forward: zmath.Vec = .{ 0.0, 0.0, 1.0, 0.0 },
     up: zmath.Vec = .{ 0.0, 1.0, 0.0, 0.0 },
     speed: f32 = 10.0,

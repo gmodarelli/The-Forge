@@ -49,27 +49,35 @@ pub fn main() !void {
 
     gfx.init(zglfw.getWin32Window(window).?, @intCast(window_width), @intCast(window_height));
 
+    app.camera.position += zmath.Vec{0.0, 7.0, -20.0, 0.0 };
     app.camera.updateView();
 
     app.entities = std.ArrayList(Entity).init(std.heap.page_allocator);
     defer app.entities.deinit();
 
     app.entities.append(.{
-        .position = [3]f32{ -6.0, -7.0, 0.0 },
+        .position = [3]f32{ 0.0, 0.0, 0.0 },
+        .unform_scale = 150.0,
+        .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
+        .renderable_hash = std.hash.Wyhash.hash(0, "plane"),
+    }) catch unreachable;
+
+    app.entities.append(.{
+        .position = [3]f32{ -6.0, 0.0, 0.0 },
         .unform_scale = 1.0,
         .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
         .renderable_hash = std.hash.Wyhash.hash(0, "birch_1"),
     }) catch unreachable;
 
     app.entities.append(.{
-        .position = [3]f32{ 0.0, -7.0, 0.0 },
+        .position = [3]f32{ 0.0, 0.0, 0.0 },
         .unform_scale = 1.0,
         .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
         .renderable_hash = std.hash.Wyhash.hash(0, "birch_2"),
     }) catch unreachable;
 
     app.entities.append(.{
-        .position = [3]f32{ 6.0, -7.0, 0.0 },
+        .position = [3]f32{ 6.0, 0.0, 0.0 },
         .unform_scale = 1.0,
         .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
         .renderable_hash = std.hash.Wyhash.hash(0, "bush_large"),
@@ -81,7 +89,8 @@ pub fn main() !void {
     for(app.entities.items) |entity| {
         var renderableItemInstance: gfx.RenderableItemInstance = undefined;
         const z_trans = zmath.translation(entity.position[0], entity.position[1], entity.position[2]);
-        zmath.storeMat(&renderableItemInstance.transform, z_trans);
+        const z_scale = zmath.scaling(entity.unform_scale, entity.unform_scale, entity.unform_scale);
+        zmath.storeMat(&renderableItemInstance.transform, zmath.mul(z_trans, z_scale));
         renderableItemInstance.renderable_hash = entity.renderable_hash;
         renderableItemInstances.append(renderableItemInstance) catch unreachable;
     }
