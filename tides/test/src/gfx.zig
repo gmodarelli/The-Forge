@@ -331,7 +331,10 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 .path = "shaders/ObjectShadowCaster.vert",
                 .entry = "ShadowCasterVS",
             },
-            .pixel = null,
+            .pixel = .{
+                .path = "shaders/ObjectShadowCaster.frag",
+                .entry = "ShadowCasterPS",
+            },
             .compute = null,
         };
         gfx.object_shadow_caster_shader = zf.compileShader(shader_load_desc) catch unreachable;
@@ -464,7 +467,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         var depth_state_desc = std.mem.zeroes(zf.DepthStateDesc);
         depth_state_desc.mDepthWrite = true;
         depth_state_desc.mDepthTest = true;
-        depth_state_desc.mDepthFunc = zf.CompareMode.CMP_GEQUAL;
+        depth_state_desc.mDepthFunc = zf.CompareMode.CMP_GREATER;
         graphics_desc.pDepthState = @ptrCast(&depth_state_desc);
         graphics_desc.mDepthStencilFormat = .D32_SFLOAT;
 
@@ -951,21 +954,44 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     // Object material
     {
         gfx.object_material = std.mem.zeroes(GfxMaterial);
-        const pass_type = Pass.gbuffer;
 
-        const pass_index: usize = @intFromEnum(pass_type);
-        var pass = &gfx.object_material.passes[pass_index];
+        // GBuffer Pass
+        {
+            const pass_type = Pass.gbuffer;
 
-        pass.pass = pass_type;
-        pass.pso = gfx.object_gbuffer_pso;
-        pass.shader = gfx.object_gbuffer_shader;
+            const pass_index: usize = @intFromEnum(pass_type);
+            var pass = &gfx.object_material.passes[pass_index];
 
-        const descriptor_set_handles = zf.createDescriptorSets(gfx.object_gbuffer_shader) catch unreachable;
-        pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_set = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+            pass.pass = pass_type;
+            pass.pso = gfx.object_gbuffer_pso;
+            pass.shader = gfx.object_gbuffer_shader;
+
+            const descriptor_set_handles = zf.createDescriptorSets(gfx.object_gbuffer_shader) catch unreachable;
+            pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
+            pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
+            pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
+            pass.persistent_descriptor_set = descriptor_set_handles.persistent;
+            pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+        }
+
+        // Shadow Caster Pass
+        {
+            const pass_type = Pass.shadow_caster;
+
+            const pass_index: usize = @intFromEnum(pass_type);
+            var pass = &gfx.object_material.passes[pass_index];
+
+            pass.pass = pass_type;
+            pass.pso = gfx.object_shadow_caster_pso;
+            pass.shader = gfx.object_shadow_caster_shader;
+
+            const descriptor_set_handles = zf.createDescriptorSets(gfx.object_shadow_caster_shader) catch unreachable;
+            pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
+            pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
+            pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
+            pass.persistent_descriptor_set = descriptor_set_handles.persistent;
+            pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+        }
     }
 
     updateDescriptorSets();
@@ -1326,15 +1352,31 @@ fn updateDescriptorSets() void {
 
     // Object Material: Per Frame
     for (0..zf.frames_in_flight_count) |frame_index| {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_CBO",
-                .binding_type = .buffer,
-                .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
-            },
-        };
+        // GBuffer Pass
+        {
+            const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                .{
+                    .name = "g_CBO",
+                    .binding_type = .buffer,
+                    .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+                },
+            };
 
-        gfx.object_material.updateDescriptorSet(.gbuffer, &resource_binding_descs, .per_frame, @intCast(frame_index));
+            gfx.object_material.updateDescriptorSet(.gbuffer, &resource_binding_descs, .per_frame, @intCast(frame_index));
+        }
+
+        // Shadow Caster Pass
+        {
+            const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                .{
+                    .name = "g_CBO",
+                    .binding_type = .buffer,
+                    .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+                },
+            };
+
+            gfx.object_material.updateDescriptorSet(.shadow_caster, &resource_binding_descs, .per_frame, @intCast(frame_index));
+        }
     }
 
     // Timings Material: Per Frame

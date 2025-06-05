@@ -106,7 +106,7 @@ GBufferOutput GBufferPS(Varyings varyings)
 }
 
 [RootSignature(DefaultRootSignature)]
-float4 ShadowCasterVS(VertexShaderInput input) : SV_Position
+Varyings ShadowCasterVS(VertexShaderInput input)
 {
     Varyings output = (Varyings) 0;
 
@@ -119,5 +119,31 @@ float4 ShadowCasterVS(VertexShaderInput input) : SV_Position
     Vertex vertex = vertex_buffer.Load<Vertex>(vertex_index * sizeof(Vertex));
 
     float4x4 mvp = mul(g_frame.view_proj, transform.world);
-    return mul(mvp, float4(vertex.position, 1));
+    output.position = mul(mvp, float4(vertex.position, 1));
+    output.position_ws = mul(transform.world, float4(vertex.position, 1));
+    output.uv = vertex.uv;
+    output.normal = mul((float3x3)transform.world, vertex.normal);
+    output.instance_index = instance_index;
+
+    return output;
+}
+
+[RootSignature(DefaultRootSignature)]
+void ShadowCasterPS(Varyings varyings)
+{
+    InstanceData instance = getInstanceData(varyings.instance_index);
+    MaterialData material = getMaterial(instance.material_index);
+
+    if (hasValidDescriptor(material.albedo_texture_index)) {
+        Texture2D albedo = ResourceDescriptorHeap[NonUniformResourceIndex(material.albedo_texture_index)];
+
+        uint sampler_index = material.albedo_sampler_index;
+        if (!hasValidDescriptor(sampler_index)) {
+            sampler_index = g_frame.linear_repeat_sampler_index;
+        }
+        SamplerState sampler = SamplerDescriptorHeap[NonUniformResourceIndex(sampler_index)];
+
+        float4 albedo_sample = albedo.Sample(sampler, varyings.uv);
+        clip(albedo_sample.a - 0.5);
+    }
 }
