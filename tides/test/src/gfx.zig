@@ -48,7 +48,6 @@ pub const Gfx = struct {
     object_shadow_caster_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     gauss_blur_horizontal_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     gauss_blur_vertical_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
-    clear_screen_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     clear_buffer_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     debug_text_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
 
@@ -57,7 +56,6 @@ pub const Gfx = struct {
     blit_swapchain_pso: zf.PsoHandle = zf.PsoHandle.nil,
     object_gbuffer_pso: zf.PsoHandle = zf.PsoHandle.nil,
     object_shadow_caster_pso: zf.PsoHandle = zf.PsoHandle.nil,
-    clear_screen_pso: zf.PsoHandle = zf.PsoHandle.nil,
     gauss_horizontal_pso: zf.PsoHandle = zf.PsoHandle.nil,
     gauss_vertical_pso: zf.PsoHandle = zf.PsoHandle.nil,
     clear_buffer_pso: zf.PsoHandle = zf.PsoHandle.nil,
@@ -102,12 +100,10 @@ pub const Gfx = struct {
     indirect_args_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
 
     // Materials
-    blit_material_1: GfxMaterial = undefined,
-    blit_material_2: GfxMaterial = undefined,
+    blit_material: GfxMaterial = undefined,
     object_material: GfxMaterial = undefined,
     gauss_blur_horizontal_material: GfxMaterial = undefined,
     gauss_blur_vertical_material: GfxMaterial = undefined,
-    clear_screen_material: GfxMaterial = undefined,
     clear_buffer_material: GfxMaterial = undefined,
     timings_material: GfxMaterial = undefined,
 
@@ -359,14 +355,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
 
     {
         const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-            .path = "shaders/ClearScreen.comp",
-            .entry = "main",
-        }, .vertex = null, .pixel = null };
-        gfx.clear_screen_shader = zf.compileShader(shader_load_desc) catch unreachable;
-    }
-
-    {
-        const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
             .path = "shaders/ClearBuffer.comp",
             .entry = "main",
         }, .vertex = null, .pixel = null };
@@ -481,12 +469,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         graphics_desc.mDepthStencilFormat = .D32_SFLOAT;
 
         gfx.object_shadow_caster_pso = zf.createPso(pipeline_desc, gfx.object_shadow_caster_shader) catch unreachable;
-    }
-
-    {
-        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
-        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
-        gfx.clear_screen_pso = zf.createPso(pipeline_desc, gfx.clear_screen_shader) catch unreachable;
     }
 
     {
@@ -825,26 +807,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         }
     }
 
-    // Clear Screen material
-    {
-        gfx.clear_screen_material = std.mem.zeroes(GfxMaterial);
-        const pass_type = Pass.default;
-
-        const pass_index: usize = @intFromEnum(pass_type);
-        var pass = &gfx.clear_screen_material.passes[pass_index];
-
-        pass.pass = pass_type;
-        pass.pso = gfx.clear_screen_pso;
-        pass.shader = gfx.clear_screen_shader;
-
-        const descriptor_set_handles = zf.createDescriptorSets(gfx.clear_screen_shader) catch unreachable;
-        pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_set = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
-    }
-
     // Timings material
     {
         gfx.timings_material = std.mem.zeroes(GfxMaterial);
@@ -925,33 +887,13 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
     }
 
-    // Blit material 1
-    {
-        gfx.blit_material_1 = std.mem.zeroes(GfxMaterial);
-        const pass_type = Pass.default;
-
-        const pass_index: usize = @intFromEnum(pass_type);
-        var pass = &gfx.blit_material_1.passes[pass_index];
-
-        pass.pass = pass_type;
-        pass.pso = gfx.blit_pso;
-        pass.shader = gfx.blit_shader;
-
-        const descriptor_set_handles = zf.createDescriptorSets(gfx.blit_shader) catch unreachable;
-        pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_set = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
-    }
-
     // Blit material 2
     {
-        gfx.blit_material_2 = std.mem.zeroes(GfxMaterial);
+        gfx.blit_material = std.mem.zeroes(GfxMaterial);
         const pass_type = Pass.default;
 
         const pass_index: usize = @intFromEnum(pass_type);
-        var pass = &gfx.blit_material_2.passes[pass_index];
+        var pass = &gfx.blit_material.passes[pass_index];
 
         pass.pass = pass_type;
         pass.pso = gfx.blit_swapchain_pso;
@@ -1072,30 +1014,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     };
     zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
 
-    // Clear screen: Scene Color
-    {
-        const profile_index = zf.startGpuProfile("Animated background");
-        defer zf.endGpuProfile(profile_index);
-
-        var texture_barriers = [_]zf.TextureBarrier{
-            .{
-                .render_texture_handle = gfx.scene_color,
-                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-            },
-        };
-
-        zf.cmdResourceBarrier(null, &texture_barriers, null);
-        gfx.clear_screen_material.bindMaterialPass(.default, frame_index);
-        const thread_group_size = zf.getShaderThreadGroupSize(gfx.clear_screen_material.getPassShaderHandle(.default));
-        zf.cmdDispatch((window_width + thread_group_size.x - 1) / thread_group_size.x, (window_height + thread_group_size.y - 1) / thread_group_size.y, thread_group_size.z);
-
-        texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-        texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-        zf.cmdResourceBarrier(null, &texture_barriers, null);
-    }
-
     // Clear Buffer: Visible Instances
     {
         const profile_index = zf.startGpuProfile("Clear Visible Instances");
@@ -1131,8 +1049,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         zf.cmdResourceBarrier(&buffer_barriers, null, null);
     }
 
-    // Blit: Scene Color -> GBuffer0
-    // Draw: Object -> GBuffer0, GBuffer1
+    // GBuffer Pass
     {
         var rt_barriers = [_]zf.RenderTargetBarrier{
             .{
@@ -1152,29 +1069,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             },
         };
 
-        {
-            const profile_index = zf.startGpuProfile("Blit Background");
-            defer zf.endGpuProfile(profile_index);
-
-            zf.cmdResourceBarrier(null, null, &rt_barriers);
-
-            var bind_render_targets = [_]zf.BindRenderTarget{
-                .{
-                    .render_target_handle = gfx.gbuffer0,
-                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-                },
-                .{
-                    .render_target_handle = gfx.depth_buffer,
-                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-                },
-            };
-            zf.cmdBindRenderTargets(&bind_render_targets);
-
-            zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
-
-            gfx.blit_material_1.bindMaterialPass(.default, frame_index);
-            zf.cmdDraw(3, 0);
-        }
+        zf.cmdResourceBarrier(null, null, &rt_barriers);
 
         {
             const profile_index = zf.startGpuProfile("Draw Objects");
@@ -1183,15 +1078,15 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             var bind_render_targets = [_]zf.BindRenderTarget{
                 .{
                     .render_target_handle = gfx.gbuffer0,
-                    .load_action = zf.LoadActionType.LOAD_ACTION_LOAD,
+                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
                 },
                 .{
                     .render_target_handle = gfx.gbuffer1,
-                    .load_action = zf.LoadActionType.LOAD_ACTION_LOAD,
+                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
                 },
                 .{
                     .render_target_handle = gfx.depth_buffer,
-                    .load_action = zf.LoadActionType.LOAD_ACTION_LOAD,
+                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
                 },
             };
             zf.cmdBindRenderTargets(&bind_render_targets);
@@ -1358,7 +1253,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
 
-        gfx.blit_material_2.bindMaterialPass(.default, frame_index);
+        gfx.blit_material.bindMaterialPass(.default, frame_index);
         zf.cmdDraw(3, 0);
 
         rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
@@ -1370,25 +1265,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 }
 
 fn updateDescriptorSets() void {
-    // Blit Material 1: Per Frame
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_CBO",
-                .binding_type = .buffer,
-                .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
-            },
-            .{
-                .name = "g_source",
-                .binding_type = .render_texture,
-                .render_texture_handle = gfx.scene_color,
-            },
-        };
-
-        gfx.blit_material_1.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index));
-    }
-
-    // Blit Material 2: Per Frame
+    // Blit Material: Per Frame
     for (0..zf.frames_in_flight_count) |frame_index| {
         const resource_binding_descs = [_]zf.ResourceBindingDesc{
             .{
@@ -1403,7 +1280,7 @@ fn updateDescriptorSets() void {
             },
         };
 
-        gfx.blit_material_2.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index));
+        gfx.blit_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index));
     }
 
     // Object Material: Per Frame
@@ -1417,24 +1294,6 @@ fn updateDescriptorSets() void {
         };
 
         gfx.object_material.updateDescriptorSet(.gbuffer, &resource_binding_descs, .per_frame, @intCast(frame_index));
-    }
-
-    // Clear Screen Material: Per Frame
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_CBO",
-                .binding_type = .buffer,
-                .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
-            },
-            .{
-                .name = "g_output",
-                .binding_type = .render_texture,
-                .render_texture_handle = gfx.scene_color,
-            },
-        };
-
-        gfx.clear_screen_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index));
     }
 
     // Timings Material: Per Frame
