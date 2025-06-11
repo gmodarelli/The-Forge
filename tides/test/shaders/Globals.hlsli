@@ -67,6 +67,20 @@ cbuffer g_CBO : register(b0, SPACE_PerFrame)
     Frame g_frame;
 };
 
+#ifdef SHADOW_CASTER
+
+struct ShadowCasterFrame
+{
+    uint cascade_index;
+    uint3 _padding;
+};
+
+cbuffer g_ShadowCasterCB : register(b1, SPACE_PerFrame)
+{
+    ShadowCasterFrame g_shadow_caster_frame;
+};
+#endif
+
 InstanceData getInstanceData(uint instance_index)
 {
     ByteAddressBuffer instance_buffer = ResourceDescriptorHeap[g_frame.instance_buffer_index];

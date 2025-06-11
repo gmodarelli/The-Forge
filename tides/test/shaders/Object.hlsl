@@ -120,7 +120,7 @@ Varyings ShadowCasterVS(VertexShaderInput input)
     Vertex vertex = vertex_buffer.Load<Vertex>(vertex_index * sizeof(Vertex));
 
     output.position_ws = mul(float4(vertex.position, 1), transform.world);
-    output.position = mul(output.position_ws, g_frame.cascade_view_proj[2]);
+    output.position = mul(output.position_ws, g_frame.cascade_view_proj[g_shadow_caster_frame.cascade_index]);
     output.uv = vertex.uv;
     output.normal = mul(vertex.normal, (float3x3)transform.world);
     output.instance_index = instance_index;

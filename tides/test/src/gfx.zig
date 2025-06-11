@@ -88,6 +88,7 @@ pub const Gfx = struct {
 
     // Uniform buffers
     global_frame_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
+    shadow_caster_constant_buffers: [zf.frames_in_flight_count][CSMSettings.cascades_max_count]zf.BufferHandle = undefined,
     gauss_blur_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
     clear_buffer_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
     timings_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
@@ -169,6 +170,11 @@ pub const ShadowFrame = struct {
     cascade_splits: [CSMSettings.cascades_max_count]f32,
 };
 
+pub const ShadowCasterFrame = struct {
+    cascade_index: u32,
+    _padding: [3]u32,
+};
+
 pub const Transform = struct {
     world_matrix: [16]f32,
 };
@@ -221,31 +227,31 @@ pub const GfxMaterialPass = struct {
     pso: zf.PsoHandle,
     shader: zf.ShaderHandle,
 
-    per_draw_descriptor_set: zf.DescriptorSetHandle,
-    per_batch_descriptor_set: zf.DescriptorSetHandle,
-    per_frame_descriptor_set: zf.DescriptorSetHandle,
-    persistent_descriptor_set: zf.DescriptorSetHandle,
-    persistent_samplers_descriptor_set: zf.DescriptorSetHandle,
+    per_draw_descriptor_sets: [CSMSettings.cascades_max_count]zf.DescriptorSetHandle,
+    per_batch_descriptor_sets: [CSMSettings.cascades_max_count]zf.DescriptorSetHandle,
+    per_frame_descriptor_sets: [CSMSettings.cascades_max_count]zf.DescriptorSetHandle,
+    persistent_descriptor_sets: [CSMSettings.cascades_max_count]zf.DescriptorSetHandle,
+    persistent_samplers_descriptor_sets: [CSMSettings.cascades_max_count]zf.DescriptorSetHandle,
 
     pub fn bindPipeline(self: *GfxMaterialPass) void {
         zf.cmdBindPipeline(self.pso);
     }
 
-    pub fn bindDescriptorSets(self: *GfxMaterialPass, frame_index: u32) void {
-        bindDescriptorSet(self.per_draw_descriptor_set, frame_index);
-        bindDescriptorSet(self.per_batch_descriptor_set, frame_index);
-        bindDescriptorSet(self.per_frame_descriptor_set, frame_index);
-        bindDescriptorSet(self.persistent_descriptor_set, 0);
-        bindDescriptorSet(self.persistent_samplers_descriptor_set, 0);
+    pub fn bindDescriptorSets(self: *GfxMaterialPass, frame_index: u32, descriptor_set_index: u32) void {
+        bindDescriptorSet(self.per_draw_descriptor_sets[descriptor_set_index], frame_index);
+        bindDescriptorSet(self.per_batch_descriptor_sets[descriptor_set_index], frame_index);
+        bindDescriptorSet(self.per_frame_descriptor_sets[descriptor_set_index], frame_index);
+        bindDescriptorSet(self.persistent_descriptor_sets[descriptor_set_index], 0);
+        bindDescriptorSet(self.persistent_samplers_descriptor_sets[descriptor_set_index], 0);
     }
 
-    pub fn updateDescriptorSet(self: *GfxMaterialPass, descs: []const zf.ResourceBindingDesc, space: zf.DescriptorSpace, frame_index: u32) void {
+    pub fn updateDescriptorSet(self: *GfxMaterialPass, descs: []const zf.ResourceBindingDesc, space: zf.DescriptorSpace, frame_index: u32, descriptor_set_index: u32) void {
         _ = switch (space) {
-            .per_draw => zf.updateDescriptorSet(descs, space, frame_index, self.shader, self.per_draw_descriptor_set),
-            .per_batch => zf.updateDescriptorSet(descs, space, frame_index, self.shader, self.per_batch_descriptor_set),
-            .per_frame => zf.updateDescriptorSet(descs, space, frame_index, self.shader, self.per_frame_descriptor_set),
-            .persistent => zf.updateDescriptorSet(descs, space, frame_index, self.shader, self.persistent_descriptor_set),
-            .persistent_sampler => zf.updateDescriptorSet(descs, space, frame_index, self.shader, self.persistent_samplers_descriptor_set),
+            .per_draw => zf.updateDescriptorSet(descs, space, frame_index, self.shader, self.per_draw_descriptor_sets[descriptor_set_index]),
+            .per_batch => zf.updateDescriptorSet(descs, space, frame_index, self.shader, self.per_batch_descriptor_sets[descriptor_set_index]),
+            .per_frame => zf.updateDescriptorSet(descs, space, frame_index, self.shader, self.per_frame_descriptor_sets[descriptor_set_index]),
+            .persistent => zf.updateDescriptorSet(descs, space, frame_index, self.shader, self.persistent_descriptor_sets[descriptor_set_index]),
+            .persistent_sampler => zf.updateDescriptorSet(descs, space, frame_index, self.shader, self.persistent_samplers_descriptor_sets[descriptor_set_index]),
         };
     }
 
@@ -261,15 +267,15 @@ const material_passes_max_count: u32 = @intFromEnum(Pass._count);
 pub const GfxMaterial = struct {
     passes: [material_passes_max_count]GfxMaterialPass,
 
-    pub fn bindMaterialPass(self: *GfxMaterial, pass: Pass, frame_index: u32) void {
+    pub fn bindMaterialPass(self: *GfxMaterial, pass: Pass, frame_index: u32, descriptor_set_index: u32) void {
         const pass_index: usize = @intFromEnum(pass);
         self.passes[pass_index].bindPipeline();
-        self.passes[pass_index].bindDescriptorSets(frame_index);
+        self.passes[pass_index].bindDescriptorSets(frame_index, descriptor_set_index);
     }
 
-    pub fn updateDescriptorSet(self: *GfxMaterial, pass: Pass, descs: []const zf.ResourceBindingDesc, space: zf.DescriptorSpace, frame_index: u32) void {
+    pub fn updateDescriptorSet(self: *GfxMaterial, pass: Pass, descs: []const zf.ResourceBindingDesc, space: zf.DescriptorSpace, frame_index: u32, descriptor_set_index: u32) void {
         const pass_index: usize = @intFromEnum(pass);
-        self.passes[pass_index].updateDescriptorSet(descs, space, frame_index);
+        self.passes[pass_index].updateDescriptorSet(descs, space, frame_index, descriptor_set_index);
     }
 
     pub fn getPassShaderHandle(self: *GfxMaterial, pass: Pass) zf.ShaderHandle {
@@ -669,6 +675,10 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             gfx.gauss_blur_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(BlurData), "Gaussian Blur Constant Buffer");
             gfx.clear_buffer_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(ClearBufferInput), "Clear Buffer Constant Buffer");
             gfx.timings_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(TextData), "Timings Constant Buffer");
+
+            for (0..CSMSettings.cascades_max_count) |cascade_index| {
+                gfx.shadow_caster_constant_buffers[frame_index][cascade_index] = zf.createUniformBuffer(@sizeOf(ShadowCasterFrame), "Shadow Caster Constant Buffer");
+            }
         }
     }
 
@@ -950,11 +960,11 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         pass.shader = gfx.debug_text_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.debug_text_shader) catch unreachable;
-        pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_set = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
     }
 
     // Deferred Shading material
@@ -970,11 +980,11 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         pass.shader = gfx.deferred_shading_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.deferred_shading_shader) catch unreachable;
-        pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_set = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
     }
 
     // Clear Buffer material
@@ -990,11 +1000,11 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         pass.shader = gfx.clear_buffer_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.clear_buffer_shader) catch unreachable;
-        pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_set = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
     }
 
     // Gauss Blur Horizontal material
@@ -1010,11 +1020,11 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         pass.shader = gfx.gauss_blur_horizontal_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.gauss_blur_horizontal_shader) catch unreachable;
-        pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_set = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
     }
 
     // Gauss Blur Vertical material
@@ -1030,11 +1040,11 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         pass.shader = gfx.gauss_blur_vertical_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.gauss_blur_vertical_shader) catch unreachable;
-        pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_set = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
     }
 
     // Blit material 2
@@ -1050,11 +1060,11 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         pass.shader = gfx.blit_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.blit_shader) catch unreachable;
-        pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_set = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
     }
 
     // Object material
@@ -1073,11 +1083,11 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             pass.shader = gfx.object_gbuffer_shader;
 
             const descriptor_set_handles = zf.createDescriptorSets(gfx.object_gbuffer_shader) catch unreachable;
-            pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
-            pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
-            pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
-            pass.persistent_descriptor_set = descriptor_set_handles.persistent;
-            pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+            pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+            pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+            pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+            pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+            pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
         }
 
         // Shadow Caster Pass
@@ -1091,12 +1101,14 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             pass.pso = gfx.object_shadow_caster_pso;
             pass.shader = gfx.object_shadow_caster_shader;
 
-            const descriptor_set_handles = zf.createDescriptorSets(gfx.object_shadow_caster_shader) catch unreachable;
-            pass.per_draw_descriptor_set = descriptor_set_handles.per_draw;
-            pass.per_batch_descriptor_set = descriptor_set_handles.per_batch;
-            pass.per_frame_descriptor_set = descriptor_set_handles.per_frame;
-            pass.persistent_descriptor_set = descriptor_set_handles.persistent;
-            pass.persistent_samplers_descriptor_set = descriptor_set_handles.persistent_samplers;
+            for (0..CSMSettings.cascades_max_count) |cascade_index| {
+                const descriptor_set_handles = zf.createDescriptorSets(gfx.object_shadow_caster_shader) catch unreachable;
+                pass.per_draw_descriptor_sets[cascade_index] = descriptor_set_handles.per_draw;
+                pass.per_batch_descriptor_sets[cascade_index] = descriptor_set_handles.per_batch;
+                pass.per_frame_descriptor_sets[cascade_index] = descriptor_set_handles.per_frame;
+                pass.persistent_descriptor_sets[cascade_index] = descriptor_set_handles.persistent;
+                pass.persistent_samplers_descriptor_sets[cascade_index] = descriptor_set_handles.persistent_samplers;
+            }
         }
     }
 
@@ -1199,6 +1211,24 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     };
     zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
 
+    const shadow_frame_data = zf.DataSlice{
+        .data = @ptrCast(&shadow_frame),
+        .size = @sizeOf(ShadowFrame),
+    };
+    zf.updateUniformBuffer(shadow_frame_data, gfx.shadow_frame_constant_buffers[frame_index]);
+
+    for (0..CSMSettings.cascades_max_count) |cascade_index| {
+        var shadow_caster_frame = ShadowCasterFrame{
+            .cascade_index = @intCast(cascade_index),
+            ._padding = .{ 42, 42, 42 },
+        };
+        const shadow_caster_data = zf.DataSlice{
+            .data = @ptrCast(&shadow_caster_frame),
+            .size = @sizeOf(ShadowCasterFrame),
+        };
+        zf.updateUniformBuffer(shadow_caster_data, gfx.shadow_caster_constant_buffers[frame_index][cascade_index]);
+    }
+
     // Clear Buffer: Visible Instances
     {
         const profile_index = zf.startGpuProfile("Clear Visible Instances");
@@ -1223,7 +1253,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         };
 
         zf.cmdResourceBarrier(&buffer_barriers, null, null);
-        gfx.clear_buffer_material.bindMaterialPass(.default, frame_index);
+        gfx.clear_buffer_material.bindMaterialPass(.default, frame_index, 0);
 
         const thread_group_size = zf.getShaderThreadGroupSize(gfx.clear_buffer_material.getPassShaderHandle(.default));
         zf.cmdDispatch((gfx.visible_instance_buffers_element_count + thread_group_size.x - 1) / thread_group_size.x, thread_group_size.y, thread_group_size.z);
@@ -1270,7 +1300,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             zf.cmdBindRenderTargets(&bind_render_targets);
             zf.cmdSetDefaultViewportAndScissor(gfx.cms_settings.resolution, gfx.cms_settings.resolution);
 
-            gfx.object_material.bindMaterialPass(.shadow_caster, frame_index);
+            gfx.object_material.bindMaterialPass(.shadow_caster, frame_index, @intCast(cascade_index));
             zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
 
             zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 6, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
@@ -1323,7 +1353,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         zf.cmdBindRenderTargets(&bind_render_targets);
         zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
 
-        gfx.object_material.bindMaterialPass(.gbuffer, frame_index);
+        gfx.object_material.bindMaterialPass(.gbuffer, frame_index, 0);
         zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
 
         zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 6, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
@@ -1351,7 +1381,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         };
 
         zf.cmdResourceBarrier(null, &texture_barriers, null);
-        gfx.deferred_shading_material.bindMaterialPass(.default, frame_index);
+        gfx.deferred_shading_material.bindMaterialPass(.default, frame_index, 0);
         const thread_group_size = zf.getShaderThreadGroupSize(gfx.deferred_shading_material.getPassShaderHandle(.default));
         zf.cmdDispatch((window_width + thread_group_size.x - 1) / thread_group_size.x, (window_height + thread_group_size.y - 1) / thread_group_size.y, thread_group_size.z);
 
@@ -1390,7 +1420,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             };
             zf.cmdResourceBarrier(null, &texture_barriers, null);
 
-            gfx.gauss_blur_horizontal_material.bindMaterialPass(.default, frame_index);
+            gfx.gauss_blur_horizontal_material.bindMaterialPass(.default, frame_index, 0);
             const thread_group_size = zf.getShaderThreadGroupSize(gfx.gauss_blur_horizontal_material.getPassShaderHandle(.default));
             zf.cmdDispatch((window_width + thread_group_size.x - 1) / thread_group_size.x, (window_height + thread_group_size.y - 1) / thread_group_size.y, thread_group_size.z);
 
@@ -1411,7 +1441,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             };
             zf.cmdResourceBarrier(null, &texture_barriers, null);
 
-            gfx.gauss_blur_vertical_material.bindMaterialPass(.default, frame_index);
+            gfx.gauss_blur_vertical_material.bindMaterialPass(.default, frame_index, 0);
             const thread_group_size = zf.getShaderThreadGroupSize(gfx.gauss_blur_vertical_material.getPassShaderHandle(.default));
             zf.cmdDispatch((window_width + thread_group_size.x - 1) / thread_group_size.x, (window_height + thread_group_size.y - 1) / thread_group_size.y, thread_group_size.z);
 
@@ -1470,7 +1500,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             };
             zf.cmdResourceBarrier(null, &texture_barriers, null);
 
-            gfx.timings_material.bindMaterialPass(.default, frame_index);
+            gfx.timings_material.bindMaterialPass(.default, frame_index, 0);
             const thread_group_size = zf.getShaderThreadGroupSize(gfx.timings_material.getPassShaderHandle(.default));
             zf.cmdDispatch((window_width + thread_group_size.x - 1) / thread_group_size.x, (window_height + thread_group_size.y - 1) / thread_group_size.y, thread_group_size.z);
 
@@ -1507,7 +1537,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
 
-        gfx.blit_material.bindMaterialPass(.default, frame_index);
+        gfx.blit_material.bindMaterialPass(.default, frame_index, 0);
         zf.cmdDraw(3, 0);
 
         rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
@@ -1706,7 +1736,7 @@ fn updateDescriptorSets() void {
             },
         };
 
-        gfx.blit_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index));
+        gfx.blit_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
     }
 
     // Object Material: Per Frame
@@ -1721,20 +1751,25 @@ fn updateDescriptorSets() void {
                 },
             };
 
-            gfx.object_material.updateDescriptorSet(.gbuffer, &resource_binding_descs, .per_frame, @intCast(frame_index));
+            gfx.object_material.updateDescriptorSet(.gbuffer, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
         }
 
         // Shadow Caster Pass
-        {
+        for (0..CSMSettings.cascades_max_count) |cascade_index| {
             const resource_binding_descs = [_]zf.ResourceBindingDesc{
                 .{
                     .name = "g_CBO",
                     .binding_type = .buffer,
                     .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
                 },
+                .{
+                    .name = "g_ShadowCasterCB",
+                    .binding_type = .buffer,
+                    .buffer_handle = gfx.shadow_caster_constant_buffers[frame_index][cascade_index],
+                },
             };
 
-            gfx.object_material.updateDescriptorSet(.shadow_caster, &resource_binding_descs, .per_frame, @intCast(frame_index));
+            gfx.object_material.updateDescriptorSet(.shadow_caster, &resource_binding_descs, .per_frame, @intCast(frame_index), @intCast(cascade_index));
         }
     }
 
@@ -1758,7 +1793,7 @@ fn updateDescriptorSets() void {
             },
         };
 
-        gfx.deferred_shading_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index));
+        gfx.deferred_shading_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
     }
 
     // Deferred Shading Material: Persistent
@@ -1786,7 +1821,7 @@ fn updateDescriptorSets() void {
             },
         };
 
-        gfx.deferred_shading_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0);
+        gfx.deferred_shading_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0, 0);
     }
 
     // Timings Material: Per Frame
@@ -1804,7 +1839,7 @@ fn updateDescriptorSets() void {
             },
         };
 
-        gfx.timings_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index));
+        gfx.timings_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
     }
 
     // Clear Buffer Material: Per Frame
@@ -1817,7 +1852,7 @@ fn updateDescriptorSets() void {
             },
         };
 
-        gfx.clear_buffer_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index));
+        gfx.clear_buffer_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
     }
 
     // Blur Horizontal Material: Per Frame
@@ -1830,7 +1865,7 @@ fn updateDescriptorSets() void {
             },
         };
 
-        gfx.gauss_blur_horizontal_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index));
+        gfx.gauss_blur_horizontal_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
     }
 
     // Blur Horizontal Material: Persistent
@@ -1848,7 +1883,7 @@ fn updateDescriptorSets() void {
             },
         };
 
-        gfx.gauss_blur_horizontal_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0);
+        gfx.gauss_blur_horizontal_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0, 0);
     }
 
     // Blur Vertical Material: Per Frame
@@ -1861,7 +1896,7 @@ fn updateDescriptorSets() void {
             },
         };
 
-        gfx.gauss_blur_vertical_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index));
+        gfx.gauss_blur_vertical_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
     }
 
     // Blur Vertical Material: Persistent
@@ -1879,7 +1914,7 @@ fn updateDescriptorSets() void {
             },
         };
 
-        gfx.gauss_blur_vertical_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0);
+        gfx.gauss_blur_vertical_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0, 0);
     }
 }
 
