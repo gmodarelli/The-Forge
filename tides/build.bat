@@ -1,0 +1,1 @@
+cmd /v /c "..\\..\\..\\..\\tools\\external\\msvc_BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat & zig build -Dtarget=native-native-msvc"
