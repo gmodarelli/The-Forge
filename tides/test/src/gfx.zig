@@ -37,9 +37,7 @@ pub const CSMSettings = struct {
     pub const cascades_max_count: u32 = 4;
 
     cascades_count: u32 = 4,
-    cascades_distances: [cascades_max_count]f32 = .{
-        0.05, 0.15, 0.5, 1.0
-    },
+    cascades_distances: [cascades_max_count]f32 = .{ 0.05, 0.15, 0.5, 1.0 },
     resolution: u32 = 2048,
     stabilize_cascades: bool = true,
     filter_across_cascades: bool = true,
@@ -83,6 +81,7 @@ pub const Gfx = struct {
     depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     shadow_depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     scene_color: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
+    debug_buffer: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
     gauss_blur_a: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
     gauss_blur_b: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
 
@@ -660,6 +659,9 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         rt_desc.pName = "Scene Color";
         gfx.scene_color = zf.createRenderTexture(rt_desc) catch unreachable;
 
+        rt_desc.pName = "Debug Buffer";
+        gfx.debug_buffer = zf.createRenderTexture(rt_desc) catch unreachable;
+
         rt_desc.pName = "Gaussian Blur A";
         gfx.gauss_blur_a = zf.createRenderTexture(rt_desc) catch unreachable;
 
@@ -1198,7 +1200,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
     var shadow_frame = ShadowFrame{
         .shadow_matrix = undefined,
-        .cascade_offsets= undefined,
+        .cascade_offsets = undefined,
         .cascade_scales = undefined,
         .cascade_splits = undefined,
     };
@@ -1280,7 +1282,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         zf.cmdResourceBarrier(null, null, &rt_barriers);
 
         for (0..gfx.cms_settings.cascades_count) |cascade_index| {
-            const profile_index_2 = switch(cascade_index) {
+            const profile_index_2 = switch (cascade_index) {
                 0 => zf.startGpuProfile("Shadow Cascade 1"),
                 1 => zf.startGpuProfile("Shadow Cascade 2"),
                 2 => zf.startGpuProfile("Shadow Cascade 3"),
@@ -1378,6 +1380,11 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
                 .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
             },
+            .{
+                .render_texture_handle = gfx.debug_buffer,
+                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+            },
         };
 
         zf.cmdResourceBarrier(null, &texture_barriers, null);
@@ -1387,6 +1394,8 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
         texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        texture_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+        texture_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
 
         zf.cmdResourceBarrier(null, &texture_barriers, null);
     }
@@ -1493,7 +1502,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
             var texture_barriers = [_]zf.TextureBarrier{
                 .{
-                    .render_texture_handle = gfx.gauss_blur_b,
+                    .render_texture_handle = gfx.scene_color,
                     .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
                     .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
                 },
@@ -1565,13 +1574,13 @@ fn prepareCascadeShadowData(camera: *Camera, frame: *Frame, shadow_frame: *Shado
     for (0..gfx.cms_settings.cascades_count) |cascade_index| {
         const inv_view_proj = zmath.inverse(camera.view_proj);
         var frustum_corners = [8]zmath.Vec{
-            .{ -1.0,  1.0, 0.0, 1.0 },
-            .{  1.0,  1.0, 0.0, 1.0 },
-            .{  1.0, -1.0, 0.0, 1.0 },
+            .{ -1.0, 1.0, 0.0, 1.0 },
+            .{ 1.0, 1.0, 0.0, 1.0 },
+            .{ 1.0, -1.0, 0.0, 1.0 },
             .{ -1.0, -1.0, 0.0, 1.0 },
-            .{ -1.0,  1.0, 1.0, 1.0 },
-            .{  1.0,  1.0, 1.0, 1.0 },
-            .{  1.0, -1.0, 1.0, 1.0 },
+            .{ -1.0, 1.0, 1.0, 1.0 },
+            .{ 1.0, 1.0, 1.0, 1.0 },
+            .{ 1.0, -1.0, 1.0, 1.0 },
             .{ -1.0, -1.0, 1.0, 1.0 },
         };
 
@@ -1602,7 +1611,7 @@ fn prepareCascadeShadowData(camera: *Camera, frame: *Frame, shadow_frame: *Shado
         frustum_center[2] *= weight;
         frustum_center[3] = 1.0;
 
-        const up_dir = zmath.Vec{0.0, 1.0, 0.0, 0.0};
+        const up_dir = zmath.Vec{ 0.0, 1.0, 0.0, 0.0 };
         // Stabilize the cascade
         // Calculate the radius of a bounding sphere surrounding the frustum corner
         var sphere_radius: f32 = 0.0;
@@ -1612,14 +1621,15 @@ fn prepareCascadeShadowData(camera: *Camera, frame: *Frame, shadow_frame: *Shado
         }
 
         sphere_radius = @ceil(sphere_radius * 16.0) / 16.0;
-        const max_extents = zmath.Vec{sphere_radius, sphere_radius, sphere_radius, 0.0};
-        const min_extents = zmath.Vec{-sphere_radius, -sphere_radius, -sphere_radius, 0.0};
+        const max_extents = zmath.Vec{ sphere_radius, sphere_radius, sphere_radius, 0.0 };
+        const min_extents = zmath.Vec{ -sphere_radius, -sphere_radius, -sphere_radius, 0.0 };
         const cascade_extents = max_extents - min_extents;
 
         // Get the position of the shadow camera
         // TODO: Get the actual sun light
         // NOTE: Setting the light direction to (0, 1, 0) leads to NANs in the lookAtLh function (because it aligns exactly with the UP direction)
-        const light_direction = zmath.Vec{0.01 * -min_extents[2], 1.0 * -min_extents[2], 0.01 * -min_extents[2], 0.0};
+        // const light_direction = zmath.Vec{ 0.01 * -min_extents[2], 1.0 * -min_extents[2], 0.01 * -min_extents[2], 0.0 };
+        const light_direction = zmath.Vec{ 1.0 * -min_extents[2], 1.0 * -min_extents[2], 1.0 * -min_extents[2], 0.0 };
         const shadow_camera_position = frustum_center + light_direction;
 
         var cascade_proj = zmath.orthographicOffCenterLh(min_extents[0], max_extents[0], max_extents[1], min_extents[1], 0.0, cascade_extents[2]);
@@ -1628,7 +1638,7 @@ fn prepareCascadeShadowData(camera: *Camera, frame: *Frame, shadow_frame: *Shado
         var cascade_view_proj = zmath.mul(cascade_view, cascade_proj);
         // Stabilize the cascade (once more)
         const cascade_resolution: f32 = @floatFromInt(gfx.cms_settings.resolution);
-        var shadow_origin = transformVec3Coord(zmath.Vec{0.0, 0.0, 0.0, 1.0}, cascade_view_proj);
+        var shadow_origin = transformVec3Coord(zmath.Vec{ 0.0, 0.0, 0.0, 1.0 }, cascade_view_proj);
         shadow_origin[0] *= cascade_resolution * 0.5;
         shadow_origin[1] *= cascade_resolution * 0.5;
         shadow_origin[2] *= cascade_resolution * 0.5;
@@ -1647,10 +1657,10 @@ fn prepareCascadeShadowData(camera: *Camera, frame: *Frame, shadow_frame: *Shado
 
         // Setting up shadow_frame data for this cascade
         var tex_scale_bias = zmath.identity();
-        tex_scale_bias[0] = .{ 0.5,  0.0, 0.0, 0.0 };
+        tex_scale_bias[0] = .{ 0.5, 0.0, 0.0, 0.0 };
         tex_scale_bias[1] = .{ 0.0, -0.5, 0.0, 0.0 };
-        tex_scale_bias[2] = .{ 0.0,  0.0, 1.0, 0.0 };
-        tex_scale_bias[3] = .{ 0.5,  0.5, 0.0, 1.0 };
+        tex_scale_bias[2] = .{ 0.0, 0.0, 1.0, 0.0 };
+        tex_scale_bias[3] = .{ 0.5, 0.5, 0.0, 1.0 };
         cascade_view_proj = zmath.mul(cascade_view_proj, tex_scale_bias);
 
         // Store the split distance in terms of view space depth
@@ -1669,7 +1679,7 @@ fn prepareCascadeShadowData(camera: *Camera, frame: *Frame, shadow_frame: *Shado
 
         // Calculate the scale and offset
         const corner_diff = other_corner - cascade_corner;
-        const cascade_scale = zmath.Vec{1.0 / corner_diff[0], 1.0 / corner_diff[1], 1.0 / corner_diff[2], 1.0 };
+        const cascade_scale = zmath.Vec{ 1.0 / corner_diff[0], 1.0 / corner_diff[1], 1.0 / corner_diff[2], 1.0 };
         shadow_frame.cascade_offsets[cascade_index] = .{ -cascade_corner[0], -cascade_corner[1], -cascade_corner[2], 0.0 };
         shadow_frame.cascade_scales[cascade_index] = .{ cascade_scale[0], cascade_scale[1], cascade_scale[2], 1.0 };
     }
@@ -1680,13 +1690,13 @@ fn makeGlobalShadowMatrix(camera: *Camera) zmath.Mat {
     const inv_view_proj = zmath.inverse(camera.view_proj);
     var frustum_center = zmath.Vec{ 0.0, 0.0, 0.0, 1.0 };
     var frustum_corners = [8]zmath.Vec{
-        .{ -1.0,  1.0, 0.0, 1.0 },
-        .{  1.0,  1.0, 0.0, 1.0 },
-        .{  1.0, -1.0, 0.0, 1.0 },
+        .{ -1.0, 1.0, 0.0, 1.0 },
+        .{ 1.0, 1.0, 0.0, 1.0 },
+        .{ 1.0, -1.0, 0.0, 1.0 },
         .{ -1.0, -1.0, 0.0, 1.0 },
-        .{ -1.0,  1.0, 1.0, 1.0 },
-        .{  1.0,  1.0, 1.0, 1.0 },
-        .{  1.0, -1.0, 1.0, 1.0 },
+        .{ -1.0, 1.0, 1.0, 1.0 },
+        .{ 1.0, 1.0, 1.0, 1.0 },
+        .{ 1.0, -1.0, 1.0, 1.0 },
         .{ -1.0, -1.0, 1.0, 1.0 },
     };
 
@@ -1701,10 +1711,11 @@ fn makeGlobalShadowMatrix(camera: *Camera) zmath.Mat {
     frustum_center[2] *= weight;
     frustum_center[3] = 1.0;
 
-    const up_dir = zmath.Vec{0.0, 1.0, 0.0, 0.0};
+    const up_dir = zmath.Vec{ 0.0, 1.0, 0.0, 0.0 };
 
     // Get the position of the shadow camera
-    const light_direction = zmath.Vec{0.01 * -0.5, 1.0 * -0.5, 0.01 * -0.5, 0.0};
+    // const light_direction = zmath.Vec{ 0.01 * -0.5, 1.0 * -0.5, 0.01 * -0.5, 0.0 };
+    const light_direction = zmath.Vec{ 1.0 * -0.5, 1.0 * -0.5, 1.0 * -0.5, 0.0 };
     const shadow_camera_position = frustum_center + light_direction;
 
     // Come up with a new orthographic camera for the shaodw caster
@@ -1732,7 +1743,9 @@ fn updateDescriptorSets() void {
             .{
                 .name = "g_source",
                 .binding_type = .render_texture,
-                .render_texture_handle = gfx.gauss_blur_b,
+                // .render_texture_handle = gfx.gauss_blur_b,
+                .render_texture_handle = gfx.scene_color,
+                // .render_texture_handle = gfx.debug_buffer,
             },
         };
 
@@ -1791,6 +1804,11 @@ fn updateDescriptorSets() void {
                 .binding_type = .render_texture,
                 .render_texture_handle = gfx.scene_color,
             },
+            .{
+                .name = "g_debug_output",
+                .binding_type = .render_texture,
+                .render_texture_handle = gfx.debug_buffer,
+            },
         };
 
         gfx.deferred_shading_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
@@ -1835,7 +1853,7 @@ fn updateDescriptorSets() void {
             .{
                 .name = "g_output",
                 .binding_type = .render_texture,
-                .render_texture_handle = gfx.gauss_blur_b,
+                .render_texture_handle = gfx.scene_color,
             },
         };
 
@@ -2127,4 +2145,38 @@ pub inline fn transformVec3Coord(v: zmath.Vec, m: zmath.Mat) zmath.Vec {
     result[2] /= result[3];
     result[3] = 1.0;
     return result;
+}
+
+pub fn lookAtLh(eye: zmath.Vec, focus: zmath.Vec, up: zmath.Vec) zmath.Mat {
+    const eye_direction = focus - eye;
+    return lookToLh(eye, eye_direction, up);
+}
+
+pub fn lookToLh(eye_position: zmath.Vec, eye_direction: zmath.Vec, up_direction: zmath.Vec) zmath.Mat {
+    std.debug.assert(!zmath.all(eye_direction == zmath.splat(zmath.F32x4, 0.0), 3));
+    std.debug.assert(!zmath.all(zmath.isInf(eye_direction), 3));
+    std.debug.assert(!zmath.all(up_direction == zmath.splat(zmath.F32x4, 0.0), 3));
+    std.debug.assert(!zmath.all(zmath.isInf(up_direction), 3));
+
+    const r2 = zmath.normalize3(eye_direction);
+    const r0 = zmath.normalize3(zmath.cross3(up_direction, r2));
+    const r1 = zmath.cross3(r2, r0);
+
+    const neg_eye_position = -eye_position;
+
+    const d0 = zmath.dot3(r0, neg_eye_position);
+    const d1 = zmath.dot3(r1, neg_eye_position);
+    const d2 = zmath.dot3(r2, neg_eye_position);
+
+    var m: zmath.Mat = undefined;
+    // const control = zmath.F32x4{ 0xffff_ffff, 0xffff_ffff, 0xffff_ffff, 0 };
+    // m[0] = zmath.select(control, d0, r0);
+    // m[1] = zmath.select(control, d1, r1);
+    // m[2] = zmath.select(control, d2, r2);
+    m[0] = .{ d0[0], d0[1], d0[2], r0[3] };
+    m[1] = .{ d1[0], d1[1], d1[2], r1[3] };
+    m[2] = .{ d2[0], d2[1], d2[2], r2[3] };
+    m[3] = .{ 0.0, 0.0, 0.0, 1.0 };
+
+    return zmath.transpose(m);
 }

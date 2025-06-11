@@ -68,7 +68,6 @@ cbuffer g_CBO : register(b0, SPACE_PerFrame)
 };
 
 #ifdef SHADOW_CASTER
-
 struct ShadowCasterFrame
 {
     uint cascade_index;

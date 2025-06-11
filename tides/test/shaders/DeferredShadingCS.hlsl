@@ -18,6 +18,7 @@ Texture2D<float4> g_gbuffer1 : register(t1, SPACE_Persistent);
 Texture2D<float> g_depth_buffer : register(t2, SPACE_Persistent);
 Texture2DArray<float4> g_shadow_map : register(t3, SPACE_Persistent);
 RWTexture2D<float4> g_output : register(u2, SPACE_PerFrame);
+RWTexture2D<float4> g_debug_output : register(u3, SPACE_PerFrame);
 
 float2 ComputeReceiverPlaneDepthBias(float3 tex_coord_dx, float3 tex_coord_dy)
 {
@@ -75,7 +76,7 @@ float3 GetShadowPosOffset(in float n_dot_l, in float3 normal)
     return texel_size * offset_scale * nml_offset_scale * normal;
 }
 
-float ShadowVisibility(float3 position_ws, float depth_vs, float n_dot_l, float3 normal)
+float ShadowVisibility(float3 position_ws, float depth_vs, float n_dot_l, float3 normal, out float3 cascade_color)
 {
     float shadow_visibility = 1.0f;
     uint cascade_index = CASCADES_MAX_COUNT - 1;
@@ -103,16 +104,26 @@ float ShadowVisibility(float3 position_ws, float depth_vs, float n_dot_l, float3
 
     shadow_visibility = SampleShadowCascade(shadow_position, shadow_pos_dx, shadow_pos_dy, cascade_index);
 
+    const float3 cascade_colors[CASCADES_MAX_COUNT] =
+    {
+        float3(1.0f, 0.0, 0.0f),
+        float3(0.0f, 1.0f, 0.0f),
+        float3(0.0f, 0.0f, 1.0f),
+        float3(1.0f, 1.0f, 0.0f)
+    };
+
+    cascade_color = cascade_colors[cascade_index];
+
     // TODO: Implement filtering across cascades here
 
     return shadow_visibility;
 }
 
-float LinearDepth(float depth)
+float LinearEyeDepth(float depth)
 {
-    depth = g_frame.projection._34 / (depth - g_frame.projection._33);
-    depth = saturate((depth - g_frame.camera_near_plane) / (g_frame.camera_far_plane - g_frame.camera_near_plane));
-    return depth;
+    const float far = g_frame.camera_far_plane;
+    const float near = g_frame.camera_near_plane;
+    return far * near / ((near - far) * depth + far);
 }
 
 float4 GetClipPositionFromDepth(float depth, float2 uv)
@@ -136,28 +147,30 @@ void main( uint3 DTid : SV_DispatchThreadID )
     uint2 output_resolution;
     g_output.GetDimensions(output_resolution.x, output_resolution.y);
 
-    if (DTid.x > output_resolution.x || DTid.y > output_resolution.y)
+    if (DTid.x >= output_resolution.x || DTid.y >= output_resolution.y)
     {
         return;
     }
 
     float3 albedo = g_gbuffer0[DTid.xy].rgb;
     float3 normal = g_gbuffer1[DTid.xy].xyz * 2.0 - 1.0;
-    float depth_cs = g_depth_buffer[DTid.xz].x;
-
-    float depth_vs = LinearDepth(depth_cs);
+    float depth_cs = g_depth_buffer[DTid.xy].x;
+    float depth_vs = LinearEyeDepth(depth_cs);
 
     float2 uv = DTid.xy / float2(output_resolution);
-    float4 position_cs = GetClipPositionFromDepth(depth_cs, uv);
-    float3 position_ws = position_cs.xyz / position_cs.w;
+    float3 position_ws = GetWorldPositionFromDepth(depth_cs, uv);
 
-    float3 light_direction = normalize(float3(0.01, 1.0, 0.01));
+    float3 light_direction = normalize(float3(1.0, 1.0, 1.0));
+    float3 light_color = 10.0;
     float n_dot_l = dot(normal, light_direction);
-    float shadow_visibility = ShadowVisibility(position_ws, depth_vs, n_dot_l, normal);
+    float3 cascade_color = 0;
+    float shadow_visibility = ShadowVisibility(position_ws, depth_vs, n_dot_l, normal, cascade_color);
 
     // Fake lighting
-    float3 light_color = 1;
-    float3 lo = light_color * saturate(n_dot_l);
-    float3 color = (albedo + lo) * shadow_visibility;
-    g_output[DTid.xy] = float4(color, 1.0);
+    float3 lighting = 0.0;
+    lighting += n_dot_l * light_color * albedo * (1.0f / 3.14159f) * shadow_visibility;
+    lighting += float3(0.2f, 0.5f, 1.0f) * 0.1f * albedo;
+
+    g_output[DTid.xy] = float4(max(lighting, 0.0001f), 1.0f);
+    g_debug_output[DTid.xy] = float4(cascade_color * albedo, 1.0);
 }
