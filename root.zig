@@ -1292,6 +1292,10 @@ pub fn updateDescriptorSet(descs: []const ResourceBindingDesc, descriptor_set_sp
             }
         }
 
+        if (resource_index == std.math.maxInt(u32)) {
+            std.log.debug("Failed to match descriptor for resource {s}", .{desc.name});
+        }
+
         std.debug.assert(resource_index != std.math.maxInt(u32));
         descriptor_data[desc_index] = std.mem.zeroes(IGraphics.DescriptorData);
         descriptor_data[desc_index].bitfield_2 = .{ .mArrayOffset = 0, .mIndex = @intCast(resource_index) };

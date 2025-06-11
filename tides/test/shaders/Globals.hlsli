@@ -3,16 +3,25 @@
 
 #include "Defines.hlsli"
 
+static const uint CASCADES_MAX_COUNT = 4;
+
 struct Frame
 {
     float4x4 view;
     float4x4 projection;
     float4x4 view_proj;
+    float4x4 inv_view_proj;
+    float4x4 cascade_view_proj[CASCADES_MAX_COUNT];
     float4 camera_position;
+    float camera_near_plane;
+    float camera_far_plane;
+    float2 _padding;
     // Default samplers
+    // TODO: Add more default samplers
     uint linear_repeat_sampler_index;
     uint linear_clamp_sampler_index;
-    uint2 _padding; // TODO: Add more default samplers
+    uint shadow_sampler_index;
+    uint shadow_pcf_sampler_index;
     // TODO: Add inverted view, projection and view_projection
     float time;
     uint vertex_buffer_index;

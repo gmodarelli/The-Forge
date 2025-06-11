@@ -44,11 +44,10 @@ Varyings GBufferVS(VertexShaderInput input)
     ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[g_frame.vertex_buffer_index];
     Vertex vertex = vertex_buffer.Load<Vertex>(vertex_index * sizeof(Vertex));
 
-    float4x4 mvp = mul(g_frame.view_proj, transform.world);
-    output.position = mul(mvp, float4(vertex.position, 1));
-    output.position_ws = mul(transform.world, float4(vertex.position, 1));
+    output.position_ws = mul(float4(vertex.position, 1), transform.world);
+    output.position = mul(output.position_ws, g_frame.view_proj);
     output.uv = vertex.uv;
-    output.normal = mul((float3x3)transform.world, vertex.normal);
+    output.normal = mul(vertex.normal, (float3x3)transform.world);
     output.instance_index = instance_index;
 
     return output;
@@ -62,7 +61,7 @@ GBufferOutput GBufferPS(Varyings varyings)
     InstanceData instance = getInstanceData(varyings.instance_index);
     MaterialData material = getMaterial(instance.material_index);
 
-    float3 color = 0.5;
+    float3 color = 1.0;
     float3 normal = varyings.normal;
 
     if (hasValidDescriptor(material.albedo_texture_index)) {
@@ -105,6 +104,8 @@ GBufferOutput GBufferPS(Varyings varyings)
     return gbuffer_output;
 }
 
+#ifdef SHADOW_CASTER
+
 [RootSignature(DefaultRootSignature)]
 Varyings ShadowCasterVS(VertexShaderInput input)
 {
@@ -118,11 +119,10 @@ Varyings ShadowCasterVS(VertexShaderInput input)
     ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[g_frame.vertex_buffer_index];
     Vertex vertex = vertex_buffer.Load<Vertex>(vertex_index * sizeof(Vertex));
 
-    float4x4 mvp = mul(g_frame.view_proj, transform.world);
-    output.position = mul(mvp, float4(vertex.position, 1));
-    output.position_ws = mul(transform.world, float4(vertex.position, 1));
+    output.position_ws = mul(float4(vertex.position, 1), transform.world);
+    output.position = mul(output.position_ws, g_frame.cascade_view_proj[2]);
     output.uv = vertex.uv;
-    output.normal = mul((float3x3)transform.world, vertex.normal);
+    output.normal = mul(vertex.normal, (float3x3)transform.world);
     output.instance_index = instance_index;
 
     return output;
@@ -147,3 +147,5 @@ void ShadowCasterPS(Varyings varyings)
         clip(albedo_sample.a - 0.5);
     }
 }
+
+#endif

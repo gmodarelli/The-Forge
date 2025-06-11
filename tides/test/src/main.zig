@@ -52,6 +52,12 @@ pub fn main() !void {
     app.camera.position += zmath.Vec{0.0, 7.0, -20.0, 0.0 };
     app.camera.updateView();
 
+    app.camera.aspect = @as(f32, @floatFromInt(window_width)) / @as(f32, @floatFromInt(window_height));
+    app.camera.fov = std.math.pi * 0.25 * 0.75;// std.math.degreesToRadians(45.0);
+    app.camera.near_plane = 0.25;
+    app.camera.far_plane = 250.0;
+    app.camera.updateProjection();
+
     app.entities = std.ArrayList(Entity).init(std.heap.page_allocator);
     defer app.entities.deinit();
 
@@ -90,7 +96,8 @@ pub fn main() !void {
         var renderableItemInstance: gfx.RenderableItemInstance = undefined;
         const z_trans = zmath.translation(entity.position[0], entity.position[1], entity.position[2]);
         const z_scale = zmath.scaling(entity.unform_scale, entity.unform_scale, entity.unform_scale);
-        zmath.storeMat(&renderableItemInstance.transform, zmath.mul(z_trans, z_scale));
+        // NOTE: zmath stores matrices in row-major order. We transpose them cause HLSL stores them in column-major
+        zmath.storeMat(&renderableItemInstance.transform, zmath.transpose(zmath.mul(z_trans, z_scale)));
         renderableItemInstance.renderable_hash = entity.renderable_hash;
         renderableItemInstances.append(renderableItemInstance) catch unreachable;
     }

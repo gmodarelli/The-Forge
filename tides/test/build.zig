@@ -150,8 +150,8 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     defer allocator.free(shadow_caster_object_vertex_output_path);
     const shadow_caster_object_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ObjectShadowCaster.frag" }) catch unreachable;
     defer allocator.free(shadow_caster_object_pixel_output_path);
-    compileShader(step, "shaders/Object.hlsl", shadow_caster_object_vertex_output_path, "ShadowCasterVS", "", .vertex);
-    compileShader(step, "shaders/Object.hlsl", shadow_caster_object_pixel_output_path, "ShadowCasterPS", "", .pixel);
+    compileShader(step, "shaders/Object.hlsl", shadow_caster_object_vertex_output_path, "ShadowCasterVS", "SHADOW_CASTER", .vertex);
+    compileShader(step, "shaders/Object.hlsl", shadow_caster_object_pixel_output_path, "ShadowCasterPS", "SHADOW_CASTER", .pixel);
 
     const clear_screen_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ClearScreen.comp" }) catch unreachable;
     defer allocator.free(clear_screen_output_path);
@@ -167,6 +167,10 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     const clear_buffer_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ClearBuffer.comp" }) catch unreachable;
     defer allocator.free(clear_buffer_output_path);
     compileShader(step, "shaders/ClearBufferCS.hlsl", clear_buffer_output_path, "main", "", .compute);
+
+    const deferred_shading_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "DeferredShading.comp" }) catch unreachable;
+    defer allocator.free(deferred_shading_output_path);
+    compileShader(step, "shaders/DeferredShadingCS.hlsl", deferred_shading_output_path, "main", "", .compute);
 
     const debug_text_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "DebugText.comp" }) catch unreachable;
     defer allocator.free(debug_text_output_path);
@@ -204,8 +208,9 @@ fn compileShader(step: *std.Build.Step, input: []const u8, output: []const u8, e
         qstrip_root_signature,
         "-Qembed_debug",
         "-HV 2021",
+        "-all-resources-bound",
         "-WX",
-        "-O0",
+        "-Od",
         "-Zi",
     };
 
