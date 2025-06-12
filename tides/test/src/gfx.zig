@@ -1627,9 +1627,10 @@ fn prepareCascadeShadowData(camera: *Camera, frame: *Frame, shadow_frame: *Shado
 
         // Get the position of the shadow camera
         // TODO: Get the actual sun light
-        // NOTE: Setting the light direction to (0, 1, 0) leads to NANs in the lookAtLh function (because it aligns exactly with the UP direction)
-        // const light_direction = zmath.Vec{ 0.01 * -min_extents[2], 1.0 * -min_extents[2], 0.01 * -min_extents[2], 0.0 };
-        const light_direction = zmath.Vec{ 1.0 * -min_extents[2], 1.0 * -min_extents[2], 1.0 * -min_extents[2], 0.0 };
+        var light_direction = zmath.normalize3(zmath.Vec{ 1.0, 1.0, 1.0, 0.0 });
+        light_direction[0] *= -min_extents[2];
+        light_direction[1] *= -min_extents[2];
+        light_direction[2] *= -min_extents[2];
         const shadow_camera_position = frustum_center + light_direction;
 
         var cascade_proj = zmath.orthographicOffCenterLh(min_extents[0], max_extents[0], max_extents[1], min_extents[1], 0.0, cascade_extents[2]);
@@ -1714,8 +1715,10 @@ fn makeGlobalShadowMatrix(camera: *Camera) zmath.Mat {
     const up_dir = zmath.Vec{ 0.0, 1.0, 0.0, 0.0 };
 
     // Get the position of the shadow camera
-    // const light_direction = zmath.Vec{ 0.01 * -0.5, 1.0 * -0.5, 0.01 * -0.5, 0.0 };
-    const light_direction = zmath.Vec{ 1.0 * -0.5, 1.0 * -0.5, 1.0 * -0.5, 0.0 };
+    var light_direction = zmath.normalize3(zmath.Vec{ 1.0, 1.0, 1.0, 0.0 });
+    light_direction[0] *= -0.5;
+    light_direction[1] *= -0.5;
+    light_direction[2] *= -0.5;
     const shadow_camera_position = frustum_center + light_direction;
 
     // Come up with a new orthographic camera for the shaodw caster
@@ -1745,7 +1748,6 @@ fn updateDescriptorSets() void {
                 .binding_type = .render_texture,
                 // .render_texture_handle = gfx.gauss_blur_b,
                 .render_texture_handle = gfx.scene_color,
-                // .render_texture_handle = gfx.debug_buffer,
             },
         };
 
@@ -2145,38 +2147,4 @@ pub inline fn transformVec3Coord(v: zmath.Vec, m: zmath.Mat) zmath.Vec {
     result[2] /= result[3];
     result[3] = 1.0;
     return result;
-}
-
-pub fn lookAtLh(eye: zmath.Vec, focus: zmath.Vec, up: zmath.Vec) zmath.Mat {
-    const eye_direction = focus - eye;
-    return lookToLh(eye, eye_direction, up);
-}
-
-pub fn lookToLh(eye_position: zmath.Vec, eye_direction: zmath.Vec, up_direction: zmath.Vec) zmath.Mat {
-    std.debug.assert(!zmath.all(eye_direction == zmath.splat(zmath.F32x4, 0.0), 3));
-    std.debug.assert(!zmath.all(zmath.isInf(eye_direction), 3));
-    std.debug.assert(!zmath.all(up_direction == zmath.splat(zmath.F32x4, 0.0), 3));
-    std.debug.assert(!zmath.all(zmath.isInf(up_direction), 3));
-
-    const r2 = zmath.normalize3(eye_direction);
-    const r0 = zmath.normalize3(zmath.cross3(up_direction, r2));
-    const r1 = zmath.cross3(r2, r0);
-
-    const neg_eye_position = -eye_position;
-
-    const d0 = zmath.dot3(r0, neg_eye_position);
-    const d1 = zmath.dot3(r1, neg_eye_position);
-    const d2 = zmath.dot3(r2, neg_eye_position);
-
-    var m: zmath.Mat = undefined;
-    // const control = zmath.F32x4{ 0xffff_ffff, 0xffff_ffff, 0xffff_ffff, 0 };
-    // m[0] = zmath.select(control, d0, r0);
-    // m[1] = zmath.select(control, d1, r1);
-    // m[2] = zmath.select(control, d2, r2);
-    m[0] = .{ d0[0], d0[1], d0[2], r0[3] };
-    m[1] = .{ d1[0], d1[1], d1[2], r1[3] };
-    m[2] = .{ d2[0], d2[1], d2[2], r2[3] };
-    m[3] = .{ 0.0, 0.0, 0.0, 1.0 };
-
-    return zmath.transpose(m);
 }
