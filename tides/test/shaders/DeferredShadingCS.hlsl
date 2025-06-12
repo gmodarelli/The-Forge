@@ -1,5 +1,58 @@
 #include "Globals.hlsli"
 
+#define ShadowFixedFilterSize 9
+
+#if ShadowFixedFilterSize == 3
+
+static const float PCFKernel[ShadowFixedFilterSize][ShadowFixedFilterSize] =
+{
+    { 0.5,1.0,0.5, },
+    { 1.0,1.0,1.0, },
+    { 0.5,1.0,0.5, }
+};
+
+#elif ShadowFixedFilterSize == 5
+
+static const float PCFKernel[ShadowFixedFilterSize][ShadowFixedFilterSize] =
+{
+    { 0.0,0.5,1.0,0.5,0.0 },
+    { 0.5,1.0,1.0,1.0,0.5 },
+    { 1.0,1.0,1.0,1.0,1.0 },
+    { 0.5,1.0,1.0,1.0,0.5 },
+    { 0.0,0.5,1.0,0.5,0.0 }
+};
+
+#elif ShadowFixedFilterSize == 7
+
+// -- 7x7 disc kernel
+static const float PCFKernel[ShadowFixedFilterSize][ShadowFixedFilterSize] =
+{
+    { 0.0,0.0,0.5,1.0,0.5,0.0,0.0 },
+    { 0.0,1.0,1.0,1.0,1.0,1.0,0.0 },
+    { 0.5,1.0,1.0,1.0,1.0,1.0,0.5 },
+    { 1.0,1.0,1.0,1.0,1.0,1.0,1.0 },
+    { 0.5,1.0,1.0,1.0,1.0,1.0,0.5 },
+    { 0.0,1.0,1.0,1.0,1.0,1.0,0.0 },
+    { 0.0,0.0,0.5,1.0,0.5,0.0,0.0 }
+};
+
+#elif ShadowFixedFilterSize == 9
+
+static const float PCFKernel[9][9] =
+{
+    { 0.0,0.0,0.0,0.5,1.0,0.5,0.0,0.0,0.0 },
+    { 0.0,0.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0 },
+    { 0.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.0 },
+    { 0.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.5 },
+    { 1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0 },
+    { 0.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.5 },
+    { 0.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.0 },
+    { 0.0,0.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0 },
+    { 0.0,0.0,0.0,0.5,1.0,0.5,0.0,0.0,0.0 }
+};
+
+#endif
+
 struct ShadowFrame
 {
     float4x4 shadow_matrix;
@@ -48,8 +101,146 @@ float SampleShadowMapFixedSizePCF(float3 shadow_pos, float3 shadow_pos_dx, float
 
     // NOTE: This only works for a filter size of 2
     // TODO: Add support for filter sizes > 2
-    SamplerComparisonState shadow_pcf_sample = SamplerDescriptorHeap[g_frame.shadow_pcf_sampler_index];
-    return g_shadow_map.SampleCmpLevelZero(shadow_pcf_sample, float3(shadow_pos.xy, cascade_index), light_depth);
+#if ShadowFixedFilterSize == 2
+    SamplerComparisonState shadow_pcf_sampler = SamplerDescriptorHeap[g_frame.shadow_pcf_sampler_index];
+    return g_shadow_map.SampleCmpLevelZero(shadow_pcf_sampler, float3(shadow_pos.xy, cascade_index), light_depth);
+#else
+    SamplerComparisonState shadow_sampler = SamplerDescriptorHeap[g_frame.shadow_sampler_index];
+    const int fs_2 = ShadowFixedFilterSize / 2;
+    float2 tc = shadow_pos.xy;
+
+    float4 s = 0.0f;
+    float2 stc = (shadow_map_size * tc.xy) + float2(0.5f, 0.5f);
+    float2 tcs = floor(stc);
+    float2 fc;
+    int row;
+    int col;
+    float w = 0.0f;
+    float4 v1[fs_2 + 1];
+    float2 v0[fs_2 + 1];
+
+    fc.xy = stc - tcs;
+    tc.xy = tcs / shadow_map_size;
+
+    for (row = 0; row < ShadowFixedFilterSize; ++row)
+        for (col = 0; col < ShadowFixedFilterSize; ++col)
+            w += PCFKernel[row][col];
+
+    // -- loop over the rows
+    [unroll]
+    for(row = -fs_2; row <= fs_2; row += 2)
+    {
+        [unroll]
+        for(col = -fs_2; col <= fs_2; col += 2)
+        {
+            float value = PCFKernel[row + fs_2][col + fs_2];
+
+            if(col > -fs_2)
+                value += PCFKernel[row + fs_2][col + fs_2 - 1];
+
+            if(col < fs_2)
+                value += PCFKernel[row + fs_2][col + fs_2 + 1];
+
+            if(row > -fs_2) {
+                value += PCFKernel[row + fs_2 - 1][col + fs_2];
+
+                if(col < fs_2)
+                    value += PCFKernel[row + fs_2 - 1][col + fs_2 + 1];
+
+                if(col > -fs_2)
+                    value += PCFKernel[row + fs_2 - 1][col + fs_2 - 1];
+            }
+
+            if(value != 0.0f)
+            {
+                float sample_depth = light_depth;
+
+                // TODO
+                // #if UsePlaneDepthBias_
+                //     // Compute offset and apply planar depth bias
+                //     float2 offset = float2(col, row) * texelSize;
+                //     sample_depth += dot(offset, receiverPlaneDepthBias);
+                // #endif
+
+                v1[(col + fs_2) / 2] = g_shadow_map.GatherCmp(shadow_sampler, float3(tc.xy, cascade_index), sample_depth, int2(col, row));
+            }
+            else
+                v1[(col + fs_2) / 2] = 0.0f;
+
+            if(col == -fs_2)
+            {
+                s.x += (1.0f - fc.y) * (v1[0].w * (PCFKernel[row + fs_2][col + fs_2]
+                                    - PCFKernel[row + fs_2][col + fs_2] * fc.x)
+                                    + v1[0].z * (fc.x * (PCFKernel[row + fs_2][col + fs_2]
+                                    - PCFKernel[row + fs_2][col + fs_2 + 1.0f])
+                                    + PCFKernel[row + fs_2][col + fs_2 + 1]));
+                s.y += fc.y * (v1[0].x * (PCFKernel[row + fs_2][col + fs_2]
+                                    - PCFKernel[row + fs_2][col + fs_2] * fc.x)
+                                    + v1[0].y * (fc.x * (PCFKernel[row + fs_2][col + fs_2]
+                                    - PCFKernel[row + fs_2][col + fs_2 + 1])
+                                    +  PCFKernel[row + fs_2][col + fs_2 + 1]));
+                if(row > -fs_2)
+                {
+                    s.z += (1.0f - fc.y) * (v0[0].x * (PCFKernel[row + fs_2 - 1][col + fs_2]
+                                        - PCFKernel[row + fs_2 - 1][col + fs_2] * fc.x)
+                                        + v0[0].y * (fc.x * (PCFKernel[row + fs_2 - 1][col + fs_2]
+                                        - PCFKernel[row + fs_2 - 1][col + fs_2 + 1])
+                                        + PCFKernel[row + fs_2 - 1][col + fs_2 + 1]));
+                    s.w += fc.y * (v1[0].w * (PCFKernel[row + fs_2 - 1][col + fs_2]
+                                        - PCFKernel[row + fs_2 - 1][col + fs_2] * fc.x)
+                                        + v1[0].z * (fc.x * (PCFKernel[row + fs_2 - 1][col + fs_2]
+                                        - PCFKernel[row + fs_2 - 1][col + fs_2 + 1])
+                                        + PCFKernel[row + fs_2 - 1][col + fs_2 + 1]));
+                }
+            }
+            else if(col == fs_2)
+            {
+                s.x += (1 - fc.y) * (v1[fs_2].w * (fc.x * (PCFKernel[row + fs_2][col + fs_2 - 1]
+                                    - PCFKernel[row + fs_2][col + fs_2]) + PCFKernel[row + fs_2][col + fs_2])
+                                    + v1[fs_2].z * fc.x * PCFKernel[row + fs_2][col + fs_2]);
+                s.y += fc.y * (v1[fs_2].x * (fc.x * (PCFKernel[row + fs_2][col + fs_2 - 1]
+                                    - PCFKernel[row + fs_2][col + fs_2] ) + PCFKernel[row + fs_2][col + fs_2])
+                                    + v1[fs_2].y * fc.x * PCFKernel[row + fs_2][col + fs_2]);
+                if(row > -fs_2) {
+                    s.z += (1 - fc.y) * (v0[fs_2].x * (fc.x * (PCFKernel[row + fs_2 - 1][col + fs_2 - 1]
+                                        - PCFKernel[row + fs_2 - 1][col + fs_2])
+                                        + PCFKernel[row + fs_2 - 1][col + fs_2])
+                                        + v0[fs_2].y * fc.x * PCFKernel[row + fs_2 - 1][col + fs_2]);
+                    s.w += fc.y * (v1[fs_2].w * (fc.x * (PCFKernel[row + fs_2 - 1][col + fs_2 - 1]
+                                        - PCFKernel[row + fs_2 - 1][col + fs_2])
+                                        + PCFKernel[row + fs_2 - 1][col + fs_2])
+                                        + v1[fs_2].z * fc.x * PCFKernel[row + fs_2 - 1][col + fs_2]);
+                }
+            }
+            else
+            {
+                s.x += (1 - fc.y) * (v1[(col + fs_2) / 2].w * (fc.x * (PCFKernel[row + fs_2][col + fs_2 - 1]
+                                    - PCFKernel[row + fs_2][col + fs_2 + 0] ) + PCFKernel[row + fs_2][col + fs_2 + 0])
+                                    + v1[(col + fs_2) / 2].z * (fc.x * (PCFKernel[row + fs_2][col + fs_2 - 0]
+                                    - PCFKernel[row + fs_2][col + fs_2 + 1]) + PCFKernel[row + fs_2][col + fs_2 + 1]));
+                s.y += fc.y * (v1[(col + fs_2) / 2].x * (fc.x * (PCFKernel[row + fs_2][col + fs_2-1]
+                                    - PCFKernel[row + fs_2][col + fs_2 + 0]) + PCFKernel[row + fs_2][col + fs_2 + 0])
+                                    + v1[(col + fs_2) / 2].y * (fc.x * (PCFKernel[row + fs_2][col + fs_2 - 0]
+                                    - PCFKernel[row + fs_2][col + fs_2 + 1]) + PCFKernel[row + fs_2][col + fs_2 + 1]));
+                if(row > -fs_2) {
+                    s.z += (1 - fc.y) * (v0[(col + fs_2) / 2].x * (fc.x * (PCFKernel[row + fs_2 - 1][col + fs_2 - 1]
+                                            - PCFKernel[row + fs_2 - 1][col + fs_2 + 0]) + PCFKernel[row + fs_2 - 1][col + fs_2 + 0])
+                                            + v0[(col + fs_2) / 2].y * (fc.x * (PCFKernel[row + fs_2 - 1][col + fs_2 - 0]
+                                            - PCFKernel[row + fs_2 - 1][col + fs_2 + 1]) + PCFKernel[row + fs_2 - 1][col + fs_2 + 1]));
+                    s.w += fc.y * (v1[(col + fs_2) / 2].w * (fc.x * (PCFKernel[row + fs_2 - 1][col + fs_2 - 1]
+                                            - PCFKernel[row + fs_2 - 1][col + fs_2 + 0]) + PCFKernel[row + fs_2 - 1][col + fs_2 + 0])
+                                            + v1[(col + fs_2) / 2].z * (fc.x * (PCFKernel[row + fs_2 - 1][col + fs_2 - 0]
+                                            - PCFKernel[row + fs_2 - 1][col + fs_2 + 1]) + PCFKernel[row + fs_2 - 1][col + fs_2 + 1]));
+                }
+            }
+
+            if(row != fs_2)
+                v0[(col + fs_2) / 2] = v1[(col + fs_2) / 2].xy;
+        }
+    }
+
+    return dot(s, 1.0f) / w;
+#endif
 }
 
 // TODO: Add debug cascade visibility here?
