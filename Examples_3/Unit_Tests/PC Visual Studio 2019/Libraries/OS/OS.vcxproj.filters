@@ -168,21 +168,6 @@
     <ClCompile Include="..\..\..\..\..\Common_3\Application\Screenshot.cpp">
       <Filter>Application</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\..\Common_3\Application\ThirdParty\OpenSource\imgui\imgui.cpp">
-      <Filter>Application\ThirdParty\OpenSource\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\..\Common_3\Application\ThirdParty\OpenSource\imgui\imgui_demo.cpp">
-      <Filter>Application\ThirdParty\OpenSource\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\..\Common_3\Application\ThirdParty\OpenSource\imgui\imgui_draw.cpp">
-      <Filter>Application\ThirdParty\OpenSource\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\..\Common_3\Application\ThirdParty\OpenSource\imgui\imgui_widgets.cpp">
-      <Filter>Application\ThirdParty\OpenSource\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\..\Common_3\Application\ThirdParty\OpenSource\imgui\imgui_tables.cpp">
-      <Filter>Application\ThirdParty\OpenSource\imgui</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\..\Common_3\Application\UI\UI.cpp">
       <Filter>Application\UI</Filter>
     </ClCompile>
@@ -458,15 +443,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\..\..\Common_3\Application\Profiler\ProfilerHTML.h">
       <Filter>Application\Profiler</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\..\Common_3\Application\ThirdParty\OpenSource\imgui\imconfig.h">
-      <Filter>Application\ThirdParty\OpenSource\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\..\Common_3\Application\ThirdParty\OpenSource\imgui\imgui.h">
-      <Filter>Application\ThirdParty\OpenSource\imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\..\Common_3\Application\ThirdParty\OpenSource\imgui\imgui_internal.h">
-      <Filter>Application\ThirdParty\OpenSource\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\..\Common_3\Game\Interfaces\IScripting.h">
       <Filter>Game\Interfaces</Filter>

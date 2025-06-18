@@ -308,7 +308,9 @@ COMPILE_ASSERT(sizeof(ssize_t) == sizeof(int64_t));
 #define ENABLE_FORGE_MATERIALS
 #define ENABLE_ZIP_FILESYSTEM
 #define ENABLE_SCREENSHOT
+#if !defined(TIDES)
 #define ENABLE_PROFILER
+#endif
 #define ENABLE_MESHOPTIMIZER
 #define ENABLE_THREAD_PERFORMANCE_STATS
 // #define ENABLE_VMA_LOG // Very verbose, prints for each allocation

@@ -23,8 +23,10 @@
  */
 
 #include "../../Resources/ResourceLoader/ThirdParty/OpenSource/tinyimageformat/tinyimageformat_query.h"
+#if !defined(TIDES)
 #include "../ThirdParty/OpenSource/imgui/imgui.h"
 #include "../ThirdParty/OpenSource/imgui/imgui_internal.h"
+#endif
 
 #include "../../OS/Interfaces/IInput.h"
 #include "../../Application/Interfaces/IFont.h"
@@ -83,7 +85,9 @@ typedef struct UserInterface
     UIComponent** mComponents = NULL;
 
     PipelineCache* pPipelineCache = NULL;
+#ifdef ENABLE_FORGE_UI
     ImGuiContext*  context = NULL;
+#endif
     // (Texture*)[dyn_size]
     struct UIFontResource
     {
@@ -2486,13 +2490,19 @@ void uiNewFrame()
 #endif
 }
 
-void uiEndFrame() { ImGui::EndFrame(); }
+void uiEndFrame() {
+#ifdef ENABLE_FORGE_UI
+    ImGui::EndFrame(); 
+#endif
+}
 
 /****************************************************************************/
 // MARK: - Private Platform Layer Life Cycle Functions
 /****************************************************************************/
 
+#ifdef ENABLE_FORGE_UI
 static InputEnum gKeyMap[ImGuiKey_NamedKey_COUNT] = {};
+#endif
 
 bool platformInitUserInterface()
 {
