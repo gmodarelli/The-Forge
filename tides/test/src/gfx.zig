@@ -8,7 +8,7 @@ const zmath = @import("zmath");
 
 pub const HashKey = zf.HashKey;
 
-const MeshHashMap = std.AutoHashMap(u64, geometry.Mesh);
+const MeshHashMap = std.AutoHashMap(u64, usize);
 const TextureHashMap = std.AutoHashMap(u64, zf.TextureHandle);
 const MaterialHashMap = std.AutoHashMap(u64, usize);
 
@@ -26,7 +26,6 @@ pub const Renderable = struct {
 };
 
 const RenderableHashMap = std.AutoHashMap(u64, Renderable);
-
 
 pub const RenderableItemInstance = struct {
     transform: [16]f32,
@@ -141,11 +140,11 @@ pub const Gfx = struct {
     timings_material: GfxMaterial = undefined,
 
     // CPU Geometry data
-    // meshes: std.ArrayList(geometry.Mesh) = undefined,
-    meshes: MeshHashMap,
+    mesh_map: MeshHashMap,
+    meshes: std.ArrayList(geometry.Mesh) = undefined,
 
     // Textures
-    textures: TextureHashMap,
+    texture_map: TextureHashMap,
 
     // Material data
     material_data: std.ArrayList(GpuMaterialData) = undefined,
@@ -750,207 +749,12 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         }
     }
 
-    gfx.meshes = MeshHashMap.init(gfx_allocator);
-    gfx.textures = TextureHashMap.init(gfx_allocator);
+    gfx.mesh_map = MeshHashMap.init(gfx_allocator);
+    gfx.meshes = std.ArrayList(geometry.Mesh).init(gfx_allocator);
+    gfx.texture_map = TextureHashMap.init(gfx_allocator);
     gfx.material_data = std.ArrayList(GpuMaterialData).init(gfx_allocator);
     gfx.material_map = MaterialHashMap.init(gfx_allocator);
     gfx.renderables = RenderableHashMap.init(gfx_allocator);
-
-    loadMeshes();
-    loadTextures();
-    loadMaterials();
-
-    // TODO: These should be registered from the app side, but currently we're loading all models, textures and materials here
-    // Plane
-    {
-        const key = zf.HashKey.generate("plane");
-        const mesh = gfx.meshes.getPtr(key.key).?;
-
-        var renderable: Renderable = undefined;
-        renderable.mesh_index = 0; // TODO: unused
-        renderable.renderable_item_count = mesh.sub_meshes_count;
-        renderable.renderable_items[0] = .{
-            .sub_mesh_index = 0,
-            .material_index = 0,
-            .indirect_draw_args = .{
-                .mIndexCount = mesh.sub_meshes[0].index_count,
-                .mStartIndex = mesh.sub_meshes[0].first_index,
-                .mVertexOffset = mesh.sub_meshes[0].first_vertex,
-                .mInstanceCount = 0,
-                .mStartInstance = 0,
-            },
-        };
-        gfx.renderables.put(key.key, renderable) catch unreachable;
-
-        var indirect_args: [2]zf.IndirectDrawIndexArguments = undefined;
-        indirect_args[0] = .{
-            .mIndexCount = mesh.sub_meshes[0].index_count,
-            .mStartIndex = mesh.sub_meshes[0].first_index,
-            .mVertexOffset = mesh.sub_meshes[0].first_vertex,
-            .mInstanceCount = 1, // Just a test
-            .mStartInstance = 0, // just a test
-        };
-
-        const indirect_args_data = zf.DataSlice{
-            .data = @ptrCast(&indirect_args),
-            .size = @sizeOf(zf.IndirectDrawIndexArguments) * indirect_args.len,
-        };
-        for (0..zf.frames_in_flight_count) |frame_index| {
-            zf.updateBuffer(indirect_args_data, 0, gfx.indirect_args_buffers[frame_index]);
-        }
-    }
-    // Birch 1
-    {
-        const key = zf.HashKey.generate("birch_1");
-        const mesh = gfx.meshes.getPtr(key.key).?;
-
-        var renderable: Renderable = undefined;
-        renderable.mesh_index = 0; // TODO: unused
-        renderable.renderable_item_count = mesh.sub_meshes_count;
-        renderable.renderable_items[0] = .{
-            .sub_mesh_index = 0,
-            .material_index = 1,
-            .indirect_draw_args = .{
-                .mIndexCount = mesh.sub_meshes[0].index_count,
-                .mStartIndex = mesh.sub_meshes[0].first_index,
-                .mVertexOffset = mesh.sub_meshes[0].first_vertex,
-                .mInstanceCount = 0,
-                .mStartInstance = 0,
-            },
-        };
-        renderable.renderable_items[1] = .{
-            .sub_mesh_index = 1,
-            .material_index = 2,
-            .indirect_draw_args = .{
-                .mIndexCount = mesh.sub_meshes[1].index_count,
-                .mStartIndex = mesh.sub_meshes[1].first_index,
-                .mVertexOffset = mesh.sub_meshes[1].first_vertex,
-                .mInstanceCount = 0,
-                .mStartInstance = 0,
-            },
-        };
-        gfx.renderables.put(key.key, renderable) catch unreachable;
-
-        var indirect_args: [2]zf.IndirectDrawIndexArguments = undefined;
-        indirect_args[0] = .{
-            .mIndexCount = mesh.sub_meshes[0].index_count,
-            .mStartIndex = mesh.sub_meshes[0].first_index,
-            .mVertexOffset = mesh.sub_meshes[0].first_vertex,
-            .mInstanceCount = 1, // Just a test
-            .mStartInstance = 1, // just a test
-        };
-        indirect_args[1] = .{
-            .mIndexCount = mesh.sub_meshes[1].index_count,
-            .mStartIndex = mesh.sub_meshes[1].first_index,
-            .mVertexOffset = mesh.sub_meshes[1].first_vertex,
-            .mInstanceCount = 1, // Just a test
-            .mStartInstance = 2, // just a test
-        };
-
-        const indirect_args_data = zf.DataSlice{
-            .data = @ptrCast(&indirect_args),
-            .size = @sizeOf(zf.IndirectDrawIndexArguments) * indirect_args.len,
-        };
-        for (0..zf.frames_in_flight_count) |frame_index| {
-            zf.updateBuffer(indirect_args_data, 1 * @sizeOf(zf.IndirectDrawIndexArguments), gfx.indirect_args_buffers[frame_index]);
-        }
-    }
-
-    // Birch 2
-    {
-        const key = zf.HashKey.generate("birch_2");
-        const mesh = gfx.meshes.getPtr(key.key).?;
-
-        var renderable: Renderable = undefined;
-        renderable.mesh_index = 0; // TODO: unused
-        renderable.renderable_item_count = mesh.sub_meshes_count;
-        renderable.renderable_items[0] = .{
-            .sub_mesh_index = 0,
-            .material_index = 1,
-            .indirect_draw_args = .{
-                .mIndexCount = mesh.sub_meshes[0].index_count,
-                .mStartIndex = mesh.sub_meshes[0].first_index,
-                .mVertexOffset = mesh.sub_meshes[0].first_vertex,
-                .mInstanceCount = 0,
-                .mStartInstance = 0,
-            },
-        };
-        renderable.renderable_items[1] = .{
-            .sub_mesh_index = 1,
-            .material_index = 2,
-            .indirect_draw_args = .{
-                .mIndexCount = mesh.sub_meshes[1].index_count,
-                .mStartIndex = mesh.sub_meshes[1].first_index,
-                .mVertexOffset = mesh.sub_meshes[1].first_vertex,
-                .mInstanceCount = 0,
-                .mStartInstance = 0,
-            },
-        };
-        gfx.renderables.put(key.key, renderable) catch unreachable;
-
-        var indirect_args: [2]zf.IndirectDrawIndexArguments = undefined;
-        indirect_args[0] = .{
-            .mIndexCount = mesh.sub_meshes[0].index_count,
-            .mStartIndex = mesh.sub_meshes[0].first_index,
-            .mVertexOffset = mesh.sub_meshes[0].first_vertex,
-            .mInstanceCount = 1, // Just a test
-            .mStartInstance = 3, // just a test
-        };
-        indirect_args[1] = .{
-            .mIndexCount = mesh.sub_meshes[1].index_count,
-            .mStartIndex = mesh.sub_meshes[1].first_index,
-            .mVertexOffset = mesh.sub_meshes[1].first_vertex,
-            .mInstanceCount = 1, // Just a test
-            .mStartInstance = 4, // just a test
-        };
-
-        const indirect_args_data = zf.DataSlice{
-            .data = @ptrCast(&indirect_args),
-            .size = @sizeOf(zf.IndirectDrawIndexArguments) * indirect_args.len,
-        };
-        for (0..zf.frames_in_flight_count) |frame_index| {
-            zf.updateBuffer(indirect_args_data, 3 * @sizeOf(zf.IndirectDrawIndexArguments), gfx.indirect_args_buffers[frame_index]);
-        }
-    }
-
-    // Bush Large
-    {
-        const key = zf.HashKey.generate("bush_large");
-        const mesh = gfx.meshes.getPtr(key.key).?;
-
-        var renderable: Renderable = undefined;
-        renderable.mesh_index = 0; // TODO: unused
-        renderable.renderable_item_count = mesh.sub_meshes_count;
-        renderable.renderable_items[0] = .{
-            .sub_mesh_index = 0,
-            .material_index = 3,
-            .indirect_draw_args = .{
-                .mIndexCount = mesh.sub_meshes[0].index_count,
-                .mStartIndex = mesh.sub_meshes[0].first_index,
-                .mVertexOffset = mesh.sub_meshes[0].first_vertex,
-                .mInstanceCount = 0,
-                .mStartInstance = 0,
-            },
-        };
-        gfx.renderables.put(key.key, renderable) catch unreachable;
-
-        var indirect_args: [1]zf.IndirectDrawIndexArguments = undefined;
-        indirect_args[0] = .{
-            .mIndexCount = mesh.sub_meshes[0].index_count,
-            .mStartIndex = mesh.sub_meshes[0].first_index,
-            .mVertexOffset = mesh.sub_meshes[0].first_vertex,
-            .mInstanceCount = 1, // Just a test
-            .mStartInstance = 5, // just a test
-        };
-
-        const indirect_args_data = zf.DataSlice{
-            .data = @ptrCast(&indirect_args),
-            .size = @sizeOf(zf.IndirectDrawIndexArguments) * indirect_args.len,
-        };
-        for (0..zf.frames_in_flight_count) |frame_index| {
-            zf.updateBuffer(indirect_args_data, 5 * @sizeOf(zf.IndirectDrawIndexArguments), gfx.indirect_args_buffers[frame_index]);
-        }
-    }
 
     // Timings material
     {
@@ -1123,53 +927,14 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
 pub fn shutdown() void {
     zf.shutdownGpu();
     gfx.renderables.deinit();
-    gfx.textures.deinit();
+    gfx.texture_map.deinit();
+    gfx.mesh_map.deinit();
     gfx.meshes.deinit();
     gfx_allocator.destroy(gfx);
 }
 
 pub fn resize() void {
     zf.requestResize();
-}
-
-pub fn recordRenderableItemInstances(renderableItemInstances: *std.ArrayList(RenderableItemInstance)) void {
-    var transforms = std.ArrayList(Transform).init(gfx_allocator);
-    defer transforms.deinit();
-
-    var instances = std.ArrayList(InstanceData).init(gfx_allocator);
-    defer instances.deinit();
-
-    for (renderableItemInstances.items) |object| {
-        var transform: Transform = undefined;
-        @memcpy(transform.world_matrix[0..], object.transform[0..]);
-        transforms.append(transform) catch unreachable;
-
-        const renderable = gfx.renderables.get(object.renderable_hash.key).?;
-        for (0..renderable.renderable_item_count) |ridx| {
-            var instance_data: InstanceData = undefined;
-            instance_data.transform_index = @intCast(transforms.items.len - 1);
-            instance_data.material_index = renderable.renderable_items[ridx].material_index;
-            instance_data.mesh_index = renderable.mesh_index;
-            instance_data.sub_mesh_index = renderable.renderable_items[ridx].sub_mesh_index;
-            instances.append(instance_data) catch unreachable;
-        }
-    }
-
-    const transform_data = zf.DataSlice{
-        .data = @ptrCast(transforms.items),
-        .size = @sizeOf(Transform) * transforms.items.len,
-    };
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        zf.updateBuffer(transform_data, 0, gfx.transform_buffers[frame_index]);
-    }
-
-    const instance_data = zf.DataSlice{
-        .data = @ptrCast(instances.items),
-        .size = @sizeOf(InstanceData) * instances.items.len,
-    };
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        zf.updateBuffer(instance_data, 0, gfx.instance_buffers[frame_index]);
-    }
 }
 
 pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: f32) void {
@@ -1949,7 +1714,7 @@ fn updateDescriptorSets() void {
 // ╚═╝     ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝
 //
 
-pub fn loadMesh(mesh_key: u64, content_path: []const u8, file_name: []const u8) void {
+pub fn loadMesh(mesh_key: HashKey, content_path: []const u8, file_name: []const u8) void {
     // TODO: Allocate these at startup and reuse across function calls with clearRetainCapacity
     var mesh_vertices = std.ArrayList(geometry.Vertex).init(gfx_allocator);
     defer mesh_vertices.deinit();
@@ -1962,6 +1727,7 @@ pub fn loadMesh(mesh_key: u64, content_path: []const u8, file_name: []const u8) 
     load_desc.mesh_vertices = &mesh_vertices;
     load_desc.mesh_indices = &mesh_indices;
 
+    const mesh_index = gfx.meshes.items.len;
     var mesh = std.mem.zeroes(geometry.Mesh);
 
     load_desc.file_name = file_name;
@@ -1970,90 +1736,8 @@ pub fn loadMesh(mesh_key: u64, content_path: []const u8, file_name: []const u8) 
 
     geometry.loadGltfMesh(&load_desc);
     uploadMesh(&mesh_vertices, &mesh_indices, &mesh);
-    gfx.meshes.put(mesh_key, mesh) catch unreachable;
-}
-
-fn loadMeshes() void {
-    const temp_allocator = std.heap.page_allocator;
-
-    var mesh_vertices = std.ArrayList(geometry.Vertex).init(temp_allocator);
-    defer mesh_vertices.deinit();
-    var mesh_indices = std.ArrayList(u32).init(temp_allocator);
-    defer mesh_indices.deinit();
-
-    var load_desc: geometry.GltfLoadDesc = undefined;
-    load_desc.base_path = "content/models";
-    load_desc.allocator = temp_allocator;
-    load_desc.mesh_vertices = &mesh_vertices;
-    load_desc.mesh_indices = &mesh_indices;
-
-    // Plane
-    {
-        mesh_vertices.clearRetainingCapacity();
-        mesh_indices.clearRetainingCapacity();
-
-        var mesh = std.mem.zeroes(geometry.Mesh);
-        const mesh_key = zf.HashKey.generate("plane");
-
-        load_desc.file_name = "Plane.gltf";
-        load_desc.allocator = temp_allocator;
-        load_desc.mesh = &mesh;
-
-        geometry.loadGltfMesh(&load_desc);
-        uploadMesh(&mesh_vertices, &mesh_indices, &mesh);
-        gfx.meshes.put(mesh_key.key, mesh) catch unreachable;
-    }
-
-    // Birch 1
-    {
-        mesh_vertices.clearRetainingCapacity();
-        mesh_indices.clearRetainingCapacity();
-
-        var mesh = std.mem.zeroes(geometry.Mesh);
-        const mesh_key = zf.HashKey.generate("birch_1");
-
-        load_desc.file_name = "Birch_1.gltf";
-        load_desc.allocator = temp_allocator;
-        load_desc.mesh = &mesh;
-
-        geometry.loadGltfMesh(&load_desc);
-        uploadMesh(&mesh_vertices, &mesh_indices, &mesh);
-        gfx.meshes.put(mesh_key.key, mesh) catch unreachable;
-    }
-
-    // Birch 2
-    {
-        mesh_vertices.clearRetainingCapacity();
-        mesh_indices.clearRetainingCapacity();
-
-        var mesh = std.mem.zeroes(geometry.Mesh);
-        const mesh_key = zf.HashKey.generate("birch_2");
-
-        load_desc.file_name = "Birch_2.gltf";
-        load_desc.allocator = temp_allocator;
-        load_desc.mesh = &mesh;
-
-        geometry.loadGltfMesh(&load_desc);
-        uploadMesh(&mesh_vertices, &mesh_indices, &mesh);
-        gfx.meshes.put(mesh_key.key, mesh) catch unreachable;
-    }
-
-    // Bush Large
-    {
-        mesh_vertices.clearRetainingCapacity();
-        mesh_indices.clearRetainingCapacity();
-
-        var mesh = std.mem.zeroes(geometry.Mesh);
-        const mesh_key = zf.HashKey.generate("bush_large");
-
-        load_desc.file_name = "Bush_Large.gltf";
-        load_desc.allocator = temp_allocator;
-        load_desc.mesh = &mesh;
-
-        geometry.loadGltfMesh(&load_desc);
-        uploadMesh(&mesh_vertices, &mesh_indices, &mesh);
-        gfx.meshes.put(mesh_key.key, mesh) catch unreachable;
-    }
+    gfx.mesh_map.put(mesh_key.key, mesh_index) catch unreachable;
+    gfx.meshes.append(mesh) catch unreachable;
 }
 
 fn uploadMesh(vertices: *std.ArrayList(geometry.Vertex), indices: *std.ArrayList(u32), mesh: *geometry.Mesh) void {
@@ -2106,31 +1790,9 @@ fn uploadMesh(vertices: *std.ArrayList(geometry.Vertex), indices: *std.ArrayList
 //    ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝
 //
 
-pub fn loadTexture(key: u64, path: []const u8) void {
+pub fn loadTexture(key: HashKey, path: []const u8) void {
     const handle = loadDdsTexture(path, true, gfx_allocator) catch unreachable;
-    gfx.textures.put(key, handle) catch unreachable;
-}
-
-fn loadTextures() void {
-    {
-        const key = zf.HashKey.generate("bark_birch_tree_albedo");
-        loadTexture(key.key, "content/textures/Bark_BirchTree.dds");
-    }
-
-    {
-        const key = zf.HashKey.generate("bark_birch_tree_normal");
-        loadTexture(key.key, "content/textures/Bark_BirchTree_Normal.dds");
-    }
-
-    {
-        const key = zf.HashKey.generate("leaves_birch_albedo");
-        loadTexture(key.key, "content/textures/Leaves_Birch_C.dds");
-    }
-
-    {
-        const key = zf.HashKey.generate("leaves_giant_pine_albedo");
-        loadTexture(key.key, "content/textures/Leaves_GiantPine_C.dds");
-    }
+    gfx.texture_map.put(key.key, handle) catch unreachable;
 }
 
 fn loadDdsTexture(file_path: []const u8, bindless: bool, allocator: std.mem.Allocator) !zf.TextureHandle {
@@ -2172,11 +1834,11 @@ pub fn loadMaterial(key: zf.HashKey, material_desc: MaterialDataDesc) void {
     var material = GpuMaterialData{};
 
     if (material_desc.albedo_texture) |texture_key| {
-        material.albedo_texture_id = zf.getTextureBindlessIndex(gfx.textures.get(texture_key.key).?);
+        material.albedo_texture_id = zf.getTextureBindlessIndex(gfx.texture_map.get(texture_key.key).?);
     }
 
     if (material_desc.normal_texture) |texture_key| {
-        material.normal_texture_id = zf.getTextureBindlessIndex(gfx.textures.get(texture_key.key).?);
+        material.normal_texture_id = zf.getTextureBindlessIndex(gfx.texture_map.get(texture_key.key).?);
     }
 
     gfx.material_data.append(material) catch unreachable;
@@ -2192,18 +1854,107 @@ pub fn loadMaterial(key: zf.HashKey, material_desc: MaterialDataDesc) void {
     gfx.material_buffer_offset += material_data.size;
 }
 
-fn loadMaterials() void {
-    loadMaterial(zf.HashKey.generate("default"), .{});
-    loadMaterial(zf.HashKey.generate("bark_birch"), .{
-        .albedo_texture = zf.HashKey.generate("bark_birch_tree_albedo"),
-        .normal_texture = zf.HashKey.generate("bark_birch_tree_normal"),
-    });
-    loadMaterial(zf.HashKey.generate("leaves_birch"), .{
-        .albedo_texture = zf.HashKey.generate("leaves_birch_albedo"),
-    });
-    loadMaterial(zf.HashKey.generate("leaves_giant_pine"), .{
-        .albedo_texture = zf.HashKey.generate("leaves_giant_pine_albedo"),
-    });
+// ██████╗ ███████╗███╗   ██╗██████╗ ███████╗██████╗  █████╗ ██████╗ ██╗     ███████╗███████╗
+// ██╔══██╗██╔════╝████╗  ██║██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔══██╗██║     ██╔════╝██╔════╝
+// ██████╔╝█████╗  ██╔██╗ ██║██║  ██║█████╗  ██████╔╝███████║██████╔╝██║     █████╗  ███████╗
+// ██╔══██╗██╔══╝  ██║╚██╗██║██║  ██║██╔══╝  ██╔══██╗██╔══██║██╔══██╗██║     ██╔══╝  ╚════██║
+// ██║  ██║███████╗██║ ╚████║██████╔╝███████╗██║  ██║██║  ██║██████╔╝███████╗███████╗███████║
+// ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝╚══════╝╚══════╝
+//
+
+pub fn registerRenderable(key: HashKey, mesh_key: HashKey, materials: []const HashKey) void {
+    const mesh_index = gfx.mesh_map.get(mesh_key.key).?;
+    const mesh = &gfx.meshes.items[mesh_index];
+
+    std.debug.assert(@as(u32, @intCast(materials.len)) == mesh.sub_meshes_count);
+
+    var renderable: Renderable = undefined;
+    renderable.mesh_index = @intCast(mesh_index);
+    renderable.renderable_item_count = mesh.sub_meshes_count;
+
+    for (0..mesh.sub_meshes_count) |i| {
+        const material_index = gfx.material_map.get(materials[i].key).?;
+        renderable.renderable_items[i] = .{
+            .sub_mesh_index = @intCast(i),
+            .material_index = @intCast(material_index),
+            .indirect_draw_args = .{
+                .mIndexCount = mesh.sub_meshes[i].index_count,
+                .mStartIndex = mesh.sub_meshes[i].first_index,
+                .mVertexOffset = mesh.sub_meshes[i].first_vertex,
+                .mInstanceCount = 0,
+                .mStartInstance = 0,
+            },
+        };
+    }
+
+    gfx.renderables.put(key.key, renderable) catch unreachable;
+}
+
+pub fn registerRenderableItemInstances(renderableItemInstances: *std.ArrayList(RenderableItemInstance)) void {
+    var transforms = std.ArrayList(Transform).init(gfx_allocator);
+    defer transforms.deinit();
+
+    var instances = std.ArrayList(InstanceData).init(gfx_allocator);
+    defer instances.deinit();
+
+    var indirect_args = std.ArrayList(zf.IndirectDrawIndexArguments).init(gfx_allocator);
+    defer indirect_args.deinit();
+
+    for (renderableItemInstances.items) |object| {
+        var transform: Transform = undefined;
+        @memcpy(transform.world_matrix[0..], object.transform[0..]);
+        transforms.append(transform) catch unreachable;
+
+        const renderable = gfx.renderables.get(object.renderable_hash.key).?;
+        const mesh = &gfx.meshes.items[renderable.mesh_index];
+        std.debug.assert(mesh.sub_meshes_count == renderable.renderable_item_count);
+
+        for (0..renderable.renderable_item_count) |ridx| {
+            var instance_data: InstanceData = undefined;
+            instance_data.transform_index = @intCast(transforms.items.len - 1);
+            instance_data.material_index = renderable.renderable_items[ridx].material_index;
+            instance_data.mesh_index = renderable.mesh_index;
+            instance_data.sub_mesh_index = renderable.renderable_items[ridx].sub_mesh_index;
+            instances.append(instance_data) catch unreachable;
+
+            const indirect_draw_args = zf.IndirectDrawIndexArguments{
+                .mIndexCount = mesh.sub_meshes[ridx].index_count,
+                .mStartIndex = mesh.sub_meshes[ridx].first_index,
+                .mVertexOffset = mesh.sub_meshes[ridx].first_vertex,
+                .mInstanceCount = 1,
+                .mStartInstance = @intCast(instances.items.len - 1),
+            };
+            indirect_args.append(indirect_draw_args) catch unreachable;
+        }
+    }
+
+    const transform_data = zf.DataSlice{
+        .data = @ptrCast(transforms.items),
+        .size = @sizeOf(Transform) * transforms.items.len,
+    };
+    for (0..zf.frames_in_flight_count) |frame_index| {
+        zf.updateBuffer(transform_data, 0, gfx.transform_buffers[frame_index]);
+    }
+
+    const instance_data = zf.DataSlice{
+        .data = @ptrCast(instances.items),
+        .size = @sizeOf(InstanceData) * instances.items.len,
+    };
+    for (0..zf.frames_in_flight_count) |frame_index| {
+        zf.updateBuffer(instance_data, 0, gfx.instance_buffers[frame_index]);
+    }
+
+    for (indirect_args.items) |ia| {
+        std.log.debug("{}", .{ia});
+    }
+
+    const indirect_args_data = zf.DataSlice{
+        .data = @ptrCast(indirect_args.items),
+        .size = @sizeOf(zf.IndirectDrawIndexArguments) * indirect_args.items.len,
+    };
+    for (0..zf.frames_in_flight_count) |frame_index| {
+        zf.updateBuffer(indirect_args_data, 0, gfx.indirect_args_buffers[frame_index]);
+    }
 }
 
 // ██████╗ ███████╗██████╗ ██╗   ██╗ ██████╗     ████████╗███████╗██╗  ██╗████████╗

@@ -49,14 +49,13 @@ pub fn main() !void {
 
     gfx.init(zglfw.getWin32Window(window).?, @intCast(window_width), @intCast(window_height));
 
-    // Load resources
-    if (false) {
-        // Keys
-        const plane_key = gfx.HashKey.generate("plane");
-        const birch_1_key = gfx.HashKey.generate("birch_1");
-        const birch_2_key = gfx.HashKey.generate("birch_2");
-        const bush_large_key = gfx.HashKey.generate("bush_large");
+    const plane_key = gfx.HashKey.generate("plane");
+    const birch_1_key = gfx.HashKey.generate("birch_1");
+    const birch_2_key = gfx.HashKey.generate("birch_2");
+    const bush_large_key = gfx.HashKey.generate("bush_large");
 
+    // Load resources
+    {
         const bark_birch_tree_albedo_key = gfx.HashKey.generate("bark_birch_tree_albedo");
         const bark_birch_tree_normal_key = gfx.HashKey.generate("bark_birch_tree_normal");
         const leaves_birch_albedo_key = gfx.HashKey.generate("leaves_birch_albedo");
@@ -66,7 +65,6 @@ pub fn main() !void {
         const bark_birch_mat_key = gfx.HashKey.generate("bark_birch");
         const leaves_birch_mat_key = gfx.HashKey.generate("leaves_birch");
         const leaves_giant_pine_mat_key = gfx.HashKey.generate("leaves_giant_pine");
-
 
         // Load meshes
         const meshes_path = "content/models";
@@ -93,6 +91,12 @@ pub fn main() !void {
         gfx.loadMaterial(leaves_giant_pine_mat_key, .{
             .albedo_texture = leaves_giant_pine_albedo_key,
         });
+
+        // Register renderables
+        gfx.registerRenderable(plane_key, plane_key, &[_]gfx.HashKey{ default_mat_key });
+        gfx.registerRenderable(birch_1_key, birch_1_key, &[_]gfx.HashKey{ bark_birch_mat_key, leaves_birch_mat_key });
+        gfx.registerRenderable(birch_2_key, birch_2_key, &[_]gfx.HashKey{ bark_birch_mat_key, leaves_birch_mat_key });
+        gfx.registerRenderable(bush_large_key, bush_large_key, &[_]gfx.HashKey{ leaves_giant_pine_mat_key });
     }
 
     app.camera.position += zmath.Vec{0.0, 7.0, -20.0, 0.0 };
@@ -111,28 +115,28 @@ pub fn main() !void {
         .position = [3]f32{ 0.0, 0.0, 0.0 },
         .unform_scale = 150.0,
         .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = gfx.HashKey.generate("plane"),
+        .renderable_hash = plane_key,
     }) catch unreachable;
 
     app.entities.append(.{
         .position = [3]f32{ -6.0, 0.0, 0.0 },
         .unform_scale = 1.0,
         .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = gfx.HashKey.generate("birch_1"),
+        .renderable_hash = birch_1_key,
     }) catch unreachable;
 
     app.entities.append(.{
         .position = [3]f32{ 0.0, 0.0, 0.0 },
         .unform_scale = 1.0,
         .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = gfx.HashKey.generate("birch_2"),
+        .renderable_hash = birch_2_key,
     }) catch unreachable;
 
     app.entities.append(.{
         .position = [3]f32{ 6.0, 0.0, 0.0 },
         .unform_scale = 1.0,
         .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = gfx.HashKey.generate("bush_large"),
+        .renderable_hash = bush_large_key,
     }) catch unreachable;
 
     var renderableItemInstances = std.ArrayList(gfx.RenderableItemInstance).init(std.heap.page_allocator);
@@ -148,7 +152,7 @@ pub fn main() !void {
         renderableItemInstances.append(renderableItemInstance) catch unreachable;
     }
 
-    gfx.recordRenderableItemInstances(&renderableItemInstances);
+    gfx.registerRenderableItemInstances(&renderableItemInstances);
 
     while (!window.shouldClose()) {
         app.current_time = zglfw.getTime();
