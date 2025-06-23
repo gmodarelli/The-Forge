@@ -6,6 +6,8 @@ const zf = @import("ze_forge");
 const zglfw = @import("zglfw");
 const zmath = @import("zmath");
 
+pub const HashKey = zf.HashKey;
+
 const MeshHashMap = std.AutoHashMap(u64, geometry.Mesh);
 const TextureHashMap = std.AutoHashMap(u64, zf.TextureHandle);
 const MaterialHashMap = std.AutoHashMap(u64, usize);
@@ -28,7 +30,7 @@ const RenderableHashMap = std.AutoHashMap(u64, Renderable);
 
 pub const RenderableItemInstance = struct {
     transform: [16]f32,
-    renderable_hash: u64,
+    renderable_hash: HashKey,
 };
 
 pub const Bounds = struct {
@@ -189,8 +191,8 @@ pub const Transform = struct {
 };
 
 pub const MaterialDataDesc = struct {
-    albedo_texture: ?u64 = null,
-    normal_texture: ?u64 = null,
+    albedo_texture: ?zf.HashKey = null,
+    normal_texture: ?zf.HashKey = null,
 };
 
 pub const GpuMaterialData = struct {
@@ -739,30 +741,30 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             gfx.instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, InstanceData, true, false, "Instance Buffer");
             gfx.visible_instance_buffers[frame_index] = zf.createRawBuffer(gfx.visible_instance_buffers_element_count, InstanceData, true, true, "Visible Instance Buffer");
         }
-    }
 
-    gfx.meshes = MeshHashMap.init(gfx_allocator);
-    gfx.textures = TextureHashMap.init(gfx_allocator);
-    gfx.material_data = std.ArrayList(GpuMaterialData).init(gfx_allocator);
-    gfx.material_map = MaterialHashMap.init(gfx_allocator);
-
-    loadMeshes();
-    loadTextures();
-    loadMaterials();
-
-    gfx.renderables = RenderableHashMap.init(gfx_allocator);
-    {
+        // Indirect Args buffers
+        // =====================
         for (0..zf.frames_in_flight_count) |frame_index| {
             const size: u64 = 16 * @sizeOf(zf.IndirectDrawIndexArguments);
             gfx.indirect_args_buffers[frame_index] = zf.createIndirectArgsBuffer(size, zf.IndirectDrawIndexArguments, "Indirect Draw Args Buffer");
         }
     }
 
+    gfx.meshes = MeshHashMap.init(gfx_allocator);
+    gfx.textures = TextureHashMap.init(gfx_allocator);
+    gfx.material_data = std.ArrayList(GpuMaterialData).init(gfx_allocator);
+    gfx.material_map = MaterialHashMap.init(gfx_allocator);
+    gfx.renderables = RenderableHashMap.init(gfx_allocator);
+
+    loadMeshes();
+    loadTextures();
+    loadMaterials();
+
     // TODO: These should be registered from the app side, but currently we're loading all models, textures and materials here
     // Plane
     {
-        const key = std.hash.Wyhash.hash(0, "plane");
-        const mesh = gfx.meshes.getPtr(key).?;
+        const key = zf.HashKey.generate("plane");
+        const mesh = gfx.meshes.getPtr(key.key).?;
 
         var renderable: Renderable = undefined;
         renderable.mesh_index = 0; // TODO: unused
@@ -778,7 +780,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 .mStartInstance = 0,
             },
         };
-        gfx.renderables.put(key, renderable) catch unreachable;
+        gfx.renderables.put(key.key, renderable) catch unreachable;
 
         var indirect_args: [2]zf.IndirectDrawIndexArguments = undefined;
         indirect_args[0] = .{
@@ -799,8 +801,8 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     }
     // Birch 1
     {
-        const key = std.hash.Wyhash.hash(0, "birch_1");
-        const mesh = gfx.meshes.getPtr(key).?;
+        const key = zf.HashKey.generate("birch_1");
+        const mesh = gfx.meshes.getPtr(key.key).?;
 
         var renderable: Renderable = undefined;
         renderable.mesh_index = 0; // TODO: unused
@@ -827,7 +829,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 .mStartInstance = 0,
             },
         };
-        gfx.renderables.put(key, renderable) catch unreachable;
+        gfx.renderables.put(key.key, renderable) catch unreachable;
 
         var indirect_args: [2]zf.IndirectDrawIndexArguments = undefined;
         indirect_args[0] = .{
@@ -856,8 +858,8 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
 
     // Birch 2
     {
-        const key = std.hash.Wyhash.hash(0, "birch_2");
-        const mesh = gfx.meshes.getPtr(key).?;
+        const key = zf.HashKey.generate("birch_2");
+        const mesh = gfx.meshes.getPtr(key.key).?;
 
         var renderable: Renderable = undefined;
         renderable.mesh_index = 0; // TODO: unused
@@ -884,7 +886,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 .mStartInstance = 0,
             },
         };
-        gfx.renderables.put(key, renderable) catch unreachable;
+        gfx.renderables.put(key.key, renderable) catch unreachable;
 
         var indirect_args: [2]zf.IndirectDrawIndexArguments = undefined;
         indirect_args[0] = .{
@@ -913,8 +915,8 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
 
     // Bush Large
     {
-        const key = std.hash.Wyhash.hash(0, "bush_large");
-        const mesh = gfx.meshes.getPtr(key).?;
+        const key = zf.HashKey.generate("bush_large");
+        const mesh = gfx.meshes.getPtr(key.key).?;
 
         var renderable: Renderable = undefined;
         renderable.mesh_index = 0; // TODO: unused
@@ -930,7 +932,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 .mStartInstance = 0,
             },
         };
-        gfx.renderables.put(key, renderable) catch unreachable;
+        gfx.renderables.put(key.key, renderable) catch unreachable;
 
         var indirect_args: [1]zf.IndirectDrawIndexArguments = undefined;
         indirect_args[0] = .{
@@ -1142,7 +1144,7 @@ pub fn recordRenderableItemInstances(renderableItemInstances: *std.ArrayList(Ren
         @memcpy(transform.world_matrix[0..], object.transform[0..]);
         transforms.append(transform) catch unreachable;
 
-        const renderable = gfx.renderables.get(object.renderable_hash).?;
+        const renderable = gfx.renderables.get(object.renderable_hash.key).?;
         for (0..renderable.renderable_item_count) |ridx| {
             var instance_data: InstanceData = undefined;
             instance_data.transform_index = @intCast(transforms.items.len - 1);
@@ -1991,7 +1993,7 @@ fn loadMeshes() void {
         mesh_indices.clearRetainingCapacity();
 
         var mesh = std.mem.zeroes(geometry.Mesh);
-        const mesh_key = std.hash.Wyhash.hash(0, "plane");
+        const mesh_key = zf.HashKey.generate("plane");
 
         load_desc.file_name = "Plane.gltf";
         load_desc.allocator = temp_allocator;
@@ -1999,7 +2001,7 @@ fn loadMeshes() void {
 
         geometry.loadGltfMesh(&load_desc);
         uploadMesh(&mesh_vertices, &mesh_indices, &mesh);
-        gfx.meshes.put(mesh_key, mesh) catch unreachable;
+        gfx.meshes.put(mesh_key.key, mesh) catch unreachable;
     }
 
     // Birch 1
@@ -2008,7 +2010,7 @@ fn loadMeshes() void {
         mesh_indices.clearRetainingCapacity();
 
         var mesh = std.mem.zeroes(geometry.Mesh);
-        const mesh_key = std.hash.Wyhash.hash(0, "birch_1");
+        const mesh_key = zf.HashKey.generate("birch_1");
 
         load_desc.file_name = "Birch_1.gltf";
         load_desc.allocator = temp_allocator;
@@ -2016,7 +2018,7 @@ fn loadMeshes() void {
 
         geometry.loadGltfMesh(&load_desc);
         uploadMesh(&mesh_vertices, &mesh_indices, &mesh);
-        gfx.meshes.put(mesh_key, mesh) catch unreachable;
+        gfx.meshes.put(mesh_key.key, mesh) catch unreachable;
     }
 
     // Birch 2
@@ -2025,7 +2027,7 @@ fn loadMeshes() void {
         mesh_indices.clearRetainingCapacity();
 
         var mesh = std.mem.zeroes(geometry.Mesh);
-        const mesh_key = std.hash.Wyhash.hash(0, "birch_2");
+        const mesh_key = zf.HashKey.generate("birch_2");
 
         load_desc.file_name = "Birch_2.gltf";
         load_desc.allocator = temp_allocator;
@@ -2033,7 +2035,7 @@ fn loadMeshes() void {
 
         geometry.loadGltfMesh(&load_desc);
         uploadMesh(&mesh_vertices, &mesh_indices, &mesh);
-        gfx.meshes.put(mesh_key, mesh) catch unreachable;
+        gfx.meshes.put(mesh_key.key, mesh) catch unreachable;
     }
 
     // Bush Large
@@ -2042,7 +2044,7 @@ fn loadMeshes() void {
         mesh_indices.clearRetainingCapacity();
 
         var mesh = std.mem.zeroes(geometry.Mesh);
-        const mesh_key = std.hash.Wyhash.hash(0, "bush_large");
+        const mesh_key = zf.HashKey.generate("bush_large");
 
         load_desc.file_name = "Bush_Large.gltf";
         load_desc.allocator = temp_allocator;
@@ -2050,7 +2052,7 @@ fn loadMeshes() void {
 
         geometry.loadGltfMesh(&load_desc);
         uploadMesh(&mesh_vertices, &mesh_indices, &mesh);
-        gfx.meshes.put(mesh_key, mesh) catch unreachable;
+        gfx.meshes.put(mesh_key.key, mesh) catch unreachable;
     }
 }
 
@@ -2111,23 +2113,23 @@ pub fn loadTexture(key: u64, path: []const u8) void {
 
 fn loadTextures() void {
     {
-        const key = std.hash.Wyhash.hash(0, "bark_birch_tree_albedo");
-        loadTexture(key, "content/textures/Bark_BirchTree.dds");
+        const key = zf.HashKey.generate("bark_birch_tree_albedo");
+        loadTexture(key.key, "content/textures/Bark_BirchTree.dds");
     }
 
     {
-        const key = std.hash.Wyhash.hash(0, "bark_birch_tree_normal");
-        loadTexture(key, "content/textures/Bark_BirchTree_Normal.dds");
+        const key = zf.HashKey.generate("bark_birch_tree_normal");
+        loadTexture(key.key, "content/textures/Bark_BirchTree_Normal.dds");
     }
 
     {
-        const key = std.hash.Wyhash.hash(0, "leaves_birch_albedo");
-        loadTexture(key, "content/textures/Leaves_Birch_C.dds");
+        const key = zf.HashKey.generate("leaves_birch_albedo");
+        loadTexture(key.key, "content/textures/Leaves_Birch_C.dds");
     }
 
     {
-        const key = std.hash.Wyhash.hash(0, "leaves_giant_pine_albedo");
-        loadTexture(key, "content/textures/Leaves_GiantPine_C.dds");
+        const key = zf.HashKey.generate("leaves_giant_pine_albedo");
+        loadTexture(key.key, "content/textures/Leaves_GiantPine_C.dds");
     }
 }
 
@@ -2162,7 +2164,7 @@ fn loadDdsTexture(file_path: []const u8, bindless: bool, allocator: std.mem.Allo
 // ╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚══════╝╚══════╝
 //
 
-pub fn loadMaterial(key: u64, material_desc: MaterialDataDesc) void {
+pub fn loadMaterial(key: zf.HashKey, material_desc: MaterialDataDesc) void {
     gfx.material_buffer_mutex.lock();
     defer gfx.material_buffer_mutex.unlock();
 
@@ -2170,15 +2172,15 @@ pub fn loadMaterial(key: u64, material_desc: MaterialDataDesc) void {
     var material = GpuMaterialData{};
 
     if (material_desc.albedo_texture) |texture_key| {
-        material.albedo_texture_id = zf.getTextureBindlessIndex(gfx.textures.get(texture_key).?);
+        material.albedo_texture_id = zf.getTextureBindlessIndex(gfx.textures.get(texture_key.key).?);
     }
 
     if (material_desc.normal_texture) |texture_key| {
-        material.normal_texture_id = zf.getTextureBindlessIndex(gfx.textures.get(texture_key).?);
+        material.normal_texture_id = zf.getTextureBindlessIndex(gfx.textures.get(texture_key.key).?);
     }
 
     gfx.material_data.append(material) catch unreachable;
-    gfx.material_map.put(key, material_index) catch unreachable;
+    gfx.material_map.put(key.key, material_index) catch unreachable;
 
     const material_data = zf.DataSlice{
         .data = @ptrCast(&material),
@@ -2191,16 +2193,16 @@ pub fn loadMaterial(key: u64, material_desc: MaterialDataDesc) void {
 }
 
 fn loadMaterials() void {
-    loadMaterial(std.hash.Wyhash.hash(0, "default"), .{});
-    loadMaterial(std.hash.Wyhash.hash(0, "bark_birch"), .{
-        .albedo_texture = std.hash.Wyhash.hash(0, "bark_birch_tree_albedo"),
-        .normal_texture = std.hash.Wyhash.hash(0, "bark_birch_tree_normal"),
+    loadMaterial(zf.HashKey.generate("default"), .{});
+    loadMaterial(zf.HashKey.generate("bark_birch"), .{
+        .albedo_texture = zf.HashKey.generate("bark_birch_tree_albedo"),
+        .normal_texture = zf.HashKey.generate("bark_birch_tree_normal"),
     });
-    loadMaterial(std.hash.Wyhash.hash(0, "leaves_birch"), .{
-        .albedo_texture = std.hash.Wyhash.hash(0, "leaves_birch_albedo"),
+    loadMaterial(zf.HashKey.generate("leaves_birch"), .{
+        .albedo_texture = zf.HashKey.generate("leaves_birch_albedo"),
     });
-    loadMaterial(std.hash.Wyhash.hash(0, "leaves_giant_pine"), .{
-        .albedo_texture = std.hash.Wyhash.hash(0, "leaves_giant_pine_albedo"),
+    loadMaterial(zf.HashKey.generate("leaves_giant_pine"), .{
+        .albedo_texture = zf.HashKey.generate("leaves_giant_pine_albedo"),
     });
 }
 

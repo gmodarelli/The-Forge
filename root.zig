@@ -4,6 +4,16 @@ const IGraphicsTides = @import("Common_3/Graphics/Interfaces/IGraphicsTides.zig"
 
 const Pool = @import("zpool").Pool;
 
+pub const HashKey = struct {
+    key: u64,
+
+    pub fn generate(input: []const u8) HashKey {
+        return .{
+            .key = std.hash.Wyhash.hash(0, input),
+        };
+    }
+};
+
 pub export const D3D12SDKVersion: u32 = 715;
 pub export const D3D12SDKPath: [*:0]const u8 = ".\\";
 
@@ -662,7 +672,7 @@ fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) !struct {
             const descriptor = &descriptor_set.pDescriptors[descriptor_index];
             var resource_mapping = &descriptor_set_mappings.resource_mappings[descriptor_index];
             const slice = std.mem.span(descriptor.pName);
-            resource_mapping.hash = std.hash.Wyhash.hash(0, slice);
+            resource_mapping.hash = HashKey.generate(slice);
             resource_mapping.index = descriptor.mOffset; // TODO: Figure out if this is right
 
             resource_mapping.resource_type = switch (descriptor.mType.bits) {
@@ -1138,7 +1148,7 @@ pub const ResourceType = enum {
 };
 
 pub const ResourceMapping = struct {
-    hash: u64,
+    hash: HashKey,
     resource_type: ResourceType,
     index: u32,
 };
@@ -1283,10 +1293,10 @@ pub fn updateDescriptorSet(descs: []const ResourceBindingDesc, descriptor_set_sp
     const descriptor_mappings = descriptor_sets_mappings.descriptor_mappings[@intFromEnum(descriptor_set_space)];
 
     for (descs, 0..) |desc, desc_index| {
-        const resource_hash = std.hash.Wyhash.hash(0, desc.name);
+        const resource_hash = HashKey.generate(desc.name);
         var resource_index: u32 = std.math.maxInt(u32);
         for (descriptor_mappings.resource_mappings) |resource_mapping| {
-            if (resource_mapping.hash == resource_hash) {
+            if (resource_mapping.hash.key == resource_hash.key) {
                 resource_index = resource_mapping.index;
                 break;
             }
@@ -1893,11 +1903,11 @@ pub const Profiler = struct {
     }
 
     pub fn startProfile(self: *Profiler, name: []const u8) usize {
-        const hash: u64 = std.hash.Wyhash.hash(0, name);
+        const hash = HashKey.generate(name);
 
         var profile_index: usize = invalid_profile_index;
         for (self.profiles.items, 0..) |profile, index| {
-            if (profile.hash == hash) {
+            if (profile.hash.key == hash.key) {
                 profile_index = index;
                 break;
             }
@@ -1982,7 +1992,7 @@ const ProfileData = struct {
     pub const filter_size: usize = 64;
 
     name: [256]u8,
-    hash: u64,
+    hash: HashKey,
     query_started: bool,
     query_finished: bool,
     active: bool,

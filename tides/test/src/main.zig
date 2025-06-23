@@ -26,7 +26,7 @@ const Entity = struct {
     unform_scale: f32,
     orientation: [4]f32,
 
-    renderable_hash: u64,
+    renderable_hash: gfx.HashKey,
 };
 
 var app: App = .{};
@@ -52,20 +52,20 @@ pub fn main() !void {
     // Load resources
     if (false) {
         // Keys
-        const plane_key = std.hash.Wyhash.hash(0, "plane");
-        const birch_1_key = std.hash.Wyhash.hash(0, "birch_1");
-        const birch_2_key = std.hash.Wyhash.hash(0, "birch_2");
-        const bush_large_key = std.hash.Wyhash.hash(0, "bush_large");
+        const plane_key = gfx.HashKey.generate("plane");
+        const birch_1_key = gfx.HashKey.generate("birch_1");
+        const birch_2_key = gfx.HashKey.generate("birch_2");
+        const bush_large_key = gfx.HashKey.generate("bush_large");
 
-        const bark_birch_tree_albedo_key = std.hash.Wyhash.hash(0, "bark_birch_tree_albedo");
-        const bark_birch_tree_normal_key = std.hash.Wyhash.hash(0, "bark_birch_tree_normal");
-        const leaves_birch_albedo_key = std.hash.Wyhash.hash(0, "leaves_birch_albedo");
-        const leaves_giant_pine_albedo_key = std.hash.Wyhash.hash(0, "leaves_giant_pine_albedo");
+        const bark_birch_tree_albedo_key = gfx.HashKey.generate("bark_birch_tree_albedo");
+        const bark_birch_tree_normal_key = gfx.HashKey.generate("bark_birch_tree_normal");
+        const leaves_birch_albedo_key = gfx.HashKey.generate("leaves_birch_albedo");
+        const leaves_giant_pine_albedo_key = gfx.HashKey.generate("leaves_giant_pine_albedo");
 
-        const default_mat_key = std.hash.Wyhash.hash(0, "default");
-        const bark_birch_mat_key = std.hash.Wyhash.hash(0, "bark_birch");
-        const leaves_birch_mat_key = std.hash.Wyhash.hash(0, "leaves_birch");
-        const leaves_giant_pine_mat_key = std.hash.Wyhash.hash(0, "leaves_giant_pine");
+        const default_mat_key = gfx.HashKey.generate("default");
+        const bark_birch_mat_key = gfx.HashKey.generate("bark_birch");
+        const leaves_birch_mat_key = gfx.HashKey.generate("leaves_birch");
+        const leaves_giant_pine_mat_key = gfx.HashKey.generate("leaves_giant_pine");
 
 
         // Load meshes
@@ -111,28 +111,28 @@ pub fn main() !void {
         .position = [3]f32{ 0.0, 0.0, 0.0 },
         .unform_scale = 150.0,
         .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = std.hash.Wyhash.hash(0, "plane"),
+        .renderable_hash = gfx.HashKey.generate("plane"),
     }) catch unreachable;
 
     app.entities.append(.{
         .position = [3]f32{ -6.0, 0.0, 0.0 },
         .unform_scale = 1.0,
         .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = std.hash.Wyhash.hash(0, "birch_1"),
+        .renderable_hash = gfx.HashKey.generate("birch_1"),
     }) catch unreachable;
 
     app.entities.append(.{
         .position = [3]f32{ 0.0, 0.0, 0.0 },
         .unform_scale = 1.0,
         .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = std.hash.Wyhash.hash(0, "birch_2"),
+        .renderable_hash = gfx.HashKey.generate("birch_2"),
     }) catch unreachable;
 
     app.entities.append(.{
         .position = [3]f32{ 6.0, 0.0, 0.0 },
         .unform_scale = 1.0,
         .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = std.hash.Wyhash.hash(0, "bush_large"),
+        .renderable_hash = gfx.HashKey.generate("bush_large"),
     }) catch unreachable;
 
     var renderableItemInstances = std.ArrayList(gfx.RenderableItemInstance).init(std.heap.page_allocator);
