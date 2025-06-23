@@ -49,6 +49,52 @@ pub fn main() !void {
 
     gfx.init(zglfw.getWin32Window(window).?, @intCast(window_width), @intCast(window_height));
 
+    // Load resources
+    if (false) {
+        // Keys
+        const plane_key = std.hash.Wyhash.hash(0, "plane");
+        const birch_1_key = std.hash.Wyhash.hash(0, "birch_1");
+        const birch_2_key = std.hash.Wyhash.hash(0, "birch_2");
+        const bush_large_key = std.hash.Wyhash.hash(0, "bush_large");
+
+        const bark_birch_tree_albedo_key = std.hash.Wyhash.hash(0, "bark_birch_tree_albedo");
+        const bark_birch_tree_normal_key = std.hash.Wyhash.hash(0, "bark_birch_tree_normal");
+        const leaves_birch_albedo_key = std.hash.Wyhash.hash(0, "leaves_birch_albedo");
+        const leaves_giant_pine_albedo_key = std.hash.Wyhash.hash(0, "leaves_giant_pine_albedo");
+
+        const default_mat_key = std.hash.Wyhash.hash(0, "default");
+        const bark_birch_mat_key = std.hash.Wyhash.hash(0, "bark_birch");
+        const leaves_birch_mat_key = std.hash.Wyhash.hash(0, "leaves_birch");
+        const leaves_giant_pine_mat_key = std.hash.Wyhash.hash(0, "leaves_giant_pine");
+
+
+        // Load meshes
+        const meshes_path = "content/models";
+        gfx.loadMesh(plane_key, meshes_path, "Plane.gltf");
+        gfx.loadMesh(birch_1_key, meshes_path, "Birch_1.gltf");
+        gfx.loadMesh(birch_2_key, meshes_path, "Birch_2.gltf");
+        gfx.loadMesh(bush_large_key, meshes_path, "Bush_Large.gltf");
+
+        // Load textures
+        gfx.loadTexture(bark_birch_tree_albedo_key, "content/textures/Bark_BirchTree.dds");
+        gfx.loadTexture(bark_birch_tree_normal_key, "content/textures/Bark_BirchTree_Normal.dds");
+        gfx.loadTexture(leaves_birch_albedo_key, "content/textures/Leaves_Birch_C.dds");
+        gfx.loadTexture(leaves_giant_pine_albedo_key, "content/textures/Leaves_GiantPine_C.dds");
+
+        // Load materials
+        gfx.loadMaterial(default_mat_key, .{});
+        gfx.loadMaterial(bark_birch_mat_key, .{
+            .albedo_texture = bark_birch_tree_albedo_key,
+            .normal_texture = bark_birch_tree_normal_key,
+        });
+        gfx.loadMaterial(leaves_birch_mat_key, .{
+            .albedo_texture = leaves_birch_albedo_key,
+        });
+        gfx.loadMaterial(leaves_giant_pine_mat_key, .{
+            .albedo_texture = leaves_giant_pine_albedo_key,
+        });
+    }
+
     app.camera.position += zmath.Vec{0.0, 7.0, -20.0, 0.0 };
     app.camera.updateView();
 
