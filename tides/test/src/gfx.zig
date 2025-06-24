@@ -1,6 +1,7 @@
 const std = @import("std");
 const Camera = @import("camera.zig").Camera;
 const dds = @import("dds.zig");
+const font = @import("font.zig");
 const geometry = @import("geometry.zig");
 const zf = @import("ze_forge");
 const zglfw = @import("zglfw");
@@ -149,6 +150,9 @@ pub const Gfx = struct {
     // Material data
     material_data: std.ArrayList(GpuMaterialData) = undefined,
     material_map: MaterialHashMap,
+
+    // Fonts
+    roboto: *font.FontDesc = undefined,
 };
 
 pub const Frame = struct {
@@ -922,6 +926,13 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     }
 
     updateDescriptorSets();
+
+    // Load fonts
+    {
+        const handle = loadDdsTexture("content/fonts/T_RobotoMono_Regular.dds", true, gfx_allocator) catch unreachable;
+        const resolution = zf.getTextureResolution(handle);
+        gfx.roboto = font.FontDesc.create("content/fonts/RobotoMono_Regular.csv", handle, resolution, gfx_allocator) catch unreachable;
+    }
 }
 
 pub fn shutdown() void {
@@ -930,6 +941,8 @@ pub fn shutdown() void {
     gfx.texture_map.deinit();
     gfx.mesh_map.deinit();
     gfx.meshes.deinit();
+    gfx.roboto.destroy();
+    gfx_allocator.destroy(gfx.roboto);
     gfx_allocator.destroy(gfx);
 }
 

@@ -806,6 +806,14 @@ pub fn getTextureBindlessIndex(handle: TextureHandle) u32 {
     return @intCast(texture.*.*.mDx.mDescriptors);
 }
 
+pub fn getTextureResolution(handle: TextureHandle) [2]u32 {
+    const texture = gpu.textures.getColumnPtr(handle, .ptr) catch unreachable;
+    const width = texture.*.*.bitfield_1.mWidth;
+    const height = texture.*.*.bitfield_1.mHeight;
+
+    return .{ @intCast(width), @intCast(height) };
+}
+
 pub fn updateTexture(handle: TextureHandle, desc: TextureDesc, data: []u8) void {
     const slice_alignment = getTextureSubResourceAlignment(desc.mFormat);
     const row_alignment = getTextureRowAlignment();
