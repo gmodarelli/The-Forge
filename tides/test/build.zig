@@ -44,8 +44,7 @@ pub fn buildExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
 
     exe.addObjectFile(b.path("../../Common_3/Graphics/ThirdParty/OpenSource/ags/ags_lib/lib/amd_ags_x64.lib"));
     exe.addObjectFile(b.path("../../Common_3/Graphics/ThirdParty/OpenSource/winpixeventruntime/bin/WinPixEventRuntime.lib"));
-    // exe.linkSystemLibrary("amd_ags_x64");
-    // exe.linkSystemLibrary("WinPixEventRuntime");
+
     exe.linkSystemLibrary("dxcompiler");
     exe.linkSystemLibrary("nvapi64");
     exe.linkSystemLibrary("kernel32");
@@ -98,6 +97,9 @@ pub fn buildExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
 
     var install_textures_directory = b.addInstallDirectory(.{ .source_dir = b.path("content/textures"), .install_dir = .{ .prefix = {} }, .install_subdir = "bin/content/textures" });
     exe.step.dependOn(&install_textures_directory.step);
+
+    var install_fonts_directory = b.addInstallDirectory(.{ .source_dir = b.path("content/fonts"), .install_dir = .{ .prefix = {} }, .install_subdir = "bin/content/fonts" });
+    exe.step.dependOn(&install_fonts_directory.step);
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -152,6 +154,13 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     defer allocator.free(shadow_caster_object_pixel_output_path);
     compileShader(step, "shaders/Object.hlsl", shadow_caster_object_vertex_output_path, "ShadowCasterVS", "SHADOW_CASTER", .vertex);
     compileShader(step, "shaders/Object.hlsl", shadow_caster_object_pixel_output_path, "ShadowCasterPS", "SHADOW_CASTER", .pixel);
+
+    const sprite_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Sprite.vert" }) catch unreachable;
+    defer allocator.free(sprite_vertex_output_path);
+    const sprite_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Sprite.frag" }) catch unreachable;
+    defer allocator.free(sprite_pixel_output_path);
+    compileShader(step, "shaders/Sprite.hlsl", sprite_vertex_output_path, "SpriteVS", "", .vertex);
+    compileShader(step, "shaders/Sprite.hlsl", sprite_pixel_output_path, "SpritePS", "", .pixel);
 
     const clear_screen_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ClearScreen.comp" }) catch unreachable;
     defer allocator.free(clear_screen_output_path);

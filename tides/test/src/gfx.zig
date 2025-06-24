@@ -98,6 +98,7 @@ pub const Gfx = struct {
     gauss_blur_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
     clear_buffer_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
     timings_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
+    sprite_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
 
     // Misc buffers
     debug_text_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
@@ -118,6 +119,16 @@ pub const Gfx = struct {
     index_buffer_offset: u64 = 0,
     bounds_buffer_offset: u64 = 0,
     geometry_buffer_mutex: std.Thread.Mutex,
+
+    // Sprite Renderer
+    // ===============
+    roboto: *font.FontDesc = undefined,
+    overlay_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
+    sprite_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    sprite_pso: zf.PsoHandle = zf.PsoHandle.nil,
+    sprite_instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    sprite_material: GfxMaterial = undefined,
+    sprite_instances: std.ArrayList(SpriteInstance) = undefined,
 
     // GPU-Scene buffers
     instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
@@ -151,8 +162,11 @@ pub const Gfx = struct {
     material_data: std.ArrayList(GpuMaterialData) = undefined,
     material_map: MaterialHashMap,
 
-    // Fonts
-    roboto: *font.FontDesc = undefined,
+    // Profiler indices
+    shadows_profile_index: usize = 0,
+    gbuffer_profile_index: usize = 0,
+    deferred_shading_profile_index: usize = 0,
+    ui_profile_index: usize = 0,
 };
 
 pub const Frame = struct {
@@ -210,6 +224,24 @@ pub const InstanceData = struct {
     material_index: u32,
     mesh_index: u32,
     sub_mesh_index: u32 = 42,
+};
+
+pub const SpriteConstantBuffer = struct {
+    viewport_size: [2]f32,
+    _padding: [2]f32,
+    vertex_buffer_index: u32,
+    instance_buffer_index: u32,
+    linear_clamp_sampler_index: u32,
+    linear_repeat_sampler_index: u32,
+};
+
+pub const SpriteInstance = struct {
+    transform: [16]f32,
+    color: [4]f32,
+    source_rect: [4]f32,
+    sprite_resolution: [2]f32,
+    sprite_atlas_index: u32,
+    _padding: u32,
 };
 
 pub const BlurData = struct {
@@ -393,6 +425,21 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     {
         const shader_load_desc = zf.ShaderLoadDesc{
             .vertex = .{
+                .path = "shaders/Sprite.vert",
+                .entry = "SpriteVS",
+            },
+            .pixel = .{
+                .path = "shaders/Sprite.frag",
+                .entry = "SpritePS",
+            },
+            .compute = null,
+        };
+        gfx.sprite_shader = zf.compileShader(shader_load_desc) catch unreachable;
+    }
+
+    {
+        const shader_load_desc = zf.ShaderLoadDesc{
+            .vertex = .{
                 .path = "shaders/ObjectGBuffer.vert",
                 .entry = "GBufferVS",
             },
@@ -503,6 +550,34 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     }
 
     {
+        var render_targets = [_]zf.IGraphics.TinyImageFormat{.R8G8B8A8_SRGB};
+        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
+        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_GRAPHICS;
+        var graphics_desc = &pipeline_desc.__union_field1.mGraphicsDesc;
+        graphics_desc.* = std.mem.zeroes(zf.GraphicsPipelineDesc);
+        graphics_desc.mPrimitiveTopo = zf.PrimitiveTopology.PRIMITIVE_TOPO_TRI_LIST;
+        graphics_desc.mRenderTargetCount = render_targets.len;
+        graphics_desc.pColorFormats = @ptrCast(&render_targets);
+        graphics_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
+        graphics_desc.mSampleQuality = 0;
+
+        var rasterizer_state_desc = std.mem.zeroes(zf.RasterizerStateDesc);
+        rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_NONE;
+        rasterizer_state_desc.mFillMode = zf.FillMode.FILL_MODE_SOLID;
+        rasterizer_state_desc.mFrontFace = zf.FrontFace.FRONT_FACE_CW;
+        rasterizer_state_desc.mDepthClampEnable = true;
+        graphics_desc.pRasterizerState = @ptrCast(&rasterizer_state_desc);
+
+        var depth_state_desc = std.mem.zeroes(zf.DepthStateDesc);
+        depth_state_desc.mDepthWrite = false;
+        depth_state_desc.mDepthTest = false;
+        depth_state_desc.mDepthFunc = zf.CompareMode.CMP_ALWAYS;
+        graphics_desc.pDepthState = @ptrCast(&depth_state_desc);
+
+        gfx.sprite_pso = zf.createPso(pipeline_desc, gfx.sprite_shader) catch unreachable;
+    }
+
+    {
         var render_targets = [_]zf.IGraphics.TinyImageFormat{
             .R8G8B8A8_SRGB, // TODO: Read from gbuffer0 format
             .R8G8B8A8_UNORM, // TODO: Read from gbuffer1 format
@@ -584,6 +659,19 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
 
     // Render Targets
     {
+        var overlay_buffer_desc = std.mem.zeroes(zf.RenderTargetDesc);
+        overlay_buffer_desc.pName = "Overlay Buffer";
+        overlay_buffer_desc.mArraySize = 1;
+        overlay_buffer_desc.mDepth = 1;
+        overlay_buffer_desc.mFormat = .R8G8B8A8_SRGB;
+        overlay_buffer_desc.mStartState = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        overlay_buffer_desc.mWidth = @intCast(window_width);
+        overlay_buffer_desc.mHeight = @intCast(window_height);
+        overlay_buffer_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
+        overlay_buffer_desc.mSampleQuality = 0;
+        overlay_buffer_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
+        gfx.overlay_buffer = zf.createRenderTarget(overlay_buffer_desc) catch unreachable;
+
         var gbuffer0_desc = std.mem.zeroes(zf.RenderTargetDesc);
         gbuffer0_desc.pName = "GBuffer 0";
         gbuffer0_desc.mArraySize = 1;
@@ -697,6 +785,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             gfx.gauss_blur_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(BlurData), "Gaussian Blur Constant Buffer");
             gfx.clear_buffer_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(ClearBufferInput), "Clear Buffer Constant Buffer");
             gfx.timings_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(TextData), "Timings Constant Buffer");
+            gfx.sprite_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(SpriteConstantBuffer), "Sprite Constant Buffer");
 
             for (0..CSMSettings.cascades_max_count) |cascade_index| {
                 gfx.shadow_caster_constant_buffers[frame_index][cascade_index] = zf.createUniformBuffer(@sizeOf(ShadowCasterFrame), "Shadow Caster Constant Buffer");
@@ -720,6 +809,11 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.bounds_buffer = zf.createRawBuffer(8 * 1024, Bounds, true, false, "Bounds Buffer");
         gfx.bounds_buffer_offset = 0;
         gfx.geometry_buffer_mutex = std.Thread.Mutex{};
+    }
+
+    // Sprite Instances buffers
+    for (0..zf.frames_in_flight_count) |frame_index| {
+        gfx.sprite_instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, SpriteInstance, true, false, "Sprite Instance Buffer");
     }
 
     // GPU-Scene buffers
@@ -773,6 +867,26 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         pass.shader = gfx.debug_text_shader;
 
         const descriptor_set_handles = zf.createDescriptorSets(gfx.debug_text_shader) catch unreachable;
+        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
+    }
+
+    // Sprite material
+    {
+        gfx.sprite_material = std.mem.zeroes(GfxMaterial);
+        const pass_type = Pass.default;
+
+        const pass_index: usize = @intFromEnum(pass_type);
+        var pass = &gfx.sprite_material.passes[pass_index];
+
+        pass.pass = pass_type;
+        pass.pso = gfx.sprite_pso;
+        pass.shader = gfx.sprite_shader;
+
+        const descriptor_set_handles = zf.createDescriptorSets(gfx.sprite_shader) catch unreachable;
         pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
         pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
         pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
@@ -927,12 +1041,16 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
 
     updateDescriptorSets();
 
+    // Load quad
+    loadMesh(HashKey.generate("quad"), "content/models", "Quad.gltf");
+
     // Load fonts
     {
         const handle = loadDdsTexture("content/fonts/T_RobotoMono_Regular.dds", true, gfx_allocator) catch unreachable;
-        const resolution = zf.getTextureResolution(handle);
-        gfx.roboto = font.FontDesc.create("content/fonts/RobotoMono_Regular.csv", handle, resolution, gfx_allocator) catch unreachable;
+        gfx.roboto = font.FontDesc.create("content/fonts/RobotoMono_Regular.csv", handle, gfx_allocator) catch unreachable;
     }
+
+    gfx.sprite_instances = std.ArrayList(SpriteInstance).init(gfx_allocator);
 }
 
 pub fn shutdown() void {
@@ -942,6 +1060,7 @@ pub fn shutdown() void {
     gfx.mesh_map.deinit();
     gfx.meshes.deinit();
     gfx.roboto.destroy();
+    gfx.sprite_instances.deinit();
     gfx_allocator.destroy(gfx.roboto);
     gfx_allocator.destroy(gfx);
 }
@@ -952,6 +1071,8 @@ pub fn resize() void {
 
 pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: f32) void {
     const frame_index = zf.frameStart();
+
+    spriteRenderer_Begin(frame_index);
 
     var frame = Frame{
         .view_matrix = undefined,
@@ -1050,8 +1171,8 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
     // Shadow Caster Pass
     {
-        const profile_index = zf.startGpuProfile("Main Light Shadows");
-        defer zf.endGpuProfile(profile_index);
+        gfx.shadows_profile_index = zf.startGpuProfile("Main Light Shadows");
+        defer zf.endGpuProfile(gfx.shadows_profile_index);
 
         var rt_barriers = [_]zf.RenderTargetBarrier{
             .{
@@ -1097,8 +1218,8 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
     // GBuffer Pass
     {
-        const profile_index = zf.startGpuProfile("GBuffer Pass");
-        defer zf.endGpuProfile(profile_index);
+        gfx.gbuffer_profile_index = zf.startGpuProfile("GBuffer Pass");
+        defer zf.endGpuProfile(gfx.gbuffer_profile_index);
 
         var rt_barriers = [_]zf.RenderTargetBarrier{
             .{
@@ -1153,8 +1274,8 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
     // Deferred Shading Pass
     {
-        const profile_index = zf.startGpuProfile("Deferred Shading");
-        defer zf.endGpuProfile(profile_index);
+        gfx.deferred_shading_profile_index = zf.startGpuProfile("Deferred Shading");
+        defer zf.endGpuProfile(gfx.deferred_shading_profile_index);
 
         var texture_barriers = [_]zf.TextureBarrier{
             .{
@@ -1183,7 +1304,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     }
 
     // Blur
-    {
+    if (false) {
         const profile_index = zf.startGpuProfile("Gaussian Blur");
         defer zf.endGpuProfile(profile_index);
 
@@ -1244,6 +1365,135 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     }
 
     {
+        gfx.ui_profile_index = zf.startGpuProfile("UI Renderer");
+        defer zf.endGpuProfile(gfx.ui_profile_index);
+
+        const text_x: f32 = 25.0;
+        var text_y: f32 = 100.0;
+        const text_line_height: f32 = 50.0;
+        const text_scale: f32 = 0.5;
+        const text_color = [4]f32{ 1.0, 1.0, 0.0, 1.0 };
+
+        {
+            const gpu_time = zf.getFrameAvgTimeMs();
+            var text_buffer: [32]u8 = undefined;
+            const text = std.fmt.bufPrintZ(
+                text_buffer[0..],
+                "FRAME: {d:.3}ms",
+                .{ gpu_time },
+            ) catch unreachable;
+
+            const transform = zmath.mul(zmath.translation(text_x, text_y, 0.0), zmath.scaling(text_scale, text_scale, text_scale));
+            spriteRenderer_RenderText(text, text_color, transform);
+        }
+
+        {
+            text_y += text_line_height;
+            const gpu_time = zf.getProfilerAvgTimeMs(gfx.shadows_profile_index);
+            var text_buffer: [32]u8 = undefined;
+            const text = std.fmt.bufPrintZ(
+                text_buffer[0..],
+                "SHADOWS: {d:.3}ms",
+                .{ gpu_time },
+            ) catch unreachable;
+
+            const transform = zmath.mul(zmath.translation(text_x, text_y, 0.0), zmath.scaling(text_scale, text_scale, text_scale));
+            spriteRenderer_RenderText(text, text_color, transform);
+        }
+
+        {
+            text_y += text_line_height;
+            const gpu_time = zf.getProfilerAvgTimeMs(gfx.gbuffer_profile_index);
+            var text_buffer: [32]u8 = undefined;
+            const text = std.fmt.bufPrintZ(
+                text_buffer[0..],
+                "GBUFFER: {d:.3}ms",
+                .{ gpu_time },
+            ) catch unreachable;
+
+            const transform = zmath.mul(zmath.translation(text_x, text_y, 0.0), zmath.scaling(text_scale, text_scale, text_scale));
+            spriteRenderer_RenderText(text, text_color, transform);
+        }
+
+        {
+            text_y += text_line_height;
+            const gpu_time = zf.getProfilerAvgTimeMs(gfx.deferred_shading_profile_index);
+            var text_buffer: [32]u8 = undefined;
+            const text = std.fmt.bufPrintZ(
+                text_buffer[0..],
+                "DEFERRED SHADING: {d:.3}ms",
+                .{ gpu_time },
+            ) catch unreachable;
+
+            const transform = zmath.mul(zmath.translation(text_x, text_y, 0.0), zmath.scaling(text_scale, text_scale, text_scale));
+            spriteRenderer_RenderText(text, text_color, transform);
+        }
+
+        {
+            text_y += text_line_height;
+            const gpu_time = zf.getProfilerAvgTimeMs(gfx.ui_profile_index);
+            var text_buffer: [32]u8 = undefined;
+            const text = std.fmt.bufPrintZ(
+                text_buffer[0..],
+                "UI: {d:.3}ms",
+                .{ gpu_time },
+            ) catch unreachable;
+
+            const transform = zmath.mul(zmath.translation(text_x, text_y, 0.0), zmath.scaling(text_scale, text_scale, text_scale));
+            spriteRenderer_RenderText(text, text_color, transform);
+        }
+
+        spriteRenderer_End(frame_index);
+
+        var sprite_cb = SpriteConstantBuffer {
+            .viewport_size = .{ @floatFromInt(window_width), @floatFromInt(window_height) },
+            ._padding = .{ 42, 42 },
+            .vertex_buffer_index = zf.getBufferBindlessIndex(gfx.vertex_buffer),
+            .instance_buffer_index = zf.getBufferBindlessIndex(gfx.sprite_instance_buffers[frame_index]),
+            .linear_repeat_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_repeat_sampler),
+            .linear_clamp_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_clamp_sampler),
+        };
+
+        const sprite_cb_slice = zf.DataSlice{
+            .data = @ptrCast(&sprite_cb),
+            .size = @sizeOf(SpriteConstantBuffer),
+        };
+        zf.updateUniformBuffer(sprite_cb_slice, gfx.sprite_constant_buffers[frame_index]);
+
+         var rt_barriers = [_]zf.RenderTargetBarrier{
+            .{
+                .render_target_handle = gfx.overlay_buffer,
+                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
+            },
+        };
+
+        zf.cmdResourceBarrier(null, null, &rt_barriers);
+
+        var bind_render_targets = [_]zf.BindRenderTarget{
+            .{
+                .render_target_handle = gfx.overlay_buffer,
+                .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
+            },
+        };
+        zf.cmdBindRenderTargets(&bind_render_targets);
+        zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
+
+        gfx.sprite_material.bindMaterialPass(.default, frame_index, 0);
+        zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
+
+        // TODO: Cache this mesh index
+        const quad_mesh_index = gfx.mesh_map.get(HashKey.generate("quad").key).?;
+        const quad = &gfx.meshes.items[quad_mesh_index];
+        const quad_sub_mesh = quad.sub_meshes[0];
+        zf.cmdDrawIndexedInstanced(quad_sub_mesh.index_count, quad_sub_mesh.first_index, @intCast(gfx.sprite_instances.items.len), quad_sub_mesh.first_vertex, 0);
+
+        rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
+        rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        zf.cmdResourceBarrier(null, null, &rt_barriers);
+    }
+
+    if (false) {
         const profile_index = zf.startGpuProfile("Debug Text");
         defer zf.endGpuProfile(profile_index);
 
@@ -1533,6 +1783,19 @@ fn updateDescriptorSets() void {
         };
 
         gfx.blit_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
+    }
+
+    // Sprite Material: Per Frame
+    for (0..zf.frames_in_flight_count) |frame_index| {
+        const resource_binding_descs = [_]zf.ResourceBindingDesc{
+            .{
+                .name = "g_CB",
+                .binding_type = .buffer,
+                .buffer_handle = gfx.sprite_constant_buffers[frame_index],
+            },
+        };
+
+        gfx.sprite_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
     }
 
     // Object Material: Per Frame
@@ -1967,6 +2230,58 @@ pub fn registerRenderableItemInstances(renderableItemInstances: *std.ArrayList(R
     };
     for (0..zf.frames_in_flight_count) |frame_index| {
         zf.updateBuffer(indirect_args_data, 0, gfx.indirect_args_buffers[frame_index]);
+    }
+}
+
+// ███████╗██████╗ ██████╗ ██╗████████╗███████╗███████╗
+// ██╔════╝██╔══██╗██╔══██╗██║╚══██╔══╝██╔════╝██╔════╝
+// ███████╗██████╔╝██████╔╝██║   ██║   █████╗  ███████╗
+// ╚════██║██╔═══╝ ██╔══██╗██║   ██║   ██╔══╝  ╚════██║
+// ███████║██║     ██║  ██║██║   ██║   ███████╗███████║
+// ╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝   ╚═╝   ╚══════╝╚══════╝
+//
+
+fn spriteRenderer_Begin(frame_index: u32) void {
+    _ = frame_index;
+    gfx.sprite_instances.clearRetainingCapacity();
+}
+
+fn spriteRenderer_End(frame_index: u32) void {
+    if (gfx.sprite_instances.items.len > 0) {
+        const sprite_instance_data = zf.DataSlice{
+            .data = @ptrCast(gfx.sprite_instances.items),
+            .size = @sizeOf(SpriteInstance) * gfx.sprite_instances.items.len,
+        };
+
+        zf.updateBuffer(sprite_instance_data, 0, gfx.sprite_instance_buffers[frame_index]);
+    }
+}
+
+fn spriteRenderer_RenderText(text: []const u8, color: [4]f32, transform: zmath.Mat) void {
+    var text_transform = zmath.identity();
+    const font_atlas_index = zf.getTextureBindlessIndex(gfx.roboto.texture);
+    const font_atlas_resolution = zf.getTextureResolution(gfx.roboto.texture);
+
+    for (0..text.len) |i| {
+        const character = text[i];
+        // TODO: Check if character is space or newline
+        if (character == 32) {
+            text_transform[3][0] += 20; // TODO: Get space width for this font
+        } else {
+            const char_desc = gfx.roboto.getCharDesc(@intCast(character));
+
+            var sprite_instance: SpriteInstance = undefined;
+            sprite_instance._padding = 42;
+            @memcpy(&sprite_instance.color, &color);
+            zmath.storeMat(&sprite_instance.transform, zmath.transpose(zmath.mul(text_transform, transform)));
+
+            sprite_instance.sprite_atlas_index = font_atlas_index;
+            sprite_instance.sprite_resolution[0] = @floatFromInt(font_atlas_resolution[0]);
+            sprite_instance.sprite_resolution[1] = @floatFromInt(font_atlas_resolution[1]);
+            sprite_instance.source_rect = .{ char_desc.x, char_desc.y, char_desc.width, char_desc.height };
+            gfx.sprite_instances.append(sprite_instance) catch unreachable;
+            text_transform[3][0] += char_desc.width + 1;
+        }
     }
 }
 

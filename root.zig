@@ -1870,7 +1870,11 @@ pub fn endGpuProfile(profile_index: usize) void {
 }
 
 pub fn getFrameAvgTimeMs() f32 {
-    const profile_data = gpu.profiler.profiles.items[gpu.frame_profiler_index];
+    return getProfilerAvgTimeMs(gpu.frame_profiler_index);
+}
+
+pub fn getProfilerAvgTimeMs(profiler_index: usize) f32 {
+    const profile_data = gpu.profiler.profiles.items[profiler_index];
     var sum: f64 = 0;
 
     for(0..ProfileData.filter_size) |i| {
