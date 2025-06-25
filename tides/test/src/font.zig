@@ -20,9 +20,6 @@ pub const FontDesc = struct {
         font_desc.char_descs = CharHashMap.init(allocator);
         font_desc.texture = texture;
 
-        // TODO: Pass from outside
-        const resolution = [2]f32{ 256.0, 256.0 };
-
         var file = std.fs.cwd().openFile(font_desc_path, .{}) catch unreachable;
         defer file.close();
 
@@ -49,9 +46,9 @@ pub const FontDesc = struct {
             const top_char = splits.next().?;
 
             const left = std.fmt.parseFloat(f32, left_char[0..]) catch unreachable;
-            const bottom = resolution[1] - (std.fmt.parseFloat(f32, bottom_char[0..]) catch unreachable);
+            const bottom = std.fmt.parseFloat(f32, bottom_char[0..]) catch unreachable;
             const right = std.fmt.parseFloat(f32, right_char[0..]) catch unreachable;
-            const top = resolution[1] - (std.fmt.parseFloat(f32, top_char[0..top_char.len - 1]) catch unreachable);
+            const top = std.fmt.parseFloat(f32, top_char[0..top_char.len - 1]) catch unreachable;
 
             const char_desc = CharDesc{
                 .x = left + 0.5,

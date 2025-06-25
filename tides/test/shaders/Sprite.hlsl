@@ -96,6 +96,16 @@ float median(float r, float g, float b)
     return max(min(r, g), min(max(r, g), b));
 }
 
+float screenPixelRange(float2 uv, float2 atlas_resolution)
+{
+    // TODO: Move this to the consta
+    float pixel_range = 4.0;
+
+    float2 unit_range = float2(pixel_range.xx) / atlas_resolution;
+    float2 screen_tex_size = float2(1.0, 1.0) / fwidth(uv);
+    return max(0.5 * dot(unit_range, screen_tex_size), 1.0);
+}
+
 [RootSignature(DefaultRootSignature)]
 float4 SpritePS(Varyings varyings) : SV_Target
 {
@@ -107,11 +117,11 @@ float4 SpritePS(Varyings varyings) : SV_Target
     // https://github.com/Chlumsky/msdfgen?tab=readme-ov-file#using-a-multi-channel-distance-field
     float3 msd = sprite.Sample(sampler, varyings.uv).rgb;
     float sd = median(msd.r, msd.g, msd.b);
-    // NOTE: Set this to a uniform value
-    float screen_px_range = 2.0;
+
+    float screen_px_range = screenPixelRange(varyings.uv, instance.sprite_resolution);
     float screen_px_distance = screen_px_range * (sd - 0.5);
     float opacity = clamp(screen_px_distance + 0.5, 0.0, 1.0);
     float3 color = lerp(0, varyings.color.rgb, opacity);
 
-    return float4(color, 1.0f);
+    return float4(color, opacity);
 }

@@ -1379,7 +1379,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             var text_buffer: [32]u8 = undefined;
             const text = std.fmt.bufPrintZ(
                 text_buffer[0..],
-                "FRAME: {d:.3}ms",
+                "GPU: {d:.3}ms",
                 .{ gpu_time },
             ) catch unreachable;
 
@@ -1393,7 +1393,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             var text_buffer: [32]u8 = undefined;
             const text = std.fmt.bufPrintZ(
                 text_buffer[0..],
-                "SHADOWS: {d:.3}ms",
+                "Shadows: {d:.3}ms",
                 .{ gpu_time },
             ) catch unreachable;
 
@@ -1407,7 +1407,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             var text_buffer: [32]u8 = undefined;
             const text = std.fmt.bufPrintZ(
                 text_buffer[0..],
-                "GBUFFER: {d:.3}ms",
+                "GBuffer: {d:.3}ms",
                 .{ gpu_time },
             ) catch unreachable;
 
@@ -1421,7 +1421,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             var text_buffer: [32]u8 = undefined;
             const text = std.fmt.bufPrintZ(
                 text_buffer[0..],
-                "DEFERRED SHADING: {d:.3}ms",
+                "Deferred Shading: {d:.3}ms",
                 .{ gpu_time },
             ) catch unreachable;
 
