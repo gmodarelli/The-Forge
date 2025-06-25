@@ -69,18 +69,14 @@ pub const Gfx = struct {
     gauss_blur_vertical_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     clear_buffer_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     deferred_shading_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
-    debug_text_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
 
     // PSOs
-    blit_pso: zf.PsoHandle = zf.PsoHandle.nil,
-    blit_swapchain_pso: zf.PsoHandle = zf.PsoHandle.nil,
     object_gbuffer_pso: zf.PsoHandle = zf.PsoHandle.nil,
     object_shadow_caster_pso: zf.PsoHandle = zf.PsoHandle.nil,
     gauss_horizontal_pso: zf.PsoHandle = zf.PsoHandle.nil,
     gauss_vertical_pso: zf.PsoHandle = zf.PsoHandle.nil,
     clear_buffer_pso: zf.PsoHandle = zf.PsoHandle.nil,
     deferred_shading_pso: zf.PsoHandle = zf.PsoHandle.nil,
-    debug_text_pso: zf.PsoHandle = zf.PsoHandle.nil,
 
     // Render Targets and Render Textures
     gbuffer0: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
@@ -99,9 +95,6 @@ pub const Gfx = struct {
     clear_buffer_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
     timings_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
     sprite_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
-
-    // Misc buffers
-    debug_text_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
 
     // CSM Settings
     cms_settings: CSMSettings,
@@ -130,6 +123,12 @@ pub const Gfx = struct {
     sprite_material: GfxMaterial = undefined,
     sprite_instances: std.ArrayList(SpriteInstance) = undefined,
 
+    // Compositor Renderer
+    // ===================
+    compositor_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    compositor_pso: zf.PsoHandle = zf.PsoHandle.nil,
+    compositor_material: GfxMaterial = undefined,
+
     // GPU-Scene buffers
     instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     visible_instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
@@ -143,7 +142,6 @@ pub const Gfx = struct {
 
     // NOTE: Material is not the best name here
     // Materials
-    blit_material: GfxMaterial = undefined,
     object_material: GfxMaterial = undefined,
     gauss_blur_horizontal_material: GfxMaterial = undefined,
     gauss_blur_vertical_material: GfxMaterial = undefined,
@@ -167,6 +165,7 @@ pub const Gfx = struct {
     gbuffer_profile_index: usize = 0,
     deferred_shading_profile_index: usize = 0,
     ui_profile_index: usize = 0,
+    compositor_profile_index: usize = 0,
 };
 
 pub const Frame = struct {
@@ -256,15 +255,6 @@ pub const ClearBufferInput = struct {
     buffer_index: u32,
 };
 
-pub const TextData = struct {
-    color: [3]f32,
-    scale: i32,
-    offset: [2]i32,
-    debug_text_buffer: u32,
-    debug_text_offset: u32,
-    debug_text_length: u32,
-};
-
 // TODO: List all possible passes (eg. default, shadow_caster, gbuffer, etc.)
 pub const Pass = enum {
     default,
@@ -350,6 +340,11 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     zf.initializeGpu(gpu_desc, gfx_allocator) catch unreachable;
 
     gfx = gfx_allocator.create(Gfx) catch unreachable;
+    gfx.shadows_profile_index = 0;
+    gfx.gbuffer_profile_index = 0;
+    gfx.deferred_shading_profile_index = 0;
+    gfx.ui_profile_index = 0;
+    gfx.compositor_profile_index = 0;
 
     zf.registerUpdateDescriptorSetFn(updateDescriptorSets);
 
@@ -420,6 +415,21 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             .compute = null,
         };
         gfx.blit_shader = zf.compileShader(shader_load_desc) catch unreachable;
+    }
+
+    {
+        const shader_load_desc = zf.ShaderLoadDesc{
+            .vertex = .{
+                .path = "shaders/Compositor.vert",
+                .entry = "FullscreenTriangleVS",
+            },
+            .pixel = .{
+                .path = "shaders/Compositor.frag",
+                .entry = "CompositorPS",
+            },
+            .compute = null,
+        };
+        gfx.compositor_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
     {
@@ -499,14 +509,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.deferred_shading_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
-    {
-        const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-            .path = "shaders/DebugText.comp",
-            .entry = "main",
-        }, .vertex = null, .pixel = null };
-        gfx.debug_text_shader = zf.compileShader(shader_load_desc) catch unreachable;
-    }
-
     // PSOs
     {
         var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
@@ -527,7 +529,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     }
 
     {
-        var render_targets = [_]zf.IGraphics.TinyImageFormat{.R8G8B8A8_SRGB};
+        var render_targets = [_]zf.IGraphics.TinyImageFormat{zf.getSwapChainFormat()};
         var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
         pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_GRAPHICS;
         var graphics_desc = &pipeline_desc.__union_field1.mGraphicsDesc;
@@ -542,11 +544,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_NONE;
         graphics_desc.pRasterizerState = @ptrCast(&rasterizer_state_desc);
 
-        gfx.blit_pso = zf.createPso(pipeline_desc, gfx.blit_shader) catch unreachable;
-
-        render_targets[0] = zf.getSwapChainFormat();
-        graphics_desc.pColorFormats = @ptrCast(&render_targets);
-        gfx.blit_swapchain_pso = zf.createPso(pipeline_desc, gfx.blit_shader) catch unreachable;
+        gfx.compositor_pso = zf.createPso(pipeline_desc, gfx.compositor_shader) catch unreachable;
     }
 
     {
@@ -649,12 +647,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
         pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
         gfx.clear_buffer_pso = zf.createPso(pipeline_desc, gfx.clear_buffer_shader) catch unreachable;
-    }
-
-    {
-        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
-        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
-        gfx.debug_text_pso = zf.createPso(pipeline_desc, gfx.debug_text_shader) catch unreachable;
     }
 
     // Render Targets
@@ -784,19 +776,11 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             gfx.shadow_frame_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(ShadowFrame), "Shadow Frame Constant Buffer");
             gfx.gauss_blur_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(BlurData), "Gaussian Blur Constant Buffer");
             gfx.clear_buffer_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(ClearBufferInput), "Clear Buffer Constant Buffer");
-            gfx.timings_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(TextData), "Timings Constant Buffer");
             gfx.sprite_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(SpriteConstantBuffer), "Sprite Constant Buffer");
 
             for (0..CSMSettings.cascades_max_count) |cascade_index| {
                 gfx.shadow_caster_constant_buffers[frame_index][cascade_index] = zf.createUniformBuffer(@sizeOf(ShadowCasterFrame), "Shadow Caster Constant Buffer");
             }
-        }
-    }
-
-    // Misc Buffers
-    {
-        for (0..zf.frames_in_flight_count) |frame_index| {
-            gfx.debug_text_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, [4]f32, true, false, "Debug Text Buffer");
         }
     }
 
@@ -853,26 +837,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     gfx.material_data = std.ArrayList(GpuMaterialData).init(gfx_allocator);
     gfx.material_map = MaterialHashMap.init(gfx_allocator);
     gfx.renderables = RenderableHashMap.init(gfx_allocator);
-
-    // Timings material
-    {
-        gfx.timings_material = std.mem.zeroes(GfxMaterial);
-        const pass_type = Pass.default;
-
-        const pass_index: usize = @intFromEnum(pass_type);
-        var pass = &gfx.timings_material.passes[pass_index];
-
-        pass.pass = pass_type;
-        pass.pso = gfx.debug_text_pso;
-        pass.shader = gfx.debug_text_shader;
-
-        const descriptor_set_handles = zf.createDescriptorSets(gfx.debug_text_shader) catch unreachable;
-        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
-    }
 
     // Sprite material
     {
@@ -974,19 +938,19 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
     }
 
-    // Blit material 2
+    // Compositor material
     {
-        gfx.blit_material = std.mem.zeroes(GfxMaterial);
+        gfx.compositor_material = std.mem.zeroes(GfxMaterial);
         const pass_type = Pass.default;
 
         const pass_index: usize = @intFromEnum(pass_type);
-        var pass = &gfx.blit_material.passes[pass_index];
+        var pass = &gfx.compositor_material.passes[pass_index];
 
         pass.pass = pass_type;
-        pass.pso = gfx.blit_swapchain_pso;
-        pass.shader = gfx.blit_shader;
+        pass.pso = gfx.compositor_pso;
+        pass.shader = gfx.compositor_shader;
 
-        const descriptor_set_handles = zf.createDescriptorSets(gfx.blit_shader) catch unreachable;
+        const descriptor_set_handles = zf.createDescriptorSets(gfx.compositor_shader) catch unreachable;
         pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
         pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
         pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
@@ -1070,6 +1034,7 @@ pub fn resize() void {
 }
 
 pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: f32) void {
+    _ = delta_time;
     const frame_index = zf.frameStart();
 
     spriteRenderer_Begin(frame_index);
@@ -1368,10 +1333,12 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         gfx.ui_profile_index = zf.startGpuProfile("UI Renderer");
         defer zf.endGpuProfile(gfx.ui_profile_index);
 
-        const text_x: f32 = 25.0;
+        const text_x: f32 = 30.0;
         var text_y: f32 = 100.0;
-        const text_line_height: f32 = 50.0;
-        const text_scale: f32 = 0.5;
+        const text_line_height: f32 = 62.0;
+        // NOTE: 62 is the size used to generate the glyph of the font
+        // TODO: Read this info from the font file
+        const text_scale: f32 = 18.0 / 62.0;
         const text_color = [4]f32{ 1.0, 1.0, 0.0, 1.0 };
 
         {
@@ -1443,6 +1410,20 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             spriteRenderer_RenderText(text, text_color, transform);
         }
 
+        {
+            text_y += text_line_height;
+            const gpu_time = zf.getProfilerAvgTimeMs(gfx.compositor_profile_index);
+            var text_buffer: [32]u8 = undefined;
+            const text = std.fmt.bufPrintZ(
+                text_buffer[0..],
+                "Compositor: {d:.3}ms",
+                .{ gpu_time },
+            ) catch unreachable;
+
+            const transform = zmath.mul(zmath.translation(text_x, text_y, 0.0), zmath.scaling(text_scale, text_scale, text_scale));
+            spriteRenderer_RenderText(text, text_color, transform);
+        }
+
         spriteRenderer_End(frame_index);
 
         var sprite_cb = SpriteConstantBuffer {
@@ -1493,68 +1474,10 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         zf.cmdResourceBarrier(null, null, &rt_barriers);
     }
 
-    if (false) {
-        const profile_index = zf.startGpuProfile("Debug Text");
-        defer zf.endGpuProfile(profile_index);
-
-        // Debug Text: Timings
-        {
-            const gpu_frame_time = zf.getFrameAvgTimeMs();
-            var debug_text_buffer: [32]u8 = undefined;
-            const debug_text = std.fmt.bufPrintZ(
-                debug_text_buffer[0..],
-                "cpu: {d:.3}ms | gpu: {d:.3}ms",
-                .{ delta_time * 1_000, gpu_frame_time },
-            ) catch unreachable;
-
-            const encoded_text = encodeDebugText(debug_text, gfx_allocator) catch unreachable;
-            defer gfx_allocator.free(encoded_text);
-
-            var text_data = TextData{
-                .color = .{ 1.0, 1.0, 1.0 },
-                .scale = 1,
-                .offset = .{ 1, 2 },
-                .debug_text_buffer = zf.getBufferBindlessIndex(gfx.debug_text_buffers[frame_index]),
-                .debug_text_offset = 0,
-                .debug_text_length = @intCast(encoded_text.len),
-            };
-
-            const text_data_slize = zf.DataSlice{
-                .data = @ptrCast(&text_data),
-                .size = @sizeOf(TextData),
-            };
-            zf.updateUniformBuffer(text_data_slize, gfx.timings_constant_buffers[frame_index]);
-
-            const debug_text_slize = zf.DataSlice{
-                .data = @ptrCast(encoded_text[0..]),
-                .size = @sizeOf(u32) * encoded_text.len,
-            };
-            zf.updateBuffer(debug_text_slize, 0, gfx.debug_text_buffers[frame_index]);
-
-            var texture_barriers = [_]zf.TextureBarrier{
-                .{
-                    .render_texture_handle = gfx.scene_color,
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                },
-            };
-            zf.cmdResourceBarrier(null, &texture_barriers, null);
-
-            gfx.timings_material.bindMaterialPass(.default, frame_index, 0);
-            const thread_group_size = zf.getShaderThreadGroupSize(gfx.timings_material.getPassShaderHandle(.default));
-            zf.cmdDispatch((window_width + thread_group_size.x - 1) / thread_group_size.x, (window_height + thread_group_size.y - 1) / thread_group_size.y, thread_group_size.z);
-
-            texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-            zf.cmdResourceBarrier(null, &texture_barriers, null);
-        }
-    }
-
-    // Blit to swapchain
+    // Composite to swapchain
     {
-        const profile_index = zf.startGpuProfile("Final Blit");
-        defer zf.endGpuProfile(profile_index);
+        gfx.compositor_profile_index = zf.startGpuProfile("Composite");
+        defer zf.endGpuProfile(gfx.compositor_profile_index);
 
         const swap_chain_buffer_handle = zf.getSwapChainBufferHandle();
 
@@ -1577,7 +1500,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
 
-        gfx.blit_material.bindMaterialPass(.default, frame_index, 0);
+        gfx.compositor_material.bindMaterialPass(.default, frame_index, 0);
         zf.cmdDraw(3, 0);
 
         rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
@@ -1766,7 +1689,7 @@ fn makeGlobalShadowMatrix(camera: *Camera) zmath.Mat {
 }
 
 fn updateDescriptorSets() void {
-    // Blit Material: Per Frame
+    // Compositor Material: Per Frame
     for (0..zf.frames_in_flight_count) |frame_index| {
         const resource_binding_descs = [_]zf.ResourceBindingDesc{
             .{
@@ -1777,12 +1700,16 @@ fn updateDescriptorSets() void {
             .{
                 .name = "g_source",
                 .binding_type = .render_texture,
-                // .render_texture_handle = gfx.gauss_blur_b,
                 .render_texture_handle = gfx.scene_color,
+            },
+            .{
+                .name = "g_overlay",
+                .binding_type = .render_target,
+                .render_target_handle = gfx.overlay_buffer,
             },
         };
 
-        gfx.blit_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
+        gfx.compositor_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
     }
 
     // Sprite Material: Per Frame
@@ -1886,24 +1813,6 @@ fn updateDescriptorSets() void {
         };
 
         gfx.deferred_shading_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0, 0);
-    }
-
-    // Timings Material: Per Frame
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_CBO",
-                .binding_type = .buffer,
-                .buffer_handle = gfx.timings_constant_buffers[frame_index],
-            },
-            .{
-                .name = "g_output",
-                .binding_type = .render_texture,
-                .render_texture_handle = gfx.scene_color,
-            },
-        };
-
-        gfx.timings_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
     }
 
     // Clear Buffer Material: Per Frame
@@ -2283,30 +2192,6 @@ fn spriteRenderer_RenderText(text: []const u8, color: [4]f32, transform: zmath.M
             text_transform[3][0] += char_desc.width + 1;
         }
     }
-}
-
-// ██████╗ ███████╗██████╗ ██╗   ██╗ ██████╗     ████████╗███████╗██╗  ██╗████████╗
-// ██╔══██╗██╔════╝██╔══██╗██║   ██║██╔════╝     ╚══██╔══╝██╔════╝╚██╗██╔╝╚══██╔══╝
-// ██║  ██║█████╗  ██████╔╝██║   ██║██║  ███╗       ██║   █████╗   ╚███╔╝    ██║
-// ██║  ██║██╔══╝  ██╔══██╗██║   ██║██║   ██║       ██║   ██╔══╝   ██╔██╗    ██║
-// ██████╔╝███████╗██████╔╝╚██████╔╝╚██████╔╝       ██║   ███████╗██╔╝ ██╗   ██║
-// ╚═════╝ ╚══════╝╚═════╝  ╚═════╝  ╚═════╝        ╚═╝   ╚══════╝╚═╝  ╚═╝   ╚═╝
-//
-
-fn encodeDebugText(text: []const u8, allocator: std.mem.Allocator) ![]u32 {
-    const size = zf.roundUp(usize, text.len, @sizeOf(u32));
-
-    var encoded_text: []u32 = allocator.alloc(u32, size) catch unreachable;
-    @memset(encoded_text[0..], 0);
-    var encode_index: usize = 0;
-    for (0..text.len) |i| {
-        if (i >= 4 and i % 4 == 0) {
-            encode_index += 1;
-        }
-
-        encoded_text[encode_index] |= (@as(u32, text[i] - 32) << @intCast((i % 4) * 8));
-    }
-    return encoded_text;
 }
 
 // ███╗   ███╗ █████╗ ████████╗██╗  ██╗    ██╗   ██╗████████╗██╗██╗     ███████╗

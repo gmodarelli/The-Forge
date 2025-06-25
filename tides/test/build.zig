@@ -141,6 +141,13 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     compileShader(step, "shaders/Blit.hlsl", blit_vertex_output_path, "FullscreenVertex", "", .vertex);
     compileShader(step, "shaders/Blit.hlsl", blit_pixel_output_path, "BlitFragment", "", .pixel);
 
+    const compositor_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Compositor.vert" }) catch unreachable;
+    defer allocator.free(compositor_vertex_output_path);
+    const compositor_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Compositor.frag" }) catch unreachable;
+    defer allocator.free(compositor_pixel_output_path);
+    compileShader(step, "shaders/Compositor.hlsl", compositor_vertex_output_path, "FullscreenTriangleVS", "", .vertex);
+    compileShader(step, "shaders/Compositor.hlsl", compositor_pixel_output_path, "CompositorPS", "", .pixel);
+
     const gbuffer_object_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ObjectGBuffer.vert" }) catch unreachable;
     defer allocator.free(gbuffer_object_vertex_output_path);
     const gbuffer_object_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ObjectGBuffer.frag" }) catch unreachable;
@@ -180,10 +187,6 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     const deferred_shading_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "DeferredShading.comp" }) catch unreachable;
     defer allocator.free(deferred_shading_output_path);
     compileShader(step, "shaders/DeferredShadingCS.hlsl", deferred_shading_output_path, "main", "", .compute);
-
-    const debug_text_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "DebugText.comp" }) catch unreachable;
-    defer allocator.free(debug_text_output_path);
-    compileShader(step, "shaders/DebugTextCS.hlsl", debug_text_output_path, "main", "", .compute);
 }
 
 const ShaderType = enum {
