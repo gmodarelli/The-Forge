@@ -240,7 +240,7 @@ pub const SpriteInstance = struct {
     source_rect: [4]f32,
     sprite_resolution: [2]f32,
     sprite_atlas_index: u32,
-    _padding: u32,
+    font_distance_range: f32,
 };
 
 pub const BlurData = struct {
@@ -1335,10 +1335,8 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         const text_x: f32 = 30.0;
         var text_y: f32 = 100.0;
-        const text_line_height: f32 = 62.0;
-        // NOTE: 62 is the size used to generate the glyph of the font
-        // TODO: Read this info from the font file
-        const text_scale: f32 = 18.0 / 62.0;
+        const text_line_height: f32 = 60.0;
+        const text_scale: f32 = 18.0 / @as(f32, @floatFromInt(gfx.roboto.size));
         const text_color = [4]f32{ 1.0, 1.0, 0.0, 1.0 };
 
         {
@@ -2180,11 +2178,11 @@ fn spriteRenderer_RenderText(text: []const u8, color: [4]f32, transform: zmath.M
             const char_desc = gfx.roboto.getCharDesc(@intCast(character));
 
             var sprite_instance: SpriteInstance = undefined;
-            sprite_instance._padding = 42;
             @memcpy(&sprite_instance.color, &color);
             zmath.storeMat(&sprite_instance.transform, zmath.transpose(zmath.mul(text_transform, transform)));
 
             sprite_instance.sprite_atlas_index = font_atlas_index;
+            sprite_instance.font_distance_range = @floatFromInt(gfx.roboto.distance_range);
             sprite_instance.sprite_resolution[0] = @floatFromInt(font_atlas_resolution[0]);
             sprite_instance.sprite_resolution[1] = @floatFromInt(font_atlas_resolution[1]);
             sprite_instance.source_rect = .{ char_desc.source_rect.x, char_desc.source_rect.y, char_desc.source_rect.width, char_desc.source_rect.height };

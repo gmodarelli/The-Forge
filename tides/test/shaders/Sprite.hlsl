@@ -17,7 +17,7 @@ struct SpriteInstance
     float4 source_rect;
     float2 sprite_resolution;
     uint sprite_atlas_index;
-    uint _padding;
+    float font_distance_range;
 };
 
 cbuffer g_CB : register(b0, SPACE_PerFrame)
@@ -96,11 +96,8 @@ float median(float r, float g, float b)
     return max(min(r, g), min(max(r, g), b));
 }
 
-float screenPixelRange(float2 uv, float2 atlas_resolution)
+float screenPixelRange(float2 uv, float2 atlas_resolution, float pixel_range)
 {
-    // TODO: Move this to the consta
-    float pixel_range = 4.0;
-
     float2 unit_range = float2(pixel_range.xx) / atlas_resolution;
     float2 screen_tex_size = float2(1.0, 1.0) / fwidth(uv);
     return max(0.5 * dot(unit_range, screen_tex_size), 1.0);
@@ -118,7 +115,7 @@ float4 SpritePS(Varyings varyings) : SV_Target
     float3 msd = sprite.Sample(sampler, varyings.uv).rgb;
     float sd = median(msd.r, msd.g, msd.b);
 
-    float screen_px_range = screenPixelRange(varyings.uv, instance.sprite_resolution);
+    float screen_px_range = screenPixelRange(varyings.uv, instance.sprite_resolution, instance.font_distance_range);
     float screen_px_distance = screen_px_range * (sd - 0.5);
     float opacity = clamp(screen_px_distance + 0.5, 0.0, 1.0);
     float3 color = lerp(0, varyings.color.rgb, opacity);
