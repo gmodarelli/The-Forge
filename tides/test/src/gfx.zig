@@ -1011,7 +1011,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     // Load fonts
     {
         const handle = loadDdsTexture("content/fonts/T_RobotoMono_Regular.dds", true, gfx_allocator) catch unreachable;
-        gfx.roboto = font.FontDesc.create("content/fonts/RobotoMono_Regular.csv", handle, gfx_allocator) catch unreachable;
+        gfx.roboto = font.FontDesc.create("content/fonts/RobotoMono_Regular.json", handle, gfx_allocator) catch unreachable;
     }
 
     gfx.sprite_instances = std.ArrayList(SpriteInstance).init(gfx_allocator);
@@ -2187,9 +2187,9 @@ fn spriteRenderer_RenderText(text: []const u8, color: [4]f32, transform: zmath.M
             sprite_instance.sprite_atlas_index = font_atlas_index;
             sprite_instance.sprite_resolution[0] = @floatFromInt(font_atlas_resolution[0]);
             sprite_instance.sprite_resolution[1] = @floatFromInt(font_atlas_resolution[1]);
-            sprite_instance.source_rect = .{ char_desc.x, char_desc.y, char_desc.width, char_desc.height };
+            sprite_instance.source_rect = .{ char_desc.source_rect.x, char_desc.source_rect.y, char_desc.source_rect.width, char_desc.source_rect.height };
             gfx.sprite_instances.append(sprite_instance) catch unreachable;
-            text_transform[3][0] += char_desc.width + 1;
+            text_transform[3][0] += char_desc.source_rect.width + 1;
         }
     }
 }

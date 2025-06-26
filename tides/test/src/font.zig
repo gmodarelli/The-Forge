@@ -4,58 +4,96 @@ const zf = @import("ze_forge");
 const font_count_max: u32 = 95;
 const CharHashMap = std.AutoHashMap(u32, CharDesc);
 
-pub const CharDesc = struct {
+pub const PlaneBounds = struct {
+    left: f32,
+    top: f32,
+    right: f32,
+    bottom: f32,
+};
+
+pub const AtlasBounds = struct {
+    left: f32,
+    top: f32,
+    right: f32,
+    bottom: f32,
+};
+
+pub const SourceRect = struct {
     x: f32,
     y: f32,
     width: f32,
     height: f32,
 };
 
+pub const CharDesc = struct {
+    advance: f32,
+
+    plane_bounds: PlaneBounds,
+    atlas_bounds: AtlasBounds,
+    source_rect: SourceRect,
+};
+
 pub const FontDesc = struct {
     char_descs: CharHashMap,
     texture: zf.TextureHandle,
+
+    distance_range: u32,
+    size: u32,
+    line_height: f32,
+    ascender: f32,
+    descender: f32,
 
     pub fn create(font_desc_path: []const u8, texture: zf.TextureHandle, allocator: std.mem.Allocator) !*FontDesc {
         var font_desc = allocator.create(FontDesc) catch unreachable;
         font_desc.char_descs = CharHashMap.init(allocator);
         font_desc.texture = texture;
 
-        var file = std.fs.cwd().openFile(font_desc_path, .{}) catch unreachable;
-        defer file.close();
+        const data = std.fs.cwd().readFileAlloc(allocator, font_desc_path, 1024 * 1024) catch unreachable;
+        defer allocator.free(data);
 
-        var buffer_reader = std.io.bufferedReader(file.reader());
-        var in_stream = buffer_reader.reader();
+        const parsed = std.json.parseFromSlice(std.json.Value, allocator, data, .{}) catch unreachable;
+        defer parsed.deinit();
 
-        var buffer: [1024]u8 = undefined;
-        while (try in_stream.readUntilDelimiterOrEof(&buffer, '\n')) |line| {
-            var splits = std.mem.splitScalar(u8, line, ',');
-            const unicode_char = splits.first();
-            const unicode = std.fmt.parseInt(u32, unicode_char[0..], 10) catch unreachable;
+        const atlas = parsed.value.object.get("atlas").?;
+        const metrics = parsed.value.object.get("metrics").?;
+        const glyphs = parsed.value.object.get("glyphs").?;
 
-            // Skip advance
-            _ = splits.next();
-            // Skip plane bounds
-            _ = splits.next();
-            _ = splits.next();
-            _ = splits.next();
-            _ = splits.next();
+        font_desc.distance_range = @intCast(atlas.object.get("distanceRange").?.integer);
+        font_desc.size = @intCast(atlas.object.get("size").?.integer);
+        font_desc.line_height = @floatCast(metrics.object.get("lineHeight").?.float);
+        font_desc.ascender = @floatCast(metrics.object.get("ascender").?.float);
+        font_desc.descender = @floatCast(metrics.object.get("descender").?.float);
 
-            const left_char = splits.next().?;
-            const bottom_char = splits.next().?;
-            const right_char = splits.next().?;
-            const top_char = splits.next().?;
+        for (glyphs.array.items) |glyph| {
+            const unicode: u32 = @intCast(glyph.object.get("unicode").?.integer);
 
-            const left = std.fmt.parseFloat(f32, left_char[0..]) catch unreachable;
-            const bottom = std.fmt.parseFloat(f32, bottom_char[0..]) catch unreachable;
-            const right = std.fmt.parseFloat(f32, right_char[0..]) catch unreachable;
-            const top = std.fmt.parseFloat(f32, top_char[0..top_char.len - 1]) catch unreachable;
+            var char_desc = std.mem.zeroes(CharDesc);
+            char_desc.advance = @floatCast(glyph.object.get("advance").?.float);
 
-            const char_desc = CharDesc{
-                .x = left + 0.5,
-                .y = top + 0.5,
-                .width = right - left,
-                .height = bottom - top,
-            };
+            if (glyph.object.get("planeBounds")) |plane_bounds| {
+                char_desc.plane_bounds = .{
+                    .left = @floatCast(plane_bounds.object.get("left").?.float),
+                    .top = @floatCast(plane_bounds.object.get("top").?.float),
+                    .right = @floatCast(plane_bounds.object.get("right").?.float),
+                    .bottom = @floatCast(plane_bounds.object.get("bottom").?.float),
+                };
+            }
+
+            if (glyph.object.get("atlasBounds")) |atlas_bounds| {
+                char_desc.atlas_bounds = .{
+                    .left = @floatCast(atlas_bounds.object.get("left").?.float),
+                    .top = @floatCast(atlas_bounds.object.get("top").?.float),
+                    .right = @floatCast(atlas_bounds.object.get("right").?.float),
+                    .bottom = @floatCast(atlas_bounds.object.get("bottom").?.float),
+                };
+
+                char_desc.source_rect = .{
+                    .x = char_desc.atlas_bounds.left + 0.5,
+                    .y = char_desc.atlas_bounds.top + 0.5,
+                    .width = char_desc.atlas_bounds.right - char_desc.atlas_bounds.left,
+                    .height = char_desc.atlas_bounds.bottom - char_desc.atlas_bounds.top,
+                };
+            }
 
             font_desc.char_descs.put(unicode, char_desc) catch unreachable;
         }

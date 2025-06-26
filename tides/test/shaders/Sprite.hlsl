@@ -123,5 +123,5 @@ float4 SpritePS(Varyings varyings) : SV_Target
     float opacity = clamp(screen_px_distance + 0.5, 0.0, 1.0);
     float3 color = lerp(0, varyings.color.rgb, opacity);
 
-    return float4(color, opacity);
+    return float4(color, opacity * varyings.color.a);
 }
