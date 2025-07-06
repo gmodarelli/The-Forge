@@ -193,6 +193,8 @@ const ShaderType = enum {
     vertex,
     pixel,
     compute,
+    amplification,
+    mesh,
     root_signature,
 };
 
@@ -201,11 +203,13 @@ fn compileShader(step: *std.Build.Step, input: []const u8, output: []const u8, e
         .vertex => "vs_6_8",
         .pixel => "ps_6_8",
         .compute => "cs_6_8",
+        .amplification => "as_6_8",
+        .mesh => "ms_6_8",
         .root_signature => "rootsig_1_1",
     };
 
     const qstrip_root_signature = switch (shader_type) {
-        .vertex, .pixel, .compute => "-Qstrip_rootsignature",
+        .vertex, .pixel, .compute, .amplification, .mesh => "-Qstrip_rootsignature",
         .root_signature => "",
     };
 
