@@ -4329,6 +4329,16 @@ void addShaderBinary(Renderer* pRenderer, const BinaryShaderDesc* pDesc, Shader*
                 pStage = &pDesc->mFrag;
                 ppBlob = &pShaderProgram->mDx.pPSBlob;
                 break;
+#if defined(TIDES)
+            case SHADER_STAGE_AMPL:
+                pStage = &pDesc->mAmplification;
+                ppBlob = &pShaderProgram->mDx.pASBlob;
+                break;
+            case SHADER_STAGE_MESH:
+                pStage = &pDesc->mMesh;
+                ppBlob = &pShaderProgram->mDx.pMSBlob;
+                break;
+#endif // TIDES
             case SHADER_STAGE_COMP:
 #if defined(ENABLE_WORKGRAPH)
             case SHADER_STAGE_WORKGRAPH:
@@ -4377,6 +4387,16 @@ void removeShader(Renderer* pRenderer, Shader* pShaderProgram)
     {
         IDxcBlobEncoding_Release(pShaderProgram->mDx.pCSBlob);
     }
+#if defined(TIDES)
+    if (pShaderProgram->mDx.pASBlob)
+    {
+        IDxcBlobEncoding_Release(pShaderProgram->mDx.pASBlob);
+    }
+    if (pShaderProgram->mDx.pMSBlob)
+    {
+        IDxcBlobEncoding_Release(pShaderProgram->mDx.pMSBlob);
+    }
+#endif // TIDES
 
     SAFE_FREE(pShaderProgram);
 }
@@ -4419,6 +4439,30 @@ void createShaderReflections(Shader* pShaderProgram, Descriptors* pDescriptors, 
         ShaderReflectionDescriptor reflections[8] = { 0 };
         uint32_t reflectionsCount = 0;
         IDxcUtils_GetReflections(pShaderProgram->mDx.pCSBlob, &reflectionsCount, reflections, pGroupSizeX, pGroupSizeY, pGroupSizeZ);
+
+        for (uint32_t i = 0; i < reflectionsCount; i++)
+        {
+            processReflections(pDescriptors, &reflections[i]);
+        }
+    }
+
+    if (pShaderProgram->mDx.pASBlob)
+    {
+        ShaderReflectionDescriptor reflections[8] = { 0 };
+        uint32_t reflectionsCount = 0;
+        IDxcUtils_GetReflections(pShaderProgram->mDx.pASBlob, &reflectionsCount, reflections, pGroupSizeX, pGroupSizeY, pGroupSizeZ);
+
+        for (uint32_t i = 0; i < reflectionsCount; i++)
+        {
+            processReflections(pDescriptors, &reflections[i]);
+        }
+    }
+
+    if (pShaderProgram->mDx.pMSBlob)
+    {
+        ShaderReflectionDescriptor reflections[8] = { 0 };
+        uint32_t reflectionsCount = 0;
+        IDxcUtils_GetReflections(pShaderProgram->mDx.pMSBlob, &reflectionsCount, reflections, pGroupSizeX, pGroupSizeY, pGroupSizeZ);
 
         for (uint32_t i = 0; i < reflectionsCount; i++)
         {

@@ -328,6 +328,31 @@ typedef enum SampleCount
                              (uint32_t)SAMPLE_COUNT_16),
 } SampleCount;
 
+#if defined(TIDES)
+typedef enum ShaderStage
+{
+    SHADER_STAGE_NONE = 0,
+    SHADER_STAGE_VERT = 0x1,
+    SHADER_STAGE_FRAG = 0x2,
+    SHADER_STAGE_COMP = 0x4,
+    SHADER_STAGE_GEOM = 0x8,
+    SHADER_STAGE_TESC = 0x10,
+    SHADER_STAGE_TESE = 0x20,
+    SHADER_STAGE_AMPL = 0x40,
+    SHADER_STAGE_MESH = 0x80,
+    SHADER_STAGE_ALL_GRAPHICS = ((uint32_t)SHADER_STAGE_VERT | (uint32_t)SHADER_STAGE_TESC | (uint32_t)SHADER_STAGE_TESE |
+                                 (uint32_t)SHADER_STAGE_GEOM | (uint32_t)SHADER_STAGE_FRAG | (uint32_t)SHADER_STAGE_AMPL |
+                                 (uint32_t)SHADER_STAGE_MESH),
+    SHADER_STAGE_HULL = SHADER_STAGE_TESC,
+    SHADER_STAGE_DOMN = SHADER_STAGE_TESE,
+#if defined(ENABLE_WORKGRAPH)
+    SHADER_STAGE_WORKGRAPH = 0x100,
+    SHADER_STAGE_COUNT = 9,
+#else
+    SHADER_STAGE_COUNT = 7,
+#endif
+} ShaderStage;
+#else
 typedef enum ShaderStage
 {
     SHADER_STAGE_NONE = 0,
@@ -348,6 +373,7 @@ typedef enum ShaderStage
     SHADER_STAGE_COUNT = 6,
 #endif
 } ShaderStage;
+#endif // TIDES
 MAKE_ENUM_FLAG(uint32_t, ShaderStage)
 
 typedef enum TextureDimension
@@ -1767,6 +1793,10 @@ typedef struct BinaryShaderDesc
     BinaryShaderStageDesc mHull;
     BinaryShaderStageDesc mDomain;
     BinaryShaderStageDesc mComp;
+#if defined(TIDES)
+    BinaryShaderStageDesc mAmplification;
+    BinaryShaderStageDesc mMesh;
+#endif
     const ShaderConstant* pConstants;
     uint32_t              mConstantCount;
 #if defined(QUEST_VR)
@@ -1790,6 +1820,10 @@ typedef struct Shader
         struct IDxcBlobEncoding* pGSBlob;
         struct IDxcBlobEncoding* pPSBlob;
         struct IDxcBlobEncoding* pCSBlob;
+#if defined(TIDES)
+        struct IDxcBlobEncoding* pASBlob;
+        struct IDxcBlobEncoding* pMSBlob;
+#endif
     } mDx;
 #endif
 #if defined(VULKAN)

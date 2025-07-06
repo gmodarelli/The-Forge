@@ -495,11 +495,13 @@ pub const ShaderStage = extern struct {
     pub const SHADER_STAGE_GEOM: ShaderStage = .{ .bits = @as(c_uint, @intCast(8)) };
     pub const SHADER_STAGE_TESC: ShaderStage = .{ .bits = @as(c_uint, @intCast(16)) };
     pub const SHADER_STAGE_TESE: ShaderStage = .{ .bits = @as(c_uint, @intCast(32)) };
-    pub const SHADER_STAGE_ALL_GRAPHICS: ShaderStage = .{ .bits = (@as(u32, @intCast(ShaderStage.SHADER_STAGE_VERT.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_GEOM.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_FRAG.bits))) };
+    pub const SHADER_STAGE_AMPL: ShaderStage = .{ .bits = @as(c_uint, @intCast(32)) };
+    pub const SHADER_STAGE_MESH: ShaderStage = .{ .bits = @as(c_uint, @intCast(64)) };
+    pub const SHADER_STAGE_ALL_GRAPHICS: ShaderStage = .{ .bits = (@as(u32, @intCast(ShaderStage.SHADER_STAGE_VERT.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_GEOM.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_FRAG.bits))  | @as(u32, @intCast(ShaderStage.SHADER_STAGE_AMPL.bits))  | @as(u32, @intCast(ShaderStage.SHADER_STAGE_MESH.bits))) };
     pub const SHADER_STAGE_HULL: ShaderStage = .{ .bits = @as(c_uint, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) };
     pub const SHADER_STAGE_DOMN: ShaderStage = .{ .bits = @as(c_uint, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) };
-    pub const SHADER_STAGE_WORKGRAPH: ShaderStage = .{ .bits = @as(c_uint, @intCast(64)) };
-    pub const SHADER_STAGE_COUNT: ShaderStage = .{ .bits = @as(c_uint, @intCast(7)) };
+    pub const SHADER_STAGE_WORKGRAPH: ShaderStage = .{ .bits = @as(c_uint, @intCast(128)) };
+    pub const SHADER_STAGE_COUNT: ShaderStage = .{ .bits = @as(c_uint, @intCast(9)) };
 
     // pub usingnamespace cpp.FlagsMixin(ShaderStage);
 };
@@ -1620,6 +1622,8 @@ pub const BinaryShaderDesc = extern struct {
     mHull: BinaryShaderStageDesc,
     mDomain: BinaryShaderStageDesc,
     mComp: BinaryShaderStageDesc,
+    mAmplification: BinaryShaderStageDesc,
+    mMesh: BinaryShaderStageDesc,
     pConstants: [*c]const ShaderConstant,
     mConstantCount: u32,
 };
@@ -1655,6 +1659,8 @@ pub const Shader = extern struct {
         pGSBlob: *IDxcBlobEncoding,
         pPSBlob: *IDxcBlobEncoding,
         pCSBlob: *IDxcBlobEncoding,
+        pASBlob: *IDxcBlobEncoding,
+        pMSBlob: *IDxcBlobEncoding,
     };
 };
 
