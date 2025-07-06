@@ -10,34 +10,60 @@ const zmath = @import("zmath");
 pub const HashKey = zf.HashKey;
 
 const MeshHashMap = std.AutoHashMap(u64, usize);
+const ClusteredMeshHashMap = std.AutoHashMap(u64, struct { index: u32, count: u32 });
 const TextureHashMap = std.AutoHashMap(u64, zf.TextureHandle);
 const MaterialHashMap = std.AutoHashMap(u64, usize);
+const RenderableHashMap = std.AutoHashMap(u64, Renderable);
 
-pub const RenderableItem = struct {
-    sub_mesh_index: u32 = 0,
-    material_index: u32 = 0,
+pub const Mesh = struct {
+    data_buffer: zf.BufferHandle = zf.BufferHandle.nil,
+    position_stream_location: zf.VertexBufferView = undefined,
+    normal_stream_location: zf.VertexBufferView = undefined,
+    texcoord_stream_location: zf.VertexBufferView = undefined,
+    indices_location: zf.IndexBufferView = undefined,
+    bounds: geometry.BoundingBox = undefined,
 
-    indirect_draw_args: zf.IndirectDrawIndexArguments = undefined,
+    meshlets_location: u32 = std.math.maxInt(u32),
+    meshlet_vertices_location: u32 = std.math.maxInt(u32),
+    meshlet_triangles_location: u32 = std.math.maxInt(u32),
+    meshlet_bounds_location: u32 = std.math.maxInt(u32),
+    meshlet_count: u32 = 0,
+};
+
+const GPUMesh = struct {
+    data_buffer: u32,
+    positions_offset: u32,
+    normals_offset: u32,
+    texcoords_offset: u32,
+    indices_offset: u32,
+    index_byte_size: u32,
+    meshlet_offset: u32,
+    meshlet_vertex_offset: u32,
+    meshlet_triangle_offset: u32,
+    meshlet_bounds_offset: u32,
+    meshlet_count: u32,
+};
+
+pub const Instance = struct {
+    world_mat: [16]f32,
+    renderable: HashKey,
+};
+
+const GPUInstance = struct {
+    world: [16]f32,
+    local_bounds_origin: [3]f32,
+    _pad0: u32,
+    local_bounds_extents: [3]f32,
+    id: u32,
+    mesh_index: u32,
+    material_index: u32,
+    _pad1: [2]u32,
 };
 
 pub const Renderable = struct {
-    mesh_index: u32 = 0,
-    renderable_items: [8]RenderableItem,
-    renderable_item_count: u32 = 0,
-};
-
-const RenderableHashMap = std.AutoHashMap(u64, Renderable);
-
-pub const RenderableItemInstance = struct {
-    transform: [16]f32,
-    renderable_hash: HashKey,
-};
-
-pub const Bounds = struct {
-    aabb_min: [3]f32,
-    radius: f32,
-    aabb_max: [3]f32,
-    _padding: f32 = 42,
+    mesh_key: HashKey,
+    materials: [8]HashKey,
+    material_count: u32,
 };
 
 pub const CSMSettings = struct {
@@ -107,11 +133,18 @@ pub const Gfx = struct {
     // TODO: Figure out if we need double-buffering here to be able to stream in meshes
     vertex_buffer: zf.BufferHandle = undefined,
     index_buffer: zf.BufferHandle = undefined,
-    bounds_buffer: zf.BufferHandle = undefined,
     vertex_buffer_offset: u64 = 0,
     index_buffer_offset: u64 = 0,
-    bounds_buffer_offset: u64 = 0,
     geometry_buffer_mutex: std.Thread.Mutex,
+
+    // Meshlet Renderer
+    // ================
+    clustered_mesh_map: ClusteredMeshHashMap,
+    clustered_meshes: std.ArrayList(Mesh) = undefined,
+    mesh_buffer: zf.BufferHandle = undefined,
+    mesh_buffer_offset: u64 = 0,
+    mesh_buffer_mutex: std.Thread.Mutex,
+    instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
 
     // Sprite Renderer
     // ===============
@@ -129,16 +162,14 @@ pub const Gfx = struct {
     compositor_pso: zf.PsoHandle = zf.PsoHandle.nil,
     compositor_material: GfxMaterial = undefined,
 
-    // GPU-Scene buffers
-    instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
-    visible_instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
-    visible_instance_buffers_element_count: u32,
-    transform_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
-    indirect_args_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    // // GPU-Scene buffers
+    // visible_instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    // visible_instance_buffers_element_count: u32,
+    // indirect_args_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
 
     material_buffer: zf.BufferHandle = undefined,
-    material_buffer_mutex: std.Thread.Mutex,
     material_buffer_offset: u64 = 0,
+    material_buffer_mutex: std.Thread.Mutex,
 
     // NOTE: Material is not the best name here
     // Materials
@@ -184,10 +215,9 @@ pub const Frame = struct {
     shadow_pcf_sampler_index: u32,
     time: f32,
     vertex_buffer_index: u32,
-    bounds_buffer_index: u32,
-    transform_buffer_index: u32,
     material_buffer_index: u32,
     instance_buffer_index: u32,
+    meshes_buffer_index: u32,
 };
 
 pub const ShadowFrame = struct {
@@ -209,6 +239,7 @@ pub const Transform = struct {
 pub const MaterialDataDesc = struct {
     albedo_texture: ?zf.HashKey = null,
     normal_texture: ?zf.HashKey = null,
+    base_color: [4]f32 = .{ 0.5, 0.5, 0.5, 1.0 },
 };
 
 pub const GpuMaterialData = struct {
@@ -790,8 +821,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.vertex_buffer_offset = 0;
         gfx.index_buffer = zf.createIndexBuffer(8 * 1024 * 1024, zf.IndexType.INDEX_TYPE_UINT32, "Index Buffer");
         gfx.index_buffer_offset = 0;
-        gfx.bounds_buffer = zf.createRawBuffer(8 * 1024, Bounds, true, false, "Bounds Buffer");
-        gfx.bounds_buffer_offset = 0;
         gfx.geometry_buffer_mutex = std.Thread.Mutex{};
     }
 
@@ -800,43 +829,29 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.sprite_instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, SpriteInstance, true, false, "Sprite Instance Buffer");
     }
 
-    // GPU-Scene buffers
-    {
-        // Materials buffers
-        // =================
-        gfx.material_buffer = zf.createRawBuffer(8 * 1024, GpuMaterialData, true, false, "Material Buffer");
-        gfx.material_buffer_offset = 0;
-        gfx.material_buffer_mutex = std.Thread.Mutex{};
+    // Materials buffers
+    // =================
+    gfx.material_buffer = zf.createRawBuffer(8 * 1024, GpuMaterialData, true, false, "Material Buffer");
+    gfx.material_buffer_offset = 0;
+    gfx.material_buffer_mutex = std.Thread.Mutex{};
 
-
-        // Transforms buffers
-        // ==================
-        for (0..zf.frames_in_flight_count) |frame_index| {
-            gfx.transform_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, Transform, true, false, "Transform Buffer");
-        }
-
-        // Instances buffers
-        // =================
-        gfx.visible_instance_buffers_element_count = 8 * 1024;
-        for (0..zf.frames_in_flight_count) |frame_index| {
-            gfx.instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, InstanceData, true, false, "Instance Buffer");
-            gfx.visible_instance_buffers[frame_index] = zf.createRawBuffer(gfx.visible_instance_buffers_element_count, InstanceData, true, true, "Visible Instance Buffer");
-        }
-
-        // Indirect Args buffers
-        // =====================
-        for (0..zf.frames_in_flight_count) |frame_index| {
-            const size: u64 = 16 * @sizeOf(zf.IndirectDrawIndexArguments);
-            gfx.indirect_args_buffers[frame_index] = zf.createIndirectArgsBuffer(size, zf.IndirectDrawIndexArguments, "Indirect Draw Args Buffer");
-        }
-    }
-
+    // Meshlet Renderer resources
+    // =========================
     gfx.mesh_map = MeshHashMap.init(gfx_allocator);
     gfx.meshes = std.ArrayList(geometry.Mesh).init(gfx_allocator);
+    gfx.clustered_mesh_map = ClusteredMeshHashMap.init(gfx_allocator);
+    gfx.clustered_meshes = std.ArrayList(Mesh).init(gfx_allocator);
     gfx.texture_map = TextureHashMap.init(gfx_allocator);
     gfx.material_data = std.ArrayList(GpuMaterialData).init(gfx_allocator);
     gfx.material_map = MaterialHashMap.init(gfx_allocator);
     gfx.renderables = RenderableHashMap.init(gfx_allocator);
+    // Buffers
+    for (0..zf.frames_in_flight_count) |frame_index| {
+        gfx.instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, GPUInstance, true, false, "Instance Buffer");
+    }
+    gfx.mesh_buffer = zf.createRawBuffer(1024, GPUMesh, true, false, "Meshes");
+    gfx.mesh_buffer_offset = 0;
+    gfx.mesh_buffer_mutex = std.Thread.Mutex{};
 
     // Sprite material
     {
@@ -1006,7 +1021,19 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     updateDescriptorSets();
 
     // Load quad
-    loadMesh(HashKey.generate("quad"), "content/models", "Quad.gltf");
+    loadGltfMesh(HashKey.generate("quad"), "content/models", "Quad.gltf");
+
+    // Testing custom mesh loading
+    {
+        var mesh_data = std.ArrayList(geometry.MeshData).init(gfx_allocator);
+
+        var load_desc: geometry.MeshLoadDesc = undefined;
+        load_desc.base_path = "content/models";
+        load_desc.file_name = "Birch_1.mesh";
+        load_desc.allocator = gfx_allocator;
+        load_desc.mesh_data = &mesh_data;
+        geometry.loadMesh(&load_desc);
+    }
 
     // Load fonts
     {
@@ -1023,6 +1050,8 @@ pub fn shutdown() void {
     gfx.texture_map.deinit();
     gfx.mesh_map.deinit();
     gfx.meshes.deinit();
+    gfx.clustered_mesh_map.deinit();
+    gfx.clustered_meshes.deinit();
     gfx.roboto.destroy();
     gfx.sprite_instances.deinit();
     gfx_allocator.destroy(gfx.roboto);
@@ -1055,10 +1084,9 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         .shadow_pcf_sampler_index = zf.getSamplerBindlessIndex(gfx.shadow_pcf_sampler),
         .time = @floatCast(zglfw.getTime()),
         .vertex_buffer_index = zf.getBufferBindlessIndex(gfx.vertex_buffer),
-        .bounds_buffer_index = zf.getBufferBindlessIndex(gfx.bounds_buffer),
-        .transform_buffer_index = zf.getBufferBindlessIndex(gfx.transform_buffers[frame_index]),
         .material_buffer_index = zf.getBufferBindlessIndex(gfx.material_buffer),
         .instance_buffer_index = zf.getBufferBindlessIndex(gfx.instance_buffers[frame_index]),
+        .meshes_buffer_index = zf.getBufferBindlessIndex(gfx.mesh_buffer),
     };
     zmath.storeMat(&frame.view_matrix, zmath.transpose(camera.view));
     zmath.storeMat(&frame.projection_matrix, zmath.transpose(camera.proj));
@@ -1099,40 +1127,40 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         zf.updateUniformBuffer(shadow_caster_data, gfx.shadow_caster_constant_buffers[frame_index][cascade_index]);
     }
 
-    // Clear Buffer: Visible Instances
-    {
-        const profile_index = zf.startGpuProfile("Clear Visible Instances");
-        defer zf.endGpuProfile(profile_index);
+    // // Clear Buffer: Visible Instances
+    // {
+    //     const profile_index = zf.startGpuProfile("Clear Visible Instances");
+    //     defer zf.endGpuProfile(profile_index);
 
-        var clear_buffer_input = ClearBufferInput{
-            .buffer_index = zf.getBufferBindlessIndex(gfx.visible_instance_buffers[frame_index]),
-            .element_count = gfx.visible_instance_buffers_element_count,
-        };
-        const clear_buffer_data = zf.DataSlice{
-            .data = @ptrCast(&clear_buffer_input),
-            .size = @sizeOf(ClearBufferInput),
-        };
-        zf.updateUniformBuffer(clear_buffer_data, gfx.clear_buffer_constant_buffers[frame_index]);
+    //     var clear_buffer_input = ClearBufferInput{
+    //         .buffer_index = zf.getBufferBindlessIndex(gfx.visible_instance_buffers[frame_index]),
+    //         .element_count = gfx.visible_instance_buffers_element_count,
+    //     };
+    //     const clear_buffer_data = zf.DataSlice{
+    //         .data = @ptrCast(&clear_buffer_input),
+    //         .size = @sizeOf(ClearBufferInput),
+    //     };
+    //     zf.updateUniformBuffer(clear_buffer_data, gfx.clear_buffer_constant_buffers[frame_index]);
 
-        var buffer_barriers = [_]zf.BufferBarrier{
-            .{
-                .buffer_handle = gfx.visible_instance_buffers[frame_index],
-                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-            },
-        };
+    //     var buffer_barriers = [_]zf.BufferBarrier{
+    //         .{
+    //             .buffer_handle = gfx.visible_instance_buffers[frame_index],
+    //             .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+    //             .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+    //         },
+    //     };
 
-        zf.cmdResourceBarrier(&buffer_barriers, null, null);
-        gfx.clear_buffer_material.bindMaterialPass(.default, frame_index, 0);
+    //     zf.cmdResourceBarrier(&buffer_barriers, null, null);
+    //     gfx.clear_buffer_material.bindMaterialPass(.default, frame_index, 0);
 
-        const thread_group_size = zf.getShaderThreadGroupSize(gfx.clear_buffer_material.getPassShaderHandle(.default));
-        zf.cmdDispatch((gfx.visible_instance_buffers_element_count + thread_group_size.x - 1) / thread_group_size.x, thread_group_size.y, thread_group_size.z);
+    //     const thread_group_size = zf.getShaderThreadGroupSize(gfx.clear_buffer_material.getPassShaderHandle(.default));
+    //     zf.cmdDispatch((gfx.visible_instance_buffers_element_count + thread_group_size.x - 1) / thread_group_size.x, thread_group_size.y, thread_group_size.z);
 
-        buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-        buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+    //     buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+    //     buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
 
-        zf.cmdResourceBarrier(&buffer_barriers, null, null);
-    }
+    //     zf.cmdResourceBarrier(&buffer_barriers, null, null);
+    // }
 
     // Shadow Caster Pass
     {
@@ -1149,32 +1177,32 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         zf.cmdResourceBarrier(null, null, &rt_barriers);
 
-        for (0..gfx.cms_settings.cascades_count) |cascade_index| {
-            const profile_index_2 = switch (cascade_index) {
-                0 => zf.startGpuProfile("Shadow Cascade 1"),
-                1 => zf.startGpuProfile("Shadow Cascade 2"),
-                2 => zf.startGpuProfile("Shadow Cascade 3"),
-                3 => zf.startGpuProfile("Shadow Cascade 4"),
-                else => @panic("Can only have a maximum of 4 cascades"),
-            };
-            defer zf.endGpuProfile(profile_index_2);
+        // for (0..gfx.cms_settings.cascades_count) |cascade_index| {
+        //     const profile_index_2 = switch (cascade_index) {
+        //         0 => zf.startGpuProfile("Shadow Cascade 1"),
+        //         1 => zf.startGpuProfile("Shadow Cascade 2"),
+        //         2 => zf.startGpuProfile("Shadow Cascade 3"),
+        //         3 => zf.startGpuProfile("Shadow Cascade 4"),
+        //         else => @panic("Can only have a maximum of 4 cascades"),
+        //     };
+        //     defer zf.endGpuProfile(profile_index_2);
 
-            var bind_render_targets = [_]zf.BindRenderTarget{
-                .{
-                    .render_target_handle = gfx.shadow_depth_buffer,
-                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-                    .use_array_slice = true,
-                    .array_slice = @intCast(cascade_index),
-                },
-            };
-            zf.cmdBindRenderTargets(&bind_render_targets);
-            zf.cmdSetDefaultViewportAndScissor(gfx.cms_settings.resolution, gfx.cms_settings.resolution);
+        //     var bind_render_targets = [_]zf.BindRenderTarget{
+        //         .{
+        //             .render_target_handle = gfx.shadow_depth_buffer,
+        //             .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
+        //             .use_array_slice = true,
+        //             .array_slice = @intCast(cascade_index),
+        //         },
+        //     };
+        //     zf.cmdBindRenderTargets(&bind_render_targets);
+        //     zf.cmdSetDefaultViewportAndScissor(gfx.cms_settings.resolution, gfx.cms_settings.resolution);
 
-            gfx.object_material.bindMaterialPass(.shadow_caster, frame_index, @intCast(cascade_index));
-            zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
+        //     gfx.object_material.bindMaterialPass(.shadow_caster, frame_index, @intCast(cascade_index));
+        //     zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
 
-            zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 6, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
-        }
+        //     zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 6, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
+        // }
 
         rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
         rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
@@ -1223,10 +1251,10 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         zf.cmdBindRenderTargets(&bind_render_targets);
         zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
 
-        gfx.object_material.bindMaterialPass(.gbuffer, frame_index, 0);
-        zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
+        // gfx.object_material.bindMaterialPass(.gbuffer, frame_index, 0);
+        // zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
 
-        zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 6, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
+        // zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 6, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
 
         rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
         rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
@@ -1723,39 +1751,39 @@ fn updateDescriptorSets() void {
         gfx.sprite_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
     }
 
-    // Object Material: Per Frame
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        // GBuffer Pass
-        {
-            const resource_binding_descs = [_]zf.ResourceBindingDesc{
-                .{
-                    .name = "g_CBO",
-                    .binding_type = .buffer,
-                    .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
-                },
-            };
+    // // Object Material: Per Frame
+    // for (0..zf.frames_in_flight_count) |frame_index| {
+    //     // GBuffer Pass
+    //     {
+    //         const resource_binding_descs = [_]zf.ResourceBindingDesc{
+    //             .{
+    //                 .name = "g_CBO",
+    //                 .binding_type = .buffer,
+    //                 .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+    //             },
+    //         };
 
-            gfx.object_material.updateDescriptorSet(.gbuffer, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
-        }
+    //         gfx.object_material.updateDescriptorSet(.gbuffer, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
+    //     }
 
-        // Shadow Caster Pass
-        for (0..CSMSettings.cascades_max_count) |cascade_index| {
-            const resource_binding_descs = [_]zf.ResourceBindingDesc{
-                .{
-                    .name = "g_CBO",
-                    .binding_type = .buffer,
-                    .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
-                },
-                .{
-                    .name = "g_ShadowCasterCB",
-                    .binding_type = .buffer,
-                    .buffer_handle = gfx.shadow_caster_constant_buffers[frame_index][cascade_index],
-                },
-            };
+    //     // Shadow Caster Pass
+    //     for (0..CSMSettings.cascades_max_count) |cascade_index| {
+    //         const resource_binding_descs = [_]zf.ResourceBindingDesc{
+    //             .{
+    //                 .name = "g_CBO",
+    //                 .binding_type = .buffer,
+    //                 .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+    //             },
+    //             .{
+    //                 .name = "g_ShadowCasterCB",
+    //                 .binding_type = .buffer,
+    //                 .buffer_handle = gfx.shadow_caster_constant_buffers[frame_index][cascade_index],
+    //             },
+    //         };
 
-            gfx.object_material.updateDescriptorSet(.shadow_caster, &resource_binding_descs, .per_frame, @intCast(frame_index), @intCast(cascade_index));
-        }
-    }
+    //         gfx.object_material.updateDescriptorSet(.shadow_caster, &resource_binding_descs, .per_frame, @intCast(frame_index), @intCast(cascade_index));
+    //     }
+    // }
 
     // Deferred Shading Material: Per Frame
     for (0..zf.frames_in_flight_count) |frame_index| {
@@ -1898,6 +1926,165 @@ fn updateDescriptorSets() void {
 //
 
 pub fn loadMesh(mesh_key: HashKey, content_path: []const u8, file_name: []const u8) void {
+    var mesh_data = std.ArrayList(geometry.MeshData).init(gfx_allocator);
+    defer mesh_data.deinit();
+
+    var load_desc: geometry.MeshLoadDesc = undefined;
+    load_desc.base_path = content_path;
+    load_desc.file_name = file_name;
+    load_desc.allocator = gfx_allocator;
+    load_desc.mesh_data = &mesh_data;
+    geometry.loadMesh(&load_desc);
+
+    const mesh_index = gfx.clustered_meshes.items.len;
+    const mesh_count: u32 = @intCast(mesh_data.items.len);
+    gfx.clustered_mesh_map.put(mesh_key.key, .{ .index = @intCast(mesh_index), .count = mesh_count }) catch unreachable;
+    uploadMesh(&mesh_data);
+}
+
+fn uploadMesh(mesh_datas: *std.ArrayList(geometry.MeshData)) void {
+    gfx.mesh_buffer_mutex.lock();
+    defer gfx.mesh_buffer_mutex.unlock();
+
+    var gpu_mesh_data = std.ArrayList(GPUMesh).init(gfx_allocator);
+    defer gpu_mesh_data.deinit();
+
+    for (mesh_datas.items) |mesh_data| {
+        var mesh = std.mem.zeroes(Mesh);
+        var data_size: usize = 0;
+        data_size += mesh_data.indices.items.len * @sizeOf(u32);
+        data_size += mesh_data.positions_stream.items.len * @sizeOf([3]f32);
+        data_size += mesh_data.normals_stream.items.len * @sizeOf([3]f32);
+        data_size += mesh_data.texcoords_stream.items.len * @sizeOf([2]f32);
+        data_size += mesh_data.meshlets.items.len * @sizeOf(geometry.Meshlet);
+        data_size += mesh_data.meshlet_bounds.items.len * @sizeOf(geometry.MeshletBounds);
+        data_size += mesh_data.meshlet_triangles.items.len * @sizeOf(geometry.MeshletTriangle);
+        data_size += mesh_data.meshlet_vertices.items.len * @sizeOf(u32);
+
+        mesh.data_buffer = zf.createRawBuffer(data_size, u32, true, false, "Mesh");
+
+        const buffer_data = gfx_allocator.alloc(u8, data_size) catch unreachable;
+        defer gfx_allocator.free(buffer_data);
+
+        var buffer_data_offset: usize = 0;
+        const buffer_gpu_address = zf.getBufferGPUAddress(mesh.data_buffer);
+        // Positions
+        {
+            const stride = @sizeOf([3]f32);
+            mesh.position_stream_location.location = buffer_gpu_address + buffer_data_offset;
+            mesh.position_stream_location.elements = @intCast(mesh_data.positions_stream.items.len);
+            mesh.position_stream_location.stride = @intCast(stride);
+            mesh.position_stream_location.offset_from_start = @intCast(buffer_data_offset);
+
+            zf.memcpy(@ptrCast(buffer_data), @ptrCast(mesh_data.positions_stream.items.ptr), buffer_data_offset, mesh_data.positions_stream.items.len * stride);
+            buffer_data_offset += mesh_data.positions_stream.items.len * stride;
+        }
+        // Normals
+        {
+            const stride = @sizeOf([3]f32);
+            mesh.normal_stream_location.location = buffer_gpu_address + buffer_data_offset;
+            mesh.normal_stream_location.elements = @intCast(mesh_data.normals_stream.items.len);
+            mesh.normal_stream_location.stride = @intCast(stride);
+            mesh.normal_stream_location.offset_from_start = @intCast(buffer_data_offset);
+
+            zf.memcpy(@ptrCast(buffer_data), @ptrCast(mesh_data.normals_stream.items.ptr), buffer_data_offset, mesh_data.normals_stream.items.len * stride);
+            buffer_data_offset += mesh_data.normals_stream.items.len * stride;
+        }
+        // Texcoords
+        {
+            const stride = @sizeOf([2]f32);
+            mesh.texcoord_stream_location.location = buffer_gpu_address + buffer_data_offset;
+            mesh.texcoord_stream_location.elements = @intCast(mesh_data.texcoords_stream.items.len);
+            mesh.texcoord_stream_location.stride = @intCast(stride);
+            mesh.texcoord_stream_location.offset_from_start = @intCast(buffer_data_offset);
+
+            zf.memcpy(@ptrCast(buffer_data), @ptrCast(mesh_data.texcoords_stream.items.ptr), buffer_data_offset, mesh_data.texcoords_stream.items.len * stride);
+            buffer_data_offset += mesh_data.texcoords_stream.items.len * stride;
+        }
+        // Indices
+        {
+            // TODO
+            // const small_indices = mesh_data.positions_stream.items.len < std.math.maxInt(u16);
+            // const index_size = if (small_indices) @sizeOf(u16) else @sizeOf(u32);
+            const stride = @sizeOf(u32);
+            mesh.indices_location.location = buffer_gpu_address + buffer_data_offset;
+            mesh.indices_location.elements = @intCast(mesh_data.indices.items.len);
+            mesh.indices_location.offset_from_start = @intCast(buffer_data_offset);
+            mesh.indices_location.index_type = .INDEX_TYPE_UINT32;
+
+            zf.memcpy(@ptrCast(buffer_data), @ptrCast(mesh_data.indices.items.ptr), buffer_data_offset, mesh_data.indices.items.len * stride);
+            buffer_data_offset += mesh_data.indices.items.len * stride;
+        }
+        // Meshlets
+        {
+            const stride = @sizeOf(geometry.Meshlet);
+            mesh.meshlets_location = @intCast(buffer_data_offset);
+
+            zf.memcpy(@ptrCast(buffer_data), @ptrCast(mesh_data.meshlets.items.ptr), buffer_data_offset, mesh_data.meshlets.items.len * stride);
+            buffer_data_offset += mesh_data.meshlets.items.len * stride;
+        }
+        // Meshlet Vertices
+        {
+            const stride = @sizeOf(u32);
+            mesh.meshlet_vertices_location = @intCast(buffer_data_offset);
+
+            zf.memcpy(@ptrCast(buffer_data), @ptrCast(mesh_data.meshlet_vertices.items.ptr), buffer_data_offset, mesh_data.meshlet_vertices.items.len * stride);
+            buffer_data_offset += mesh_data.meshlet_vertices.items.len * stride;
+        }
+        // Meshlet Triangles
+        {
+            const stride = @sizeOf(geometry.MeshletTriangle);
+            mesh.meshlet_triangles_location = @intCast(buffer_data_offset);
+
+            zf.memcpy(@ptrCast(buffer_data), @ptrCast(mesh_data.meshlet_triangles.items.ptr), buffer_data_offset, mesh_data.meshlet_triangles.items.len * stride);
+            buffer_data_offset += mesh_data.meshlet_triangles.items.len * stride;
+        }
+        // Meshlet Bounds
+        {
+            const stride = @sizeOf(geometry.MeshletBounds);
+            mesh.meshlet_bounds_location = @intCast(buffer_data_offset);
+
+            zf.memcpy(@ptrCast(buffer_data), @ptrCast(mesh_data.meshlet_bounds.items.ptr), buffer_data_offset, mesh_data.meshlet_bounds.items.len * stride);
+            buffer_data_offset += mesh_data.meshlet_bounds.items.len * stride;
+        }
+
+        mesh.meshlet_count = @intCast(mesh_data.meshlets.items.len);
+        mesh.bounds.center = mesh_data.bounds.center;
+        mesh.bounds.extents = mesh_data.bounds.extents;
+
+        const data_slice = zf.DataSlice{
+            .data = @ptrCast(buffer_data),
+            .size = data_size,
+        };
+        zf.updateBuffer(data_slice, 0, mesh.data_buffer);
+        gfx.clustered_meshes.append(mesh) catch unreachable;
+
+        const gpu_mesh = GPUMesh{
+            .data_buffer = zf.getBufferBindlessIndex(mesh.data_buffer),
+            .index_byte_size = 4, // TODO
+            .indices_offset = @intCast(mesh.indices_location.offset_from_start),
+            .positions_offset = @intCast(mesh.position_stream_location.offset_from_start),
+            .normals_offset = @intCast(mesh.normal_stream_location.offset_from_start),
+            .texcoords_offset = @intCast(mesh.texcoord_stream_location.offset_from_start),
+            .meshlet_offset = mesh.meshlets_location,
+            .meshlet_bounds_offset = mesh.meshlet_bounds_location,
+            .meshlet_triangle_offset = mesh.meshlet_triangles_location,
+            .meshlet_vertex_offset = mesh.meshlet_vertices_location,
+            .meshlet_count = mesh.meshlet_count,
+        };
+
+        gpu_mesh_data.append(gpu_mesh) catch unreachable;
+    }
+
+    const gpu_mesh_data_slice = zf.DataSlice{
+        .data = @ptrCast(gpu_mesh_data.items),
+        .size = @sizeOf(GPUMesh) * gpu_mesh_data.items.len,
+    };
+    zf.updateBuffer(gpu_mesh_data_slice, gfx.mesh_buffer_offset, gfx.mesh_buffer);
+    gfx.mesh_buffer_offset += gpu_mesh_data_slice.size;
+}
+
+pub fn loadGltfMesh(mesh_key: HashKey, content_path: []const u8, file_name: []const u8) void {
     // TODO: Allocate these at startup and reuse across function calls with clearRetainCapacity
     var mesh_vertices = std.ArrayList(geometry.Vertex).init(gfx_allocator);
     defer mesh_vertices.deinit();
@@ -1918,12 +2105,12 @@ pub fn loadMesh(mesh_key: HashKey, content_path: []const u8, file_name: []const 
     load_desc.mesh = &mesh;
 
     geometry.loadGltfMesh(&load_desc);
-    uploadMesh(&mesh_vertices, &mesh_indices, &mesh);
+    uploadGltfMesh(&mesh_vertices, &mesh_indices, &mesh);
     gfx.mesh_map.put(mesh_key.key, mesh_index) catch unreachable;
     gfx.meshes.append(mesh) catch unreachable;
 }
 
-fn uploadMesh(vertices: *std.ArrayList(geometry.Vertex), indices: *std.ArrayList(u32), mesh: *geometry.Mesh) void {
+fn uploadGltfMesh(vertices: *std.ArrayList(geometry.Vertex), indices: *std.ArrayList(u32), mesh: *geometry.Mesh) void {
     gfx.geometry_buffer_mutex.lock();
     defer gfx.geometry_buffer_mutex.unlock();
 
@@ -1944,25 +2131,8 @@ fn uploadMesh(vertices: *std.ArrayList(geometry.Vertex), indices: *std.ArrayList
     };
     zf.updateBuffer(index_data, gfx.index_buffer_offset, gfx.index_buffer);
 
-    var bounds: [8]Bounds = undefined;
-    var bounds_count: u32 = 0;
-    for (0..mesh.sub_meshes_count) |sub_mesh_index| {
-        bounds[sub_mesh_index].radius = mesh.sub_meshes[sub_mesh_index].radius;
-        @memcpy(bounds[sub_mesh_index].aabb_min[0..], mesh.sub_meshes[sub_mesh_index].aabb_min[0..]);
-        @memcpy(bounds[sub_mesh_index].aabb_max[0..], mesh.sub_meshes[sub_mesh_index].aabb_max[0..]);
-        bounds[sub_mesh_index]._padding = 42;
-        bounds_count += 1;
-    }
-
-    const bounds_data = zf.DataSlice{
-        .data = @ptrCast(&bounds),
-        .size = @sizeOf(Bounds) * bounds_count,
-    };
-    zf.updateBuffer(bounds_data, gfx.bounds_buffer_offset, gfx.bounds_buffer);
-
     gfx.vertex_buffer_offset += vertex_data.size;
     gfx.index_buffer_offset += index_data.size;
-    gfx.bounds_buffer_offset += bounds_data.size;
 }
 
 // ████████╗███████╗██╗  ██╗████████╗██╗   ██╗██████╗ ███████╗███████╗
@@ -2046,97 +2216,48 @@ pub fn loadMaterial(key: zf.HashKey, material_desc: MaterialDataDesc) void {
 //
 
 pub fn registerRenderable(key: HashKey, mesh_key: HashKey, materials: []const HashKey) void {
-    const mesh_index = gfx.mesh_map.get(mesh_key.key).?;
-    const mesh = &gfx.meshes.items[mesh_index];
-
-    std.debug.assert(@as(u32, @intCast(materials.len)) == mesh.sub_meshes_count);
+    const mesh_info = gfx.clustered_mesh_map.get(mesh_key.key).?;
+    std.debug.assert(mesh_info.count == @as(u32, @intCast(materials.len)));
 
     var renderable: Renderable = undefined;
-    renderable.mesh_index = @intCast(mesh_index);
-    renderable.renderable_item_count = mesh.sub_meshes_count;
-
-    for (0..mesh.sub_meshes_count) |i| {
-        const material_index = gfx.material_map.get(materials[i].key).?;
-        renderable.renderable_items[i] = .{
-            .sub_mesh_index = @intCast(i),
-            .material_index = @intCast(material_index),
-            .indirect_draw_args = .{
-                .mIndexCount = mesh.sub_meshes[i].index_count,
-                .mStartIndex = mesh.sub_meshes[i].first_index,
-                .mVertexOffset = mesh.sub_meshes[i].first_vertex,
-                .mInstanceCount = 0,
-                .mStartInstance = 0,
-            },
-        };
+    renderable.mesh_key = mesh_key;
+    renderable.material_count = @intCast(materials.len);
+    for (0..materials.len) |i| {
+        renderable.materials[i] = materials[i];
     }
 
     gfx.renderables.put(key.key, renderable) catch unreachable;
 }
 
-pub fn registerRenderableItemInstances(renderableItemInstances: *std.ArrayList(RenderableItemInstance)) void {
-    var transforms = std.ArrayList(Transform).init(gfx_allocator);
-    defer transforms.deinit();
+pub fn registerInstances(instances: *std.ArrayList(Instance)) void {
+    var gpu_instances = std.ArrayList(GPUInstance).init(gfx_allocator);
+    defer gpu_instances.deinit();
 
-    var instances = std.ArrayList(InstanceData).init(gfx_allocator);
-    defer instances.deinit();
+    for (instances.items, 0..) |instance, instance_id| {
+        const renderable = gfx.renderables.get(instance.renderable.key).?;
+        const mesh_info = gfx.clustered_mesh_map.get(renderable.mesh_key.key).?;
 
-    var indirect_args = std.ArrayList(zf.IndirectDrawIndexArguments).init(gfx_allocator);
-    defer indirect_args.deinit();
+        for (0..mesh_info.count) |mesh_index_offset| {
+            const mesh = &gfx.clustered_meshes.items[mesh_info.index + mesh_index_offset];
+            const material_index = gfx.material_map.get(renderable.materials[mesh_index_offset].key).?;
+            var gpu_instance = std.mem.zeroes(GPUInstance);
+            @memcpy(gpu_instance.world[0..], instance.world_mat[0..]);
+            gpu_instance.id = @intCast(instance_id);
+            gpu_instance.mesh_index = @intCast(mesh_info.index + mesh_index_offset);
+            gpu_instance.material_index = @intCast(material_index);
+            gpu_instance.local_bounds_origin = mesh.bounds.center;
+            gpu_instance.local_bounds_extents = mesh.bounds.extents;
 
-    for (renderableItemInstances.items) |object| {
-        var transform: Transform = undefined;
-        @memcpy(transform.world_matrix[0..], object.transform[0..]);
-        transforms.append(transform) catch unreachable;
-
-        const renderable = gfx.renderables.get(object.renderable_hash.key).?;
-        const mesh = &gfx.meshes.items[renderable.mesh_index];
-        std.debug.assert(mesh.sub_meshes_count == renderable.renderable_item_count);
-
-        for (0..renderable.renderable_item_count) |ridx| {
-            var instance_data: InstanceData = undefined;
-            instance_data.transform_index = @intCast(transforms.items.len - 1);
-            instance_data.material_index = renderable.renderable_items[ridx].material_index;
-            instance_data.mesh_index = renderable.mesh_index;
-            instance_data.sub_mesh_index = renderable.renderable_items[ridx].sub_mesh_index;
-            instances.append(instance_data) catch unreachable;
-
-            const indirect_draw_args = zf.IndirectDrawIndexArguments{
-                .mIndexCount = mesh.sub_meshes[ridx].index_count,
-                .mStartIndex = mesh.sub_meshes[ridx].first_index,
-                .mVertexOffset = mesh.sub_meshes[ridx].first_vertex,
-                .mInstanceCount = 1,
-                .mStartInstance = @intCast(instances.items.len - 1),
-            };
-            indirect_args.append(indirect_draw_args) catch unreachable;
+            gpu_instances.append(gpu_instance) catch unreachable;
         }
     }
 
-    const transform_data = zf.DataSlice{
-        .data = @ptrCast(transforms.items),
-        .size = @sizeOf(Transform) * transforms.items.len,
+    const instances_data_slice = zf.DataSlice{
+        .data = @ptrCast(gpu_instances.items),
+        .size = @sizeOf(GPUInstance) * gpu_instances.items.len,
     };
     for (0..zf.frames_in_flight_count) |frame_index| {
-        zf.updateBuffer(transform_data, 0, gfx.transform_buffers[frame_index]);
-    }
-
-    const instance_data = zf.DataSlice{
-        .data = @ptrCast(instances.items),
-        .size = @sizeOf(InstanceData) * instances.items.len,
-    };
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        zf.updateBuffer(instance_data, 0, gfx.instance_buffers[frame_index]);
-    }
-
-    for (indirect_args.items) |ia| {
-        std.log.debug("{}", .{ia});
-    }
-
-    const indirect_args_data = zf.DataSlice{
-        .data = @ptrCast(indirect_args.items),
-        .size = @sizeOf(zf.IndirectDrawIndexArguments) * indirect_args.items.len,
-    };
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        zf.updateBuffer(indirect_args_data, 0, gfx.indirect_args_buffers[frame_index]);
+        zf.updateBuffer(instances_data_slice, 0, gfx.instance_buffers[frame_index]);
     }
 }
 

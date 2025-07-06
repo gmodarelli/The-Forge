@@ -518,7 +518,7 @@ fn createComputePso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) !
     std.debug.assert(desc.mType.bits == IGraphics.PipelineType.PIPELINE_TYPE_COMPUTE.bits);
 
     var pso_desc: IGraphics.PipelineDesc = undefined;
-    memcpy(&pso_desc, &desc, @sizeOf(IGraphics.PipelineDesc));
+    memcpy(&pso_desc, &desc, 0, @sizeOf(IGraphics.PipelineDesc));
 
     const shader = gpu.shaders.getColumnPtr(shader_handle, .ptr) catch unreachable;
     pso_desc.__union_field1.mComputeDesc.pShaderProgram = shader.*;
@@ -533,7 +533,7 @@ fn createGraphicsPso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) 
     std.debug.assert(desc.mType.bits == IGraphics.PipelineType.PIPELINE_TYPE_GRAPHICS.bits);
 
     var pso_desc: IGraphics.PipelineDesc = undefined;
-    memcpy(&pso_desc, &desc, @sizeOf(IGraphics.PipelineDesc));
+    memcpy(&pso_desc, &desc, 0, @sizeOf(IGraphics.PipelineDesc));
 
     const shader = gpu.shaders.getColumnPtr(shader_handle, .ptr) catch unreachable;
     pso_desc.__union_field1.mGraphicsDesc.pShaderProgram = shader.*;
@@ -850,7 +850,7 @@ pub fn updateTexture(handle: TextureHandle, desc: TextureDesc, data: []u8) void 
         for (0..sub_depth) |z| {
             const dest_data = upload_data + sub_slice_pitch * z;
             for (0..sub_num_rows) |r| {
-                memcpy(@ptrFromInt(dest_data + r * sub_row_pitch), @ptrCast(data[source_offset..]), surface_info.row_bytes);
+                memcpy(@ptrFromInt(dest_data + r * sub_row_pitch), @ptrCast(data[source_offset..]), 0, surface_info.row_bytes);
                 source_offset += @intCast(surface_info.row_bytes);
             }
         }
@@ -987,6 +987,20 @@ const BufferPool = Pool(16, 16, [*c]IGraphics.Buffer, struct {
 });
 pub const BufferHandle = BufferPool.Handle;
 
+pub const VertexBufferView = struct {
+    location: u64,
+    elements: u32,
+    stride: u32,
+    offset_from_start: u32,
+};
+
+pub const IndexBufferView = struct {
+    location: u64,
+    elements: u32,
+    offset_from_start: u32,
+    index_type: IGraphics.IndexType,
+};
+
 pub fn createUniformBuffer(size: u64, name: []const u8) BufferHandle {
     var desc = std.mem.zeroes(IGraphics.BufferDesc);
     desc.mDescriptors = IGraphics.DescriptorType.DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1001,14 +1015,16 @@ pub fn createUniformBuffer(size: u64, name: []const u8) BufferHandle {
     return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
 }
 
-pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, write_access: bool, name: []const u8) BufferHandle {
+pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, write_access: bool, name: ?[]const u8) BufferHandle {
     var desc = std.mem.zeroes(IGraphics.BufferDesc);
     desc.mDescriptors = .DESCRIPTOR_TYPE_BUFFER_RAW;
     if (write_access) {
         desc.mDescriptors.bits |= IGraphics.DescriptorType.DESCRIPTOR_TYPE_RW_BUFFER_RAW.bits;
     }
     desc.mMemoryUsage = .RESOURCE_MEMORY_USAGE_GPU_ONLY;
-    desc.pName = @ptrCast(name);
+    if (name) |n| {
+        desc.pName = @ptrCast(n);
+    }
     desc.mSize = size;
     desc.mElementCount = @intCast(@divTrunc(size, @sizeOf(T)));
 
@@ -1070,7 +1086,7 @@ pub fn updateUniformBuffer(data: DataSlice, handle: BufferHandle) void {
     const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
     std.debug.assert(buffer.*.*.bitfield_1.mDescriptors == IGraphics.DescriptorType.DESCRIPTOR_TYPE_UNIFORM_BUFFER.bits);
     std.debug.assert(data.size <= buffer.*.*.bitfield_1.mSize);
-    memcpy(@ptrCast(buffer.*.*.pCpuMappedAddress.?), data.data.?, data.size);
+    memcpy(@ptrCast(buffer.*.*.pCpuMappedAddress.?), data.data.?, 0, data.size);
 }
 
 pub fn updateBuffer(data: DataSlice, dest_offset: u64, handle: BufferHandle) void {
@@ -1078,7 +1094,7 @@ pub fn updateBuffer(data: DataSlice, dest_offset: u64, handle: BufferHandle) voi
     std.debug.assert(data.size <= buffer.*.*.bitfield_1.mSize);
 
     var upload_context = gpu.upload_ring_buffer.begin(data.size);
-    memcpy(@ptrCast(upload_context.buffer.*.pCpuMappedAddress.?), data.data.?, data.size);
+    memcpy(@ptrCast(upload_context.buffer.*.pCpuMappedAddress.?), data.data.?, 0, data.size);
 
     IGraphicsTides.cmdUpdateBufferEx(upload_context.cmd, buffer.*, dest_offset, upload_context.buffer, upload_context.buffer_offset, data.size);
 
@@ -1088,6 +1104,11 @@ pub fn updateBuffer(data: DataSlice, dest_offset: u64, handle: BufferHandle) voi
 pub fn getBufferBindlessIndex(handle: BufferHandle) u32 {
     const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
     return @intCast(buffer.*.*.mDx.mDescriptors);
+}
+
+pub fn getBufferGPUAddress(handle: BufferHandle) u64 {
+    const buffer = gpu.buffers.getColumnPtr(handle, .ptr) catch unreachable;
+    return @intCast(buffer.*.*.mDx.mGpuAddress);
 }
 
 // ███████╗██╗    ██╗ █████╗ ██████╗  ██████╗██╗  ██╗ █████╗ ██╗███╗   ██╗
@@ -1931,7 +1952,7 @@ pub const Profiler = struct {
 
             var profile = std.mem.zeroes(ProfileData);
             profile.hash = hash;
-            memcpy(&profile.name, @ptrCast(&name.ptr), name.len);
+            memcpy(&profile.name, @ptrCast(&name.ptr), 0, name.len);
             @memset(profile.time_samples[0..], 0);
             self.profiles.append(profile) catch unreachable;
         }
@@ -2020,9 +2041,9 @@ const ProfileData = struct {
 //  ╚═════╝    ╚═╝   ╚═╝╚══════╝╚═╝   ╚═╝   ╚═╝╚══════╝╚══════╝
 //
 
-pub fn memcpy(dst: *anyopaque, src: *const anyopaque, byte_count: u64) void {
+pub fn memcpy(dst: *anyopaque, src: *const anyopaque, dst_offset: u64, byte_count: u64) void {
     const src_slice = @as([*]const u8, @ptrCast(src))[0..byte_count];
-    const dst_slice = @as([*]u8, @ptrCast(dst))[0..byte_count];
+    const dst_slice = @as([*]u8, @ptrCast(dst))[dst_offset..(dst_offset + byte_count)];
     for (src_slice, 0..) |byte, i| {
         dst_slice[i] = byte;
     }

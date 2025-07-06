@@ -49,54 +49,59 @@ pub fn main() !void {
 
     gfx.init(zglfw.getWin32Window(window).?, @intCast(window_width), @intCast(window_height));
 
-    const plane_key = gfx.HashKey.generate("plane");
     const birch_1_key = gfx.HashKey.generate("birch_1");
-    const birch_2_key = gfx.HashKey.generate("birch_2");
-    const bush_large_key = gfx.HashKey.generate("bush_large");
+    // const birch_2_key = gfx.HashKey.generate("birch_2");
+    // const bush_large_key = gfx.HashKey.generate("bush_large");
+    // const plane_key = gfx.HashKey.generate("plane");
 
     // Load resources
     {
-        const bark_birch_tree_albedo_key = gfx.HashKey.generate("bark_birch_tree_albedo");
-        const bark_birch_tree_normal_key = gfx.HashKey.generate("bark_birch_tree_normal");
-        const leaves_birch_albedo_key = gfx.HashKey.generate("leaves_birch_albedo");
-        const leaves_giant_pine_albedo_key = gfx.HashKey.generate("leaves_giant_pine_albedo");
+        // const bark_birch_tree_albedo_key = gfx.HashKey.generate("bark_birch_tree_albedo");
+        // const bark_birch_tree_normal_key = gfx.HashKey.generate("bark_birch_tree_normal");
+        // const leaves_birch_albedo_key = gfx.HashKey.generate("leaves_birch_albedo");
+        // const leaves_giant_pine_albedo_key = gfx.HashKey.generate("leaves_giant_pine_albedo");
 
-        const default_mat_key = gfx.HashKey.generate("default");
-        const bark_birch_mat_key = gfx.HashKey.generate("bark_birch");
-        const leaves_birch_mat_key = gfx.HashKey.generate("leaves_birch");
-        const leaves_giant_pine_mat_key = gfx.HashKey.generate("leaves_giant_pine");
+        const bark_mat_key = gfx.HashKey.generate("bark");
+        const crown_mat_key = gfx.HashKey.generate("crown");
+        // const default_mat_key = gfx.HashKey.generate("default");
+        // const bark_birch_mat_key = gfx.HashKey.generate("bark_birch");
+        // const leaves_birch_mat_key = gfx.HashKey.generate("leaves_birch");
+        // const leaves_giant_pine_mat_key = gfx.HashKey.generate("leaves_giant_pine");
 
         // Load meshes
         const meshes_path = "content/models";
-        gfx.loadMesh(plane_key, meshes_path, "Plane.gltf");
-        gfx.loadMesh(birch_1_key, meshes_path, "Birch_1.gltf");
-        gfx.loadMesh(birch_2_key, meshes_path, "Birch_2.gltf");
-        gfx.loadMesh(bush_large_key, meshes_path, "Bush_Large.gltf");
+        gfx.loadMesh(birch_1_key, meshes_path, "Birch_1.mesh");
+        // gfx.loadGltfMesh(plane_key, meshes_path, "Plane.gltf");
+        // gfx.loadGltfMesh(birch_1_key, meshes_path, "Birch_1.gltf");
+        // gfx.loadGltfMesh(birch_2_key, meshes_path, "Birch_2.gltf");
+        // gfx.loadGltfMesh(bush_large_key, meshes_path, "Bush_Large.gltf");
 
-        // Load textures
-        gfx.loadTexture(bark_birch_tree_albedo_key, "content/textures/Bark_BirchTree.dds");
-        gfx.loadTexture(bark_birch_tree_normal_key, "content/textures/Bark_BirchTree_Normal.dds");
-        gfx.loadTexture(leaves_birch_albedo_key, "content/textures/Leaves_Birch_C.dds");
-        gfx.loadTexture(leaves_giant_pine_albedo_key, "content/textures/Leaves_GiantPine_C.dds");
+        // // Load textures
+        // gfx.loadTexture(bark_birch_tree_albedo_key, "content/textures/Bark_BirchTree.dds");
+        // gfx.loadTexture(bark_birch_tree_normal_key, "content/textures/Bark_BirchTree_Normal.dds");
+        // gfx.loadTexture(leaves_birch_albedo_key, "content/textures/Leaves_Birch_C.dds");
+        // gfx.loadTexture(leaves_giant_pine_albedo_key, "content/textures/Leaves_GiantPine_C.dds");
 
         // Load materials
-        gfx.loadMaterial(default_mat_key, .{});
-        gfx.loadMaterial(bark_birch_mat_key, .{
-            .albedo_texture = bark_birch_tree_albedo_key,
-            .normal_texture = bark_birch_tree_normal_key,
-        });
-        gfx.loadMaterial(leaves_birch_mat_key, .{
-            .albedo_texture = leaves_birch_albedo_key,
-        });
-        gfx.loadMaterial(leaves_giant_pine_mat_key, .{
-            .albedo_texture = leaves_giant_pine_albedo_key,
-        });
+        gfx.loadMaterial(bark_mat_key, .{ .base_color = [4]f32{ 0.173, 0.08, 0.034, 1.0 }});
+        gfx.loadMaterial(crown_mat_key, .{ .base_color = [4]f32{ 0.478, 0.56, 0.077, 1.0 }});
+        // gfx.loadMaterial(default_mat_key, .{});
+        // gfx.loadMaterial(bark_birch_mat_key, .{
+        //     .albedo_texture = bark_birch_tree_albedo_key,
+        //     .normal_texture = bark_birch_tree_normal_key,
+        // });
+        // gfx.loadMaterial(leaves_birch_mat_key, .{
+        //     .albedo_texture = leaves_birch_albedo_key,
+        // });
+        // gfx.loadMaterial(leaves_giant_pine_mat_key, .{
+        //     .albedo_texture = leaves_giant_pine_albedo_key,
+        // });
 
         // Register renderables
-        gfx.registerRenderable(plane_key, plane_key, &[_]gfx.HashKey{ default_mat_key });
-        gfx.registerRenderable(birch_1_key, birch_1_key, &[_]gfx.HashKey{ bark_birch_mat_key, leaves_birch_mat_key });
-        gfx.registerRenderable(birch_2_key, birch_2_key, &[_]gfx.HashKey{ bark_birch_mat_key, leaves_birch_mat_key });
-        gfx.registerRenderable(bush_large_key, bush_large_key, &[_]gfx.HashKey{ leaves_giant_pine_mat_key });
+        gfx.registerRenderable(birch_1_key, birch_1_key, &[_]gfx.HashKey{ bark_mat_key, crown_mat_key });
+        // gfx.registerRenderable(plane_key, plane_key, &[_]gfx.HashKey{ default_mat_key });
+        // gfx.registerRenderable(birch_2_key, birch_2_key, &[_]gfx.HashKey{ bark_birch_mat_key, leaves_birch_mat_key });
+        // gfx.registerRenderable(bush_large_key, bush_large_key, &[_]gfx.HashKey{ leaves_giant_pine_mat_key });
     }
 
     app.camera.position += zmath.Vec{0.0, 7.0, -20.0, 0.0 };
@@ -111,48 +116,32 @@ pub fn main() !void {
     app.entities = std.ArrayList(Entity).init(std.heap.page_allocator);
     defer app.entities.deinit();
 
-    app.entities.append(.{
-        .position = [3]f32{ 0.0, 0.0, 0.0 },
-        .unform_scale = 150.0,
-        .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = plane_key,
-    }) catch unreachable;
-
-    app.entities.append(.{
-        .position = [3]f32{ -6.0, 0.0, 0.0 },
-        .unform_scale = 1.0,
-        .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = birch_1_key,
-    }) catch unreachable;
-
-    app.entities.append(.{
-        .position = [3]f32{ 0.0, 0.0, 0.0 },
-        .unform_scale = 1.0,
-        .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = birch_2_key,
-    }) catch unreachable;
-
-    app.entities.append(.{
-        .position = [3]f32{ 6.0, 0.0, 0.0 },
-        .unform_scale = 1.0,
-        .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-        .renderable_hash = bush_large_key,
-    }) catch unreachable;
-
-    var renderableItemInstances = std.ArrayList(gfx.RenderableItemInstance).init(std.heap.page_allocator);
-    defer renderableItemInstances.deinit();
-
-    for(app.entities.items) |entity| {
-        var renderableItemInstance: gfx.RenderableItemInstance = undefined;
-        const z_trans = zmath.translation(entity.position[0], entity.position[1], entity.position[2]);
-        const z_scale = zmath.scaling(entity.unform_scale, entity.unform_scale, entity.unform_scale);
-        // NOTE: zmath stores matrices in row-major order. We transpose them cause HLSL stores them in column-major
-        zmath.storeMat(&renderableItemInstance.transform, zmath.transpose(zmath.mul(z_trans, z_scale)));
-        renderableItemInstance.renderable_hash = entity.renderable_hash;
-        renderableItemInstances.append(renderableItemInstance) catch unreachable;
+    // Create fake entities
+    for (0..10) |x| {
+        for (0..10) |z| {
+            app.entities.append(.{
+                .position = [3]f32{ @floatFromInt(x), 0.0, @floatFromInt(z) },
+                .unform_scale = 1.0,
+                .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
+                .renderable_hash = birch_1_key,
+            }) catch unreachable;
+        }
     }
 
-    gfx.registerRenderableItemInstances(&renderableItemInstances);
+    // Iterate through entities
+    var instances = std.ArrayList(gfx.Instance).init(std.heap.page_allocator);
+    defer instances.deinit();
+
+    for (app.entities.items) |entity| {
+        var instance: gfx.Instance = undefined;
+        instance.renderable = entity.renderable_hash;
+        const translation = zmath.translation(entity.position[0], entity.position[1], entity.position[2]);
+        // NOTE: zmath stores matrices in row-major order. We transpose them cause HLSL stores them column-major
+        zmath.storeMat(&instance.world_mat, zmath.transpose(translation));
+        instances.append(instance) catch unreachable;
+    }
+
+    gfx.registerInstances(&instances);
 
     while (!window.shouldClose()) {
         app.current_time = zglfw.getTime();

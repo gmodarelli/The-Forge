@@ -38,7 +38,8 @@ Varyings GBufferVS(VertexShaderInput input)
 
     uint instance_index = input.instance_id + input.start_instance_location;
     InstanceData instance = getInstanceData(instance_index);
-    Transform transform = getTransform(instance.transform_index);
+    // TODO
+    Transform transform = (Transform)0;
 
     uint vertex_index = input.vertex_id + input.start_vertex_location;
     ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[g_frame.vertex_buffer_index];
@@ -113,7 +114,8 @@ Varyings ShadowCasterVS(VertexShaderInput input)
 
     uint instance_index = input.instance_id + input.start_instance_location;
     InstanceData instance = getInstanceData(instance_index);
-    Transform transform = getTransform(instance.transform_index);
+    // TODO
+    Transform transform = (Transform)0;
 
     uint vertex_index = input.vertex_id + input.start_vertex_location;
     ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[g_frame.vertex_buffer_index];

@@ -25,10 +25,37 @@ struct Frame
     // TODO: Add inverted view, projection and view_projection
     float time;
     uint vertex_buffer_index;
-    uint bounds_buffer_index;
     uint transform_buffer_index;
     uint material_buffer_index;
     uint instance_buffer_index;
+    uint meshes_buffer_index;
+};
+
+struct Mesh
+{
+	uint mesh_buffer_index;
+	uint positions_offset;
+	uint normals_offset;
+	uint texcoords_offset;
+	uint indices_offset;
+	uint index_byte_size;
+	uint meshlet_offset;
+	uint meshlet_vertex_offset;
+	uint meshlet_triangle_offset;
+	uint meshlet_bounds_offset;
+	uint meshlet_count;
+};
+
+struct Instance
+{
+    float4x4 world;
+    float3 local_bounds_origin;
+    uint _pad0;
+    float3 local_bounds_extents;
+    uint id;
+    uint mesh_index;
+    uint material_index;
+    uint2 _pad1;
 };
 
 struct Transform
@@ -85,13 +112,6 @@ InstanceData getInstanceData(uint instance_index)
     ByteAddressBuffer instance_buffer = ResourceDescriptorHeap[g_frame.instance_buffer_index];
     InstanceData instance = instance_buffer.Load<InstanceData>(instance_index * sizeof(InstanceData));
     return instance;
-}
-
-Transform getTransform(uint transform_index)
-{
-    ByteAddressBuffer transform_buffer = ResourceDescriptorHeap[g_frame.transform_buffer_index];
-    Transform transform = transform_buffer.Load<Transform>(transform_index * sizeof(Transform));
-    return transform;
 }
 
 MaterialData getMaterial(uint material_index)
