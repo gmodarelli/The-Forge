@@ -15,6 +15,15 @@ const TextureHashMap = std.AutoHashMap(u64, zf.TextureHandle);
 const MaterialHashMap = std.AutoHashMap(u64, usize);
 const RenderableHashMap = std.AutoHashMap(u64, Renderable);
 
+pub const ClearParams = struct {
+    counters_buffer_index: u32,
+};
+
+pub const CullInstancesParams = struct {
+    counters_buffer_index: u32,
+    candidate_meshlets_buffer_index: u32,
+};
+
 pub const Mesh = struct {
     data_buffer: zf.BufferHandle = zf.BufferHandle.nil,
     position_stream_location: zf.VertexBufferView = undefined,
@@ -44,9 +53,9 @@ const GPUMesh = struct {
     meshlet_count: u32,
 };
 
-pub const Instance = struct {
-    world_mat: [16]f32,
-    renderable: HashKey,
+const GPUMeshletCandidate = struct {
+    instance_id: u32,
+    meshlet_index: u32,
 };
 
 const GPUInstance = struct {
@@ -58,6 +67,11 @@ const GPUInstance = struct {
     mesh_index: u32,
     material_index: u32,
     _pad1: [2]u32,
+};
+
+pub const Instance = struct {
+    world_mat: [16]f32,
+    renderable: HashKey,
 };
 
 pub const Renderable = struct {
@@ -139,12 +153,23 @@ pub const Gfx = struct {
 
     // Meshlet Renderer
     // ================
+    meshlet_clear_counters_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    meshlet_clear_counters_pso: zf.PsoHandle = zf.PsoHandle.nil,
+    meshlet_clear_counters_material: GfxMaterial = undefined,
+    meshlet_cull_instances_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    meshlet_cull_instances_pso: zf.PsoHandle = zf.PsoHandle.nil,
+    meshlet_cull_instances_material: GfxMaterial = undefined,
     clustered_mesh_map: ClusteredMeshHashMap,
     clustered_meshes: std.ArrayList(Mesh) = undefined,
     mesh_buffer: zf.BufferHandle = undefined,
     mesh_buffer_offset: u64 = 0,
     mesh_buffer_mutex: std.Thread.Mutex,
+    clear_params_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    cull_instances_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    candidate_meshlet_counters_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    candidate_meshlets_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    registered_instances_count: u32 = 0,
 
     // Sprite Renderer
     // ===============
@@ -208,16 +233,18 @@ pub const Frame = struct {
     camera_position: [4]f32,
     camera_near_plane: f32,
     camera_far_plane: f32,
-    _padding: [2]f32,
+    time: f32,
+    _padding0: f32,
     linear_repeat_sampler_index: u32,
     linear_clamp_sampler_index: u32,
     shadow_sampler_index: u32,
     shadow_pcf_sampler_index: u32,
-    time: f32,
     vertex_buffer_index: u32,
     material_buffer_index: u32,
     instance_buffer_index: u32,
     meshes_buffer_index: u32,
+    instances_count: u32,
+    _padding1: [3]u32,
 };
 
 pub const ShadowFrame = struct {
@@ -835,23 +862,101 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     gfx.material_buffer_offset = 0;
     gfx.material_buffer_mutex = std.Thread.Mutex{};
 
-    // Meshlet Renderer resources
-    // =========================
-    gfx.mesh_map = MeshHashMap.init(gfx_allocator);
-    gfx.meshes = std.ArrayList(geometry.Mesh).init(gfx_allocator);
-    gfx.clustered_mesh_map = ClusteredMeshHashMap.init(gfx_allocator);
-    gfx.clustered_meshes = std.ArrayList(Mesh).init(gfx_allocator);
-    gfx.texture_map = TextureHashMap.init(gfx_allocator);
-    gfx.material_data = std.ArrayList(GpuMaterialData).init(gfx_allocator);
-    gfx.material_map = MaterialHashMap.init(gfx_allocator);
-    gfx.renderables = RenderableHashMap.init(gfx_allocator);
-    // Buffers
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        gfx.instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, GPUInstance, true, false, "Instance Buffer");
+    // Meshlet Renderer Initialization
+    // ===============================
+    {
+        // Shaders
+        // =======
+        {
+            const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
+                .path = "shaders/MeshletClearCounters.comp",
+                .entry = "ClearCountersCS",
+            }, .vertex = null, .pixel = null };
+            gfx.meshlet_clear_counters_shader = zf.compileShader(shader_load_desc) catch unreachable;
+        }
+
+        {
+            const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
+                .path = "shaders/MeshletCullInstances.comp",
+                .entry = "CullInstancesCS",
+            }, .vertex = null, .pixel = null };
+            gfx.meshlet_cull_instances_shader = zf.compileShader(shader_load_desc) catch unreachable;
+        }
+        // PSOs
+        // ====
+        {
+            var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
+            pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
+            gfx.meshlet_clear_counters_pso = zf.createPso(pipeline_desc, gfx.meshlet_clear_counters_shader) catch unreachable;
+        }
+        {
+            var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
+            pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
+            gfx.meshlet_cull_instances_pso = zf.createPso(pipeline_desc, gfx.meshlet_cull_instances_shader) catch unreachable;
+        }
+        // Materials
+        // =========
+        {
+            {
+                gfx.meshlet_clear_counters_material = std.mem.zeroes(GfxMaterial);
+                const pass_type = Pass.default;
+
+                const pass_index: usize = @intFromEnum(pass_type);
+                var pass = &gfx.meshlet_clear_counters_material.passes[pass_index];
+
+                pass.pass = pass_type;
+                pass.pso = gfx.meshlet_clear_counters_pso;
+                pass.shader = gfx.meshlet_clear_counters_shader;
+
+                const descriptor_set_handles = zf.createDescriptorSets(gfx.meshlet_clear_counters_shader) catch unreachable;
+                pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+                pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+                pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+                pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+                pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
+            }
+            {
+                gfx.meshlet_cull_instances_material = std.mem.zeroes(GfxMaterial);
+                const pass_type = Pass.default;
+
+                const pass_index: usize = @intFromEnum(pass_type);
+                var pass = &gfx.meshlet_cull_instances_material.passes[pass_index];
+
+                pass.pass = pass_type;
+                pass.pso = gfx.meshlet_cull_instances_pso;
+                pass.shader = gfx.meshlet_cull_instances_shader;
+
+                const descriptor_set_handles = zf.createDescriptorSets(gfx.meshlet_cull_instances_shader) catch unreachable;
+                pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+                pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+                pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+                pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+                pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
+            }
+        }
+        // Buffers
+        // =======
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            gfx.instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, GPUInstance, true, false, "Instance Buffer");
+            gfx.candidate_meshlet_counters_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Candidate Meshlet Counters");
+            gfx.candidate_meshlets_buffers[frame_index] = zf.createRawBuffer(@intCast(1 << 20), GPUMeshletCandidate, true, true, "Candidate Meshlets");
+            gfx.clear_params_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(ClearParams), "Clear Params");
+            gfx.cull_instances_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(CullInstancesParams), "Cull Instances Params");
+        }
+        // CPU Data
+        // ========
+        gfx.mesh_map = MeshHashMap.init(gfx_allocator);
+        gfx.meshes = std.ArrayList(geometry.Mesh).init(gfx_allocator);
+        gfx.clustered_mesh_map = ClusteredMeshHashMap.init(gfx_allocator);
+        gfx.clustered_meshes = std.ArrayList(Mesh).init(gfx_allocator);
+        gfx.texture_map = TextureHashMap.init(gfx_allocator);
+        gfx.material_data = std.ArrayList(GpuMaterialData).init(gfx_allocator);
+        gfx.material_map = MaterialHashMap.init(gfx_allocator);
+        gfx.renderables = RenderableHashMap.init(gfx_allocator);
+        gfx.mesh_buffer = zf.createRawBuffer(1024, GPUMesh, true, false, "Meshes");
+        gfx.mesh_buffer_offset = 0;
+        gfx.mesh_buffer_mutex = std.Thread.Mutex{};
     }
-    gfx.mesh_buffer = zf.createRawBuffer(1024, GPUMesh, true, false, "Meshes");
-    gfx.mesh_buffer_offset = 0;
-    gfx.mesh_buffer_mutex = std.Thread.Mutex{};
 
     // Sprite material
     {
@@ -1077,16 +1182,18 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         .camera_position = undefined,
         .camera_near_plane = camera.near_plane,
         .camera_far_plane = camera.far_plane,
-        ._padding = .{ 42, 42 },
+        .time = @floatCast(zglfw.getTime()),
+        ._padding0 = 42,
         .linear_repeat_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_repeat_sampler),
         .linear_clamp_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_clamp_sampler),
         .shadow_sampler_index = zf.getSamplerBindlessIndex(gfx.shadow_sampler),
         .shadow_pcf_sampler_index = zf.getSamplerBindlessIndex(gfx.shadow_pcf_sampler),
-        .time = @floatCast(zglfw.getTime()),
         .vertex_buffer_index = zf.getBufferBindlessIndex(gfx.vertex_buffer),
         .material_buffer_index = zf.getBufferBindlessIndex(gfx.material_buffer),
         .instance_buffer_index = zf.getBufferBindlessIndex(gfx.instance_buffers[frame_index]),
         .meshes_buffer_index = zf.getBufferBindlessIndex(gfx.mesh_buffer),
+        .instances_count = gfx.registered_instances_count,
+        ._padding1 = [3]u32 { 42, 42, 42 }
     };
     zmath.storeMat(&frame.view_matrix, zmath.transpose(camera.view));
     zmath.storeMat(&frame.projection_matrix, zmath.transpose(camera.proj));
@@ -1125,6 +1232,87 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             .size = @sizeOf(ShadowCasterFrame),
         };
         zf.updateUniformBuffer(shadow_caster_data, gfx.shadow_caster_constant_buffers[frame_index][cascade_index]);
+    }
+
+    // Meshlet Pass
+    // ============
+    {
+        const profile_index = zf.startGpuProfile("Meshlet Rendering");
+        defer zf.endGpuProfile(profile_index);
+
+        // Clear counters
+        {
+            const inner_profile_index = zf.startGpuProfile("Clear Counters");
+            defer zf.endGpuProfile(inner_profile_index);
+
+            var clear_params = ClearParams{
+                .counters_buffer_index = zf.getBufferBindlessIndex(gfx.candidate_meshlet_counters_buffers[frame_index]),
+            };
+            const data_slice = zf.DataSlice{
+                .data = @ptrCast(&clear_params),
+                .size = @sizeOf(ClearParams),
+            };
+            zf.updateUniformBuffer(data_slice, gfx.clear_params_buffers[frame_index]);
+
+            var buffer_barriers = [_]zf.BufferBarrier{
+                .{
+                    .buffer_handle = gfx.candidate_meshlet_counters_buffers[frame_index],
+                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+                },
+            };
+
+            zf.cmdResourceBarrier(&buffer_barriers, null, null);
+            gfx.meshlet_clear_counters_material.bindMaterialPass(.default, frame_index, 0);
+            zf.cmdDispatch(1, 1, 1);
+
+            buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+            buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+
+            zf.cmdResourceBarrier(&buffer_barriers, null, null);
+        }
+
+        // Cull instances
+        {
+            const inner_profile_index = zf.startGpuProfile("Cull Instances");
+            defer zf.endGpuProfile(inner_profile_index);
+
+            var cull_instances_params = CullInstancesParams{
+                .counters_buffer_index = zf.getBufferBindlessIndex(gfx.candidate_meshlet_counters_buffers[frame_index]),
+                .candidate_meshlets_buffer_index = zf.getBufferBindlessIndex(gfx.candidate_meshlets_buffers[frame_index]),
+            };
+            const data_slice = zf.DataSlice{
+                .data = @ptrCast(&cull_instances_params),
+                .size = @sizeOf(CullInstancesParams),
+            };
+            zf.updateUniformBuffer(data_slice, gfx.cull_instances_buffers[frame_index]);
+
+            var buffer_barriers = [_]zf.BufferBarrier{
+                .{
+                    .buffer_handle = gfx.candidate_meshlet_counters_buffers[frame_index],
+                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+                },
+                .{
+                    .buffer_handle = gfx.candidate_meshlets_buffers[frame_index],
+                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+                },
+            };
+
+            zf.cmdResourceBarrier(&buffer_barriers, null, null);
+            gfx.meshlet_cull_instances_material.bindMaterialPass(.default, frame_index, 0);
+
+            const thread_group_size = zf.getShaderThreadGroupSize(gfx.meshlet_cull_instances_material.getPassShaderHandle(.default));
+            zf.cmdDispatch((gfx.registered_instances_count + thread_group_size.x - 1) / thread_group_size.x, 1, 1);
+
+            buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+            buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+            buffer_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
+            buffer_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+
+            zf.cmdResourceBarrier(&buffer_barriers, null, null);
+        }
     }
 
     // // Clear Buffer: Visible Instances
@@ -1915,6 +2103,41 @@ fn updateDescriptorSets() void {
 
         gfx.gauss_blur_vertical_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0, 0);
     }
+
+    // Meshlet Renderer
+    // ================
+    {
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            {
+                const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                    .{
+                        .name = "g_ClearUAVParams",
+                        .binding_type = .buffer,
+                        .buffer_handle = gfx.clear_params_buffers[frame_index],
+                    },
+                };
+
+                gfx.meshlet_clear_counters_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
+            }
+
+            {
+                const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                    .{
+                        .name = "g_CBO",
+                        .binding_type = .buffer,
+                        .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+                    },
+                    .{
+                        .name = "g_CullInstancesParams",
+                        .binding_type = .buffer,
+                        .buffer_handle = gfx.cull_instances_buffers[frame_index],
+                    },
+                };
+
+                gfx.meshlet_cull_instances_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
+            }
+        }
+    }
 }
 
 // ███╗   ███╗███████╗███████╗██╗  ██╗███████╗███████╗
@@ -2259,6 +2482,8 @@ pub fn registerInstances(instances: *std.ArrayList(Instance)) void {
     for (0..zf.frames_in_flight_count) |frame_index| {
         zf.updateBuffer(instances_data_slice, 0, gfx.instance_buffers[frame_index]);
     }
+
+    gfx.registered_instances_count = @intCast(gpu_instances.items.len);
 }
 
 // ███████╗██████╗ ██████╗ ██╗████████╗███████╗███████╗

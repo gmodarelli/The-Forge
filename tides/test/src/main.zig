@@ -117,14 +117,18 @@ pub fn main() !void {
     defer app.entities.deinit();
 
     // Create fake entities
-    for (0..10) |x| {
-        for (0..10) |z| {
-            app.entities.append(.{
-                .position = [3]f32{ @floatFromInt(x), 0.0, @floatFromInt(z) },
-                .unform_scale = 1.0,
-                .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-                .renderable_hash = birch_1_key,
-            }) catch unreachable;
+    {
+        var x: i32 = -10;
+        while (x <= 10) : (x += 1) {
+            var z: i32 = -10;
+            while (z <= 10) : (z += 1) {
+                app.entities.append(.{
+                    .position = [3]f32{ @floatFromInt(x), 0.0, @floatFromInt(z) },
+                    .unform_scale = 1.0,
+                    .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
+                    .renderable_hash = birch_1_key,
+                }) catch unreachable;
+            }
         }
     }
 

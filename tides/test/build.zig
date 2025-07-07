@@ -187,6 +187,14 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     const deferred_shading_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "DeferredShading.comp" }) catch unreachable;
     defer allocator.free(deferred_shading_output_path);
     compileShader(step, "shaders/DeferredShadingCS.hlsl", deferred_shading_output_path, "main", "", .compute);
+
+    const meshlet_clear_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletClearCounters.comp" }) catch unreachable;
+    defer allocator.free(meshlet_clear_output_path);
+    compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_clear_output_path, "ClearCountersCS", "CLEAR_COUNTERS", .compute);
+
+    const meshlet_cull_instances_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletCullInstances.comp" }) catch unreachable;
+    defer allocator.free(meshlet_cull_instances_output_path);
+    compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_cull_instances_output_path, "CullInstancesCS", "CULL_INSTANCES", .compute);
 }
 
 const ShaderType = enum {

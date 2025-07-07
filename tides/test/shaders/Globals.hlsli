@@ -11,24 +11,27 @@ struct Frame
     float4x4 projection;
     float4x4 view_proj;
     float4x4 inv_view_proj;
+    // TODO: Add inverted view, projection
     float4x4 cascade_view_proj[CASCADES_MAX_COUNT];
     float4 camera_position;
     float camera_near_plane;
     float camera_far_plane;
-    float2 _padding;
+    float time;
+    uint _padding0;
     // Default samplers
     // TODO: Add more default samplers
     uint linear_repeat_sampler_index;
     uint linear_clamp_sampler_index;
     uint shadow_sampler_index;
     uint shadow_pcf_sampler_index;
-    // TODO: Add inverted view, projection and view_projection
-    float time;
+
     uint vertex_buffer_index;
-    uint transform_buffer_index;
     uint material_buffer_index;
     uint instance_buffer_index;
     uint meshes_buffer_index;
+
+    uint instances_count;
+    uint3 _padding;
 };
 
 struct Mesh
@@ -78,15 +81,6 @@ struct InstanceData
     uint material_index;
     uint mesh_index;
     uint sub_mesh_index;
-};
-
-struct Bounds
-{
-    float3 center;
-    float radius;
-    float3 aabb_min;
-    float3 aabb_max;
-    float2 _padding;
 };
 
 cbuffer g_CBO : register(b0, SPACE_PerFrame)
