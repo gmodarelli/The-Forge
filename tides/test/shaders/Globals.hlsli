@@ -36,7 +36,7 @@ struct Frame
 
 struct Mesh
 {
-	uint mesh_buffer_index;
+	uint data_buffer_index;
 	uint positions_offset;
 	uint normals_offset;
 	uint texcoords_offset;
@@ -47,6 +47,12 @@ struct Mesh
 	uint meshlet_triangle_offset;
 	uint meshlet_bounds_offset;
 	uint meshlet_count;
+};
+
+struct MeshletBounds
+{
+    float3 local_center;
+    float3 local_extents;
 };
 
 struct Instance

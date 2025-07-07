@@ -7,6 +7,7 @@ bool FrustumCull(float3 aabb_center, float3 aabb_extents, float4x4 world, float4
 struct ClearUAVParams
 {
     uint counters_buffer_index;
+    uint visible_counters_buffer_index;
 };
 
 cbuffer g_ClearUAVParams : register(b0, SPACE_PerFrame)
@@ -21,6 +22,10 @@ void ClearCountersCS()
     RWStructuredBuffer<uint> counters_buffer = ResourceDescriptorHeap[g_clear_uav_params.counters_buffer_index];
     counters_buffer[0] = 0;
     counters_buffer[1] = 0;
+
+    RWStructuredBuffer<uint> visible_counters_buffer = ResourceDescriptorHeap[g_clear_uav_params.visible_counters_buffer_index];
+    visible_counters_buffer[0] = 0;
+    visible_counters_buffer[1] = 0;
 }
 
 #endif // CLEAR_COUNTERS
@@ -103,6 +108,102 @@ void CullInstancesCS(uint thread_id : SV_DispatchThreadID)
             meshlet.instance_id = instance.id;
             meshlet.meshlet_index = i;
             meshlet_candidates_buffer[element_offset + i] = meshlet;
+        }
+    }
+}
+
+#endif // CULL_INSTANCES
+
+#ifdef MESHLET_CULL_ARGUMENTS
+
+#include "Defines.hlsli"
+
+struct MeshletCullArgsParams
+{
+    uint counters_buffer_index;
+    uint dispatch_args_buffer_index;
+};
+
+cbuffer g_MeshletCullArgsParams : register(b0, SPACE_PerFrame)
+{
+    MeshletCullArgsParams g_meshlet_cull_args_params;
+};
+
+[RootSignature(ComputeRootSignature)]
+[numthreads(1, 1, 1)]
+void BuildMeshletCullIndirectArgsCS()
+{
+    RWStructuredBuffer<uint> counters_buffer = ResourceDescriptorHeap[g_meshlet_cull_args_params.counters_buffer_index];
+    RWStructuredBuffer<uint3> args_buffer = ResourceDescriptorHeap[g_meshlet_cull_args_params.dispatch_args_buffer_index];
+    uint meshlets_count = counters_buffer[1];
+    uint3 args = uint3(1, 1, 1);
+    args.x = (meshlets_count + 64 - 1) / 64;
+    args_buffer[0] = args;
+}
+
+#endif
+
+#ifdef CULL_MESHLETS
+
+#include "Globals.hlsli"
+
+struct MeshletCandidate
+{
+    uint instance_id;
+    uint meshlet_index;
+};
+
+struct CullMeshletsParams
+{
+    uint counters_buffer_index;
+    uint candidate_meshlets_buffer_index;
+    uint visible_counters_buffer_index;
+    uint visible_meshlets_buffer_index;
+};
+
+cbuffer g_CullMeshletsParams : register(b1, SPACE_PerFrame)
+{
+    CullMeshletsParams g_cull_meshlets_params;
+};
+
+[RootSignature(ComputeRootSignature)]
+[numthreads(64, 1, 1)]
+void CullMeshletsCS(uint thread_id : SV_DispatchThreadID)
+{
+    RWStructuredBuffer<uint> counters_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.counters_buffer_index];
+    RWStructuredBuffer<uint> visible_counters_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.visible_counters_buffer_index];
+    uint instances_count = g_frame.instances_count;
+
+    if (thread_id < counters_buffer[1])
+    {
+        RWStructuredBuffer<MeshletCandidate> meshlet_candidates_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.candidate_meshlets_buffer_index];
+        uint candidate_index = thread_id;
+        MeshletCandidate candidate = meshlet_candidates_buffer[candidate_index];
+
+        ByteAddressBuffer instance_buffer = ResourceDescriptorHeap[g_frame.instance_buffer_index];
+        Instance instance = instance_buffer.Load<Instance>(candidate.instance_id * sizeof(Instance));
+
+        ByteAddressBuffer mesh_buffer = ResourceDescriptorHeap[g_frame.meshes_buffer_index];
+        Mesh mesh = mesh_buffer.Load<Mesh>(instance.mesh_index * sizeof(Mesh));
+
+        ByteAddressBuffer data_buffer = ResourceDescriptorHeap[NonUniformResourceIndex(mesh.data_buffer_index)];
+        MeshletBounds bounds = data_buffer.Load<MeshletBounds>(candidate.meshlet_index * sizeof(MeshletBounds) + mesh.meshlet_bounds_offset);
+        bool is_visible = FrustumCull(bounds.local_center, bounds.local_extents, instance.world, g_frame.view_proj);
+
+        if (is_visible)
+        {
+            uint element_offset;
+            {
+                uint count = WaveActiveSum(true);
+                if (WaveIsFirstLane())
+                {
+                    InterlockedAdd(visible_counters_buffer[0], count, element_offset);
+                }
+                element_offset = WaveReadLaneFirst(element_offset) + WavePrefixSum(true);
+
+                RWStructuredBuffer<MeshletCandidate> visible_meshlet_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.visible_meshlets_buffer_index];
+                visible_meshlet_buffer[element_offset] = candidate;
+            }
         }
     }
 }
