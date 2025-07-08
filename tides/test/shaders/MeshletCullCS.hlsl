@@ -34,12 +34,6 @@ void ClearCountersCS()
 
 #include "Globals.hlsli"
 
-struct MeshletCandidate
-{
-    uint instance_id;
-    uint meshlet_index;
-};
-
 struct CullInstancesParams
 {
     uint counters_buffer_index;
@@ -51,10 +45,8 @@ cbuffer g_CullInstancesParams : register(b1, SPACE_PerFrame)
     CullInstancesParams g_cull_instances_params;
 };
 
-#define MESHLET_COUNT_MAX 1 << 20
-
 [RootSignature(ComputeRootSignature)]
-[numthreads(64, 1, 1)]
+[numthreads(CULL_INSTANCES_THREADS_COUNT, 1, 1)]
 void CullInstancesCS(uint thread_id : SV_DispatchThreadID)
 {
     RWStructuredBuffer<uint> counters_buffer = ResourceDescriptorHeap[g_cull_instances_params.counters_buffer_index];
@@ -137,21 +129,15 @@ void BuildMeshletCullIndirectArgsCS()
     RWStructuredBuffer<uint3> args_buffer = ResourceDescriptorHeap[g_meshlet_cull_args_params.dispatch_args_buffer_index];
     uint meshlets_count = counters_buffer[1];
     uint3 args = uint3(1, 1, 1);
-    args.x = (meshlets_count + 64 - 1) / 64;
+    args.x = (meshlets_count + CULL_MESHLETS_THREADS_COUNT - 1) / CULL_MESHLETS_THREADS_COUNT;
     args_buffer[0] = args;
 }
 
-#endif
+#endif // MESHLET_CULL_ARGUMENTS
 
 #ifdef CULL_MESHLETS
 
 #include "Globals.hlsli"
-
-struct MeshletCandidate
-{
-    uint instance_id;
-    uint meshlet_index;
-};
 
 struct CullMeshletsParams
 {
@@ -167,7 +153,7 @@ cbuffer g_CullMeshletsParams : register(b1, SPACE_PerFrame)
 };
 
 [RootSignature(ComputeRootSignature)]
-[numthreads(64, 1, 1)]
+[numthreads(CULL_MESHLETS_THREADS_COUNT, 1, 1)]
 void CullMeshletsCS(uint thread_id : SV_DispatchThreadID)
 {
     RWStructuredBuffer<uint> counters_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.counters_buffer_index];
@@ -208,7 +194,35 @@ void CullMeshletsCS(uint thread_id : SV_DispatchThreadID)
     }
 }
 
-#endif // CULL_INSTANCES
+#endif // CULL_MESHLETS
+
+#ifdef MESHLET_DISPATCH_ARGUMENTS
+
+#include "Defines.hlsli"
+
+struct MeshletDispatchArgsParams
+{
+    uint visible_counters_buffer_index;
+    uint dispatch_args_buffer_index;
+};
+
+cbuffer g_MeshletDispatchArgsParams : register(b0, SPACE_PerFrame)
+{
+    MeshletDispatchArgsParams g_meshlet_dispatch_args_params;
+};
+
+[RootSignature(ComputeRootSignature)]
+[numthreads(1, 1, 1)]
+void BuildMeshletDispatchIndirectArgsCS()
+{
+    RWStructuredBuffer<uint> counters_buffer = ResourceDescriptorHeap[g_meshlet_dispatch_args_params.visible_counters_buffer_index];
+    RWStructuredBuffer<uint3> args_buffer = ResourceDescriptorHeap[g_meshlet_dispatch_args_params.dispatch_args_buffer_index];
+    uint meshlets_count = counters_buffer[0];
+    uint3 args = uint3(meshlets_count, 1, 1);
+    args_buffer[0] = args;
+}
+
+#endif // MESHLET_DISPATCH_ARGUMENTS
 
 bool FrustumCull(float3 aabb_center, float3 aabb_extents, float4x4 world, float4x4 view_proj)
 {

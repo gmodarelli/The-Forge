@@ -105,4 +105,11 @@
 
 #define k_invalid_descriptor_index 0xffffffff;
 
+#define MESHLET_COUNT_MAX 1 << 20
+#define CULL_INSTANCES_THREADS_COUNT 64
+#define CULL_MESHLETS_THREADS_COUNT 64
+#define MESHLET_THREADS_COUNT 32
+#define MESHLET_MAX_TRIANGLES 124
+#define MESHLET_MAX_VERTICES 64
+
 #endif // _DEFINES_HLSLI

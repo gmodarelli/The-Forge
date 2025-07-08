@@ -49,10 +49,32 @@ struct Mesh
 	uint meshlet_count;
 };
 
+struct Meshlet
+{
+    uint vertex_offset;
+    uint triangle_offset;
+    uint vertex_count;
+    uint triangle_count;
+};
+
+struct MeshletTriangle
+{
+    uint v0 : 10;
+    uint v1 : 10;
+    uint v2 : 10;
+    uint _pad : 2;
+};
+
 struct MeshletBounds
 {
     float3 local_center;
     float3 local_extents;
+};
+
+struct MeshletCandidate
+{
+    uint instance_id;
+    uint meshlet_index;
 };
 
 struct Instance
@@ -79,6 +101,7 @@ struct MaterialData
     uint albedo_sampler_index;
     uint normal_texture_index;
     uint normal_sampler_index;
+    float4 base_color;
 };
 
 struct InstanceData
