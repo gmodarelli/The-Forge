@@ -101,6 +101,11 @@ extern "C"
     // swapchain);
     extern void    hook_remove_pipeline(Pipeline* pPipeline);
 
+#if defined(TIDES)
+    extern HRESULT hook_create_mesh_pipeline_state(ID3D12Device* pDevice, const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc,
+                                                       void* pExtensions, uint32_t extensionCout, ID3D12PipelineState** ppPipeline);
+#endif
+
     extern TinyImageFormat hook_get_recommended_swapchain_format(Renderer* pRenderer, const SwapChainDesc* pDesc, ColorSpace colorSpace);
     extern uint32_t        hook_get_swapchain_image_index(SwapChain* pSwapChain);
     extern HRESULT         hook_acquire_next_image(ID3D12Device* pDevice, SwapChain* pSwapChain);

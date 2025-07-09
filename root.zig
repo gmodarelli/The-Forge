@@ -39,6 +39,7 @@ pub const IndexType = IGraphics.IndexType;
 pub const IndirectArgumentType = IGraphics.IndirectArgumentType;
 pub const IndirectDrawIndexArguments = IGraphics.IndirectDrawIndexArguments;
 pub const LoadActionType = IGraphics.LoadActionType;
+pub const MeshPipelineDesc = IGraphics.MeshPipelineDesc;
 pub const MipMapMode = IGraphics.MipMapMode;
 pub const PipelineDesc = IGraphics.PipelineDesc;
 pub const PipelineType = IGraphics.PipelineType;
@@ -502,8 +503,10 @@ pub fn createPso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) !Pso
     const pso: [*c]IGraphics.Pipeline = blk: {
         if (desc.mType.bits == IGraphics.PipelineType.PIPELINE_TYPE_GRAPHICS.bits) {
             break :blk createGraphicsPso(desc, shader_handle) catch unreachable;
-        } else {
+        } else if (desc.mType.bits == IGraphics.PipelineType.PIPELINE_TYPE_COMPUTE.bits) {
             break :blk createComputePso(desc, shader_handle) catch unreachable;
+        } else {
+            break :blk createMeshPso(desc, shader_handle) catch unreachable;
         }
     };
 
@@ -544,6 +547,21 @@ fn createGraphicsPso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) 
     return pso;
 }
 
+fn createMeshPso(desc: IGraphics.PipelineDesc, shader_handle: ShaderHandle) ![*c]IGraphics.Pipeline {
+    std.debug.assert(desc.mType.bits == IGraphics.PipelineType.PIPELINE_TYPE_MESH.bits);
+
+    var pso_desc: IGraphics.PipelineDesc = undefined;
+    memcpy(&pso_desc, &desc, 0, @sizeOf(IGraphics.PipelineDesc));
+
+    const shader = gpu.shaders.getColumnPtr(shader_handle, .ptr) catch unreachable;
+    pso_desc.__union_field1.mMeshDesc.pShaderProgram = shader.*;
+
+    var pso: [*c]IGraphics.Pipeline = null;
+    IGraphics.addPipeline(gpu.renderer, &pso_desc, @ptrCast(&pso));
+
+    return pso;
+}
+
 // ███████╗██╗  ██╗ █████╗ ██████╗ ███████╗██████╗ ███████╗
 // ██╔════╝██║  ██║██╔══██╗██╔══██╗██╔════╝██╔══██╗██╔════╝
 // ███████╗███████║███████║██║  ██║█████╗  ██████╔╝███████╗
@@ -561,6 +579,8 @@ pub const ShaderLoadDesc = struct {
     vertex: ?ShaderStageLoadDesc,
     pixel: ?ShaderStageLoadDesc,
     compute: ?ShaderStageLoadDesc,
+    mesh: ?ShaderStageLoadDesc,
+    amplification: ?ShaderStageLoadDesc,
 };
 
 const ShaderPool = Pool(8, 8, [*c]IGraphics.Shader, struct {
@@ -603,6 +623,24 @@ pub fn compileShader(shader_load_desc: ShaderLoadDesc) !ShaderHandle {
         };
     } else {
         desc.compute = null;
+    }
+
+    if (shader_load_desc.mesh) |mesh| {
+        desc.mesh = .{
+            .entry = gpu.allocator.dupe(u8, mesh.entry) catch unreachable,
+            .path = gpu.allocator.dupe(u8, mesh.path) catch unreachable,
+        };
+    } else {
+        desc.mesh = null;
+    }
+
+    if (shader_load_desc.amplification) |amplification| {
+        desc.amplification = .{
+            .entry = gpu.allocator.dupe(u8, amplification.entry) catch unreachable,
+            .path = gpu.allocator.dupe(u8, amplification.path) catch unreachable,
+        };
+    } else {
+        desc.amplification = null;
     }
 
     return gpu.shaders.add(.{
@@ -653,6 +691,16 @@ fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) !struct {
         binary_shader_desc.mStages.bits |= IGraphics.ShaderStage.SHADER_STAGE_COMP.bits;
     }
 
+    if (shader_load_desc.mesh) |*mesh| {
+        loadShaderStage(mesh, &binary_shader_desc.mMesh);
+        binary_shader_desc.mStages.bits |= IGraphics.ShaderStage.SHADER_STAGE_MESH.bits;
+    }
+
+    if (shader_load_desc.amplification) |*amplification| {
+        loadShaderStage(amplification, &binary_shader_desc.mAmplification);
+        binary_shader_desc.mStages.bits |= IGraphics.ShaderStage.SHADER_STAGE_AMPL.bits;
+    }
+
     var shader: [*c]IGraphics.Shader = null;
     IGraphics.addShaderBinary(gpu.renderer, &binary_shader_desc, &shader);
 
@@ -701,6 +749,20 @@ fn compileShaderInternal(shader_load_desc: ShaderLoadDesc) !struct {
     if (shader_load_desc.compute) |_| {
         if (binary_shader_desc.mComp.pByteCode) |byte_code| {
             const slice = @as([*]u8, @ptrCast(byte_code))[0..binary_shader_desc.mComp.mByteCodeSize];
+            gpu.allocator.free(slice);
+        }
+    }
+
+    if (shader_load_desc.mesh) |_| {
+        if (binary_shader_desc.mMesh.pByteCode) |byte_code| {
+            const slice = @as([*]u8, @ptrCast(byte_code))[0..binary_shader_desc.mMesh.mByteCodeSize];
+            gpu.allocator.free(slice);
+        }
+    }
+
+    if (shader_load_desc.amplification) |_| {
+        if (binary_shader_desc.mAmplification.pByteCode) |byte_code| {
+            const slice = @as([*]u8, @ptrCast(byte_code))[0..binary_shader_desc.mAmplification.mByteCodeSize];
             gpu.allocator.free(slice);
         }
     }

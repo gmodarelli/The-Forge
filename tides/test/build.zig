@@ -83,7 +83,13 @@ pub fn buildExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     install_file = b.addInstallFile(b.path(the_forge_open_source_path ++ "Direct3d12Agility/bin/x64/D3D12Core.dll"), test_exe_bin_path ++ "D3D12Core.dll");
     exe.step.dependOn(&install_file.step);
 
+    install_file = b.addInstallFile(b.path(the_forge_open_source_path ++ "Direct3d12Agility/bin/x64/D3D12Core.pdb"), test_exe_bin_path ++ "D3D12Core.pdb");
+    exe.step.dependOn(&install_file.step);
+
     install_file = b.addInstallFile(b.path(the_forge_open_source_path ++ "Direct3d12Agility/bin/x64/d3d12SDKLayers.dll"), test_exe_bin_path ++ "d3d12SDKLayers.dll");
+    exe.step.dependOn(&install_file.step);
+
+    install_file = b.addInstallFile(b.path(the_forge_open_source_path ++ "Direct3d12Agility/bin/x64/d3d12SDKLayers.pdb"), test_exe_bin_path ++ "d3d12SDKLayers.pdb");
     exe.step.dependOn(&install_file.step);
 
     install_file = b.addInstallFile(b.path(ze_forge_base_path ++ "Common_3/OS/Windows/pc_gpu.data"), test_exe_bin_path ++ "gpu.data");

@@ -11,6 +11,8 @@ struct VertexAttribute
     float4 position : SV_Position;
 };
 
+#if MESH_SHADER
+
 struct RasterizerParams
 {
     uint visible_meshlets_buffer_index;
@@ -20,8 +22,6 @@ cbuffer g_RasterizerParams : register(b1, SPACE_PerFrame)
 {
     RasterizerParams g_rasterizer_params;
 };
-
-#if MESH_SHADER
 
 VertexAttribute FetchVertexAttribute(Mesh mesh, float4x4 world, uint vertex_id)
 {
@@ -80,26 +80,22 @@ void main
 
 #if PIXEL_SHADER
 
-// TODO: Change to Visibility Buffer
-struct GBufferOutput
+bool UnpackVisBuffer(uint data, out uint candidateIndex, out uint primitiveID)
 {
-    float4 gbuffer0 : SV_TARGET0;
-    float4 gbuffer1 : SV_TARGET1;
-};
+	primitiveID = data & 0x7F;
+	candidateIndex = data >> 7;
+	candidateIndex -= 1; // Value of 0 means 'Invalid'
+	return candidateIndex != 0xFFFFFFFF;
+}
+
+uint PackVisBuffer(uint candidateIndex, uint primitiveID)
+{
+	return primitiveID | ((candidateIndex + 1) << 7);
+}
 
 [RootSignature(DefaultRootSignature)]
-GBufferOutput pixel(VertexAttribute vertex, PrimitiveAttribute primitive)
+uint pixel(VertexAttribute vertex, PrimitiveAttribute primitive) : SV_Target0
 {
-    StructuredBuffer<MeshletCandidate> visible_meshlet_buffer = ResourceDescriptorHeap[g_rasterizer_params.visible_meshlets_buffer_index];
-    MeshletCandidate candidate = visible_meshlet_buffer[primitive.candidate_index];
-    ByteAddressBuffer instance_buffer = ResourceDescriptorHeap[g_frame.instance_buffer_index];
-    Instance instance = instance_buffer.Load<Instance>(candidate.instance_id * sizeof(Instance));
-    ByteAddressBuffer material_buffer = ResourceDescriptorHeap[g_frame.material_buffer_index];
-    MaterialData material = material_buffer.Load<MaterialData>(instance.material_index * sizeof(MaterialData));
-
-    GBufferOutput gbuffer_output = (GBufferOutput)0;
-    gbuffer_output.gbuffer0 = material.base_color;
-    gbuffer_output.gbuffer1 = float4(0.0f, 1.0f, 0.0f, 1.0f);
-    return gbuffer_output;
+    return PackVisBuffer(primitive.candidate_index, primitive.primitive_id);
 }
 #endif // PIXEL_SHADER

@@ -544,6 +544,9 @@ typedef enum PipelineType
 #if defined(ENABLE_WORKGRAPH)
     PIPELINE_TYPE_WORKGRAPH,
 #endif
+#if defined(TIDES)
+    PIPELINE_TYPE_MESH,
+#endif
     PIPELINE_TYPE_COUNT,
 } PipelineType;
 
@@ -2039,6 +2042,29 @@ typedef struct ComputePipelineDesc
     Shader* pShaderProgram;
 } ComputePipelineDesc;
 
+#if defined(TIDES)
+typedef struct MeshPipelineDesc
+{
+    Shader*              pShaderProgram;
+    BlendStateDesc*      pBlendState;
+    DepthStateDesc*      pDepthState;
+    RasterizerStateDesc* pRasterizerState;
+    TinyImageFormat*     pColorFormats;
+#if defined(USE_MSAA_RESOLVE_ATTACHMENTS)
+    /// Used to specify resolve attachment for render pass
+    StoreActionType* pColorResolveActions;
+#endif
+    uint32_t          mRenderTargetCount;
+    SampleCount       mSampleCount;
+    uint32_t          mSampleQuality;
+    TinyImageFormat   mDepthStencilFormat;
+    PrimitiveTopology mPrimitiveTopo;
+    bool              mSupportIndirectCommandBuffer;
+    bool              mVRFoveatedRendering;
+    bool              mUseCustomSampleLocations;
+} MeshPipelineDesc;
+#endif
+
 #if defined(ENABLE_WORKGRAPH)
 typedef struct WorkgraphPipelineDesc
 {
@@ -2055,6 +2081,9 @@ typedef struct PipelineDesc
         GraphicsPipelineDesc mGraphicsDesc;
 #if defined(ENABLE_WORKGRAPH)
         WorkgraphPipelineDesc mWorkgraphDesc;
+#endif
+#if defined(TIDES)
+        MeshPipelineDesc mMeshPipelineDesc;
 #endif
     };
     PipelineCache* pCache;
@@ -2563,6 +2592,9 @@ typedef struct GpuDesc
     uint32_t mRayPipelineSupported : 1;
     uint32_t mRayQuerySupported : 1;
     uint32_t mWorkgraphSupported : 1;
+#if defined(TIDES)
+    uint32_t mMeshletSupported : 1;
+#endif
     uint32_t mSoftwareVRSSupported : 1;
     uint32_t mPrimitiveIdSupported : 1;
     uint32_t mPrimitiveIdPsSupported : 1;

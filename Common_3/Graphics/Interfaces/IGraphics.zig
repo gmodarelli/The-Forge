@@ -495,12 +495,12 @@ pub const ShaderStage = extern struct {
     pub const SHADER_STAGE_GEOM: ShaderStage = .{ .bits = @as(c_uint, @intCast(8)) };
     pub const SHADER_STAGE_TESC: ShaderStage = .{ .bits = @as(c_uint, @intCast(16)) };
     pub const SHADER_STAGE_TESE: ShaderStage = .{ .bits = @as(c_uint, @intCast(32)) };
-    pub const SHADER_STAGE_AMPL: ShaderStage = .{ .bits = @as(c_uint, @intCast(32)) };
-    pub const SHADER_STAGE_MESH: ShaderStage = .{ .bits = @as(c_uint, @intCast(64)) };
+    pub const SHADER_STAGE_AMPL: ShaderStage = .{ .bits = @as(c_uint, @intCast(64)) };
+    pub const SHADER_STAGE_MESH: ShaderStage = .{ .bits = @as(c_uint, @intCast(128)) };
     pub const SHADER_STAGE_ALL_GRAPHICS: ShaderStage = .{ .bits = (@as(u32, @intCast(ShaderStage.SHADER_STAGE_VERT.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_GEOM.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_FRAG.bits))  | @as(u32, @intCast(ShaderStage.SHADER_STAGE_AMPL.bits))  | @as(u32, @intCast(ShaderStage.SHADER_STAGE_MESH.bits))) };
     pub const SHADER_STAGE_HULL: ShaderStage = .{ .bits = @as(c_uint, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) };
     pub const SHADER_STAGE_DOMN: ShaderStage = .{ .bits = @as(c_uint, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) };
-    pub const SHADER_STAGE_WORKGRAPH: ShaderStage = .{ .bits = @as(c_uint, @intCast(128)) };
+    pub const SHADER_STAGE_WORKGRAPH: ShaderStage = .{ .bits = @as(c_uint, @intCast(256)) };
     pub const SHADER_STAGE_COUNT: ShaderStage = .{ .bits = @as(c_uint, @intCast(9)) };
 
     // pub usingnamespace cpp.FlagsMixin(ShaderStage);
@@ -713,7 +713,8 @@ pub const PipelineType = extern struct {
     pub const PIPELINE_TYPE_COMPUTE: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 1 };
     pub const PIPELINE_TYPE_GRAPHICS: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 2 };
     pub const PIPELINE_TYPE_WORKGRAPH: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 3 };
-    pub const PIPELINE_TYPE_COUNT: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 4 };
+    pub const PIPELINE_TYPE_MESH: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 4 };
+    pub const PIPELINE_TYPE_COUNT: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 5 };
 
     // pub usingnamespace cpp.FlagsMixin(PipelineType);
 };
@@ -1785,6 +1786,22 @@ pub const ComputePipelineDesc = extern struct {
     pShaderProgram: [*c]Shader,
 };
 
+pub const MeshPipelineDesc = extern struct {
+    pShaderProgram: [*c]Shader,
+    pBlendState: [*c]BlendStateDesc,
+    pDepthState: [*c]DepthStateDesc,
+    pRasterizerState: [*c]RasterizerStateDesc,
+    pColorFormats: [*c]TinyImageFormat,
+    mRenderTargetCount: u32,
+    mSampleCount: SampleCount,
+    mSampleQuality: u32,
+    mDepthStencilFormat: TinyImageFormat,
+    mPrimitiveTopo: PrimitiveTopology,
+    mSupportIndirectCommandBuffer: bool,
+    mVRFoveatedRendering: bool,
+    mUseCustomSampleLocations: bool,
+};
+
 pub const WorkgraphPipelineDesc = extern struct {
     pShaderProgram: [*c]Shader,
     pWorkgraphName: [*c]const u8,
@@ -1802,6 +1819,7 @@ pub const PipelineDesc = extern struct {
         mComputeDesc: ComputePipelineDesc,
         mGraphicsDesc: GraphicsPipelineDesc,
         mWorkgraphDesc: WorkgraphPipelineDesc,
+        mMeshDesc: MeshPipelineDesc,
     };
 };
 
@@ -2124,12 +2142,13 @@ pub const GpuDesc = extern struct {
         mRayPipelineSupported: u1, // 19 bits
         mRayQuerySupported: u1, // 20 bits
         mWorkgraphSupported: u1, // 21 bits
-        mSoftwareVRSSupported: u1, // 22 bits
-        mPrimitiveIdSupported: u1, // 23 bits
-        mPrimitiveIdPsSupported: u1, // 24 bits
-        m64BitAtomicsSupported: u1, // 25 bits
+        mMeshletSupported: u1, // 22 bits
+        mSoftwareVRSSupported: u1, // 23 bits
+        mPrimitiveIdSupported: u1, // 24 bits
+        mPrimitiveIdPsSupported: u1, // 25 bits
+        m64BitAtomicsSupported: u1, // 26 bits
         /// Padding added by c2z
-        _dummy_padding: u7,
+        _dummy_padding: u6,
     },
 
     mFeatureLevel: D3D_FEATURE_LEVEL,

@@ -186,6 +186,9 @@ pub const Gfx = struct {
     meshlet_dispatch_args_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     meshlet_dispatch_args_pso: zf.PsoHandle = zf.PsoHandle.nil,
     meshlet_dispatch_args_material: GfxMaterial = undefined,
+    meshlet_rasterizer_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    meshlet_rasterizer_pso: zf.PsoHandle = zf.PsoHandle.nil,
+    meshlet_rasterizer_material: GfxMaterial = undefined,
     clustered_mesh_map: ClusteredMeshHashMap,
     clustered_meshes: std.ArrayList(Mesh) = undefined,
     mesh_buffer: zf.BufferHandle = undefined,
@@ -196,14 +199,15 @@ pub const Gfx = struct {
     meshlet_cull_instances_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     meshlet_cull_meshlets_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     meshlet_dispatch_args_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
-    cull_args_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
-    dispatch_args_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    meshlet_cull_args_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    meshlet_dispatch_args_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     candidate_meshlet_counters_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     candidate_meshlets_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     visible_meshlet_counters_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     visible_meshlets_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     registered_instances_count: u32 = 0,
+    visibility_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
 
     // Sprite Renderer
     // ===============
@@ -506,6 +510,8 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 .entry = "BlitFragment",
             },
             .compute = null,
+            .mesh = null,
+            .amplification = null,
         };
         gfx.blit_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
@@ -521,6 +527,8 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 .entry = "CompositorPS",
             },
             .compute = null,
+            .mesh = null,
+            .amplification = null,
         };
         gfx.compositor_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
@@ -536,6 +544,8 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 .entry = "SpritePS",
             },
             .compute = null,
+            .mesh = null,
+            .amplification = null,
         };
         gfx.sprite_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
@@ -551,6 +561,8 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 .entry = "GBufferPS",
             },
             .compute = null,
+            .mesh = null,
+            .amplification = null,
         };
         gfx.object_gbuffer_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
@@ -566,39 +578,65 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 .entry = "ShadowCasterPS",
             },
             .compute = null,
+            .mesh = null,
+            .amplification = null,
         };
         gfx.object_shadow_caster_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
     {
-        const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-            .path = "shaders/GaussBlurH.comp",
-            .entry = "main",
-        }, .vertex = null, .pixel = null };
+        const shader_load_desc = zf.ShaderLoadDesc{
+            .compute = .{
+                .path = "shaders/GaussBlurH.comp",
+                .entry = "main",
+            },
+            .vertex = null,
+            .pixel = null,
+            .mesh = null,
+            .amplification = null,
+        };
         gfx.gauss_blur_horizontal_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
     {
-        const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-            .path = "shaders/GaussBlurV.comp",
-            .entry = "main",
-        }, .vertex = null, .pixel = null };
+        const shader_load_desc = zf.ShaderLoadDesc{
+            .compute = .{
+                .path = "shaders/GaussBlurV.comp",
+                .entry = "main",
+            },
+            .vertex = null,
+            .pixel = null,
+            .mesh = null,
+            .amplification = null,
+        };
         gfx.gauss_blur_vertical_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
     {
-        const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-            .path = "shaders/ClearBuffer.comp",
-            .entry = "main",
-        }, .vertex = null, .pixel = null };
+        const shader_load_desc = zf.ShaderLoadDesc{
+            .compute = .{
+                .path = "shaders/ClearBuffer.comp",
+                .entry = "main",
+            },
+            .vertex = null,
+            .pixel = null,
+            .mesh = null,
+            .amplification = null,
+        };
         gfx.clear_buffer_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
     {
-        const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-            .path = "shaders/DeferredShading.comp",
-            .entry = "main",
-        }, .vertex = null, .pixel = null };
+        const shader_load_desc = zf.ShaderLoadDesc{
+            .compute = .{
+                .path = "shaders/DeferredShading.comp",
+                .entry = "main",
+            },
+            .vertex = null,
+            .pixel = null,
+            .mesh = null,
+            .amplification = null,
+        };
         gfx.deferred_shading_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
@@ -904,39 +942,85 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         // =======
         {
             {
-                const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-                    .path = "shaders/MeshletClearCounters.comp",
-                    .entry = "ClearCountersCS",
-                }, .vertex = null, .pixel = null };
+                const shader_load_desc = zf.ShaderLoadDesc{
+                    .compute = .{
+                        .path = "shaders/MeshletClearCounters.comp",
+                        .entry = "ClearCountersCS",
+                    },
+                    .vertex = null,
+                    .pixel = null,
+                    .mesh = null,
+                    .amplification = null,
+                };
                 gfx.meshlet_clear_counters_shader = zf.compileShader(shader_load_desc) catch unreachable;
             }
             {
-                const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-                    .path = "shaders/MeshletCullInstances.comp",
-                    .entry = "CullInstancesCS",
-                }, .vertex = null, .pixel = null };
+                const shader_load_desc = zf.ShaderLoadDesc{
+                    .compute = .{
+                        .path = "shaders/MeshletCullInstances.comp",
+                        .entry = "CullInstancesCS",
+                    },
+                    .vertex = null,
+                    .pixel = null,
+                    .mesh = null,
+                    .amplification = null,
+                };
                 gfx.meshlet_cull_instances_shader = zf.compileShader(shader_load_desc) catch unreachable;
             }
             {
-                const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-                    .path = "shaders/MeshletBuildCullIndirectArgs.comp",
-                    .entry = "BuildMeshletCullIndirectArgsCS",
-                }, .vertex = null, .pixel = null };
+                const shader_load_desc = zf.ShaderLoadDesc{
+                    .compute = .{
+                        .path = "shaders/MeshletBuildCullIndirectArgs.comp",
+                        .entry = "BuildMeshletCullIndirectArgsCS",
+                    },
+                    .vertex = null,
+                    .pixel = null,
+                    .mesh = null,
+                    .amplification = null,
+                };
                 gfx.meshlet_cull_args_shader = zf.compileShader(shader_load_desc) catch unreachable;
             }
             {
-                const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-                    .path = "shaders/MeshletCullMeshlets.comp",
-                    .entry = "CullMeshletsCS",
-                }, .vertex = null, .pixel = null };
+                const shader_load_desc = zf.ShaderLoadDesc{
+                    .compute = .{
+                        .path = "shaders/MeshletCullMeshlets.comp",
+                        .entry = "CullMeshletsCS",
+                    },
+                    .vertex = null,
+                    .pixel = null,
+                    .mesh = null,
+                    .amplification = null,
+                };
                 gfx.meshlet_cull_meshlets_shader = zf.compileShader(shader_load_desc) catch unreachable;
             }
             {
-                const shader_load_desc = zf.ShaderLoadDesc{ .compute = .{
-                    .path = "shaders/MeshletBuildDispatchIndirectArgs.comp",
-                    .entry = "BuildMeshletDispatchIndirectArgsCS",
-                }, .vertex = null, .pixel = null };
+                const shader_load_desc = zf.ShaderLoadDesc{
+                    .compute = .{
+                        .path = "shaders/MeshletBuildDispatchIndirectArgs.comp",
+                        .entry = "BuildMeshletDispatchIndirectArgsCS",
+                    },
+                    .vertex = null,
+                    .pixel = null,
+                    .mesh = null,
+                    .amplification = null,
+                };
                 gfx.meshlet_dispatch_args_shader = zf.compileShader(shader_load_desc) catch unreachable;
+            }
+            {
+                const shader_load_desc = zf.ShaderLoadDesc{
+                    .mesh = .{
+                        .path = "shaders/MeshletRasterizer.comp",
+                        .entry = "main",
+                    },
+                    .pixel = .{
+                        .path = "shaders/MeshletRasterizer.frag",
+                        .entry = "pixel",
+                    },
+                    .vertex = null,
+                    .compute = null,
+                    .amplification = null,
+                };
+                gfx.meshlet_rasterizer_shader = zf.compileShader(shader_load_desc) catch unreachable;
             }
         }
         // PSOs
@@ -966,6 +1050,35 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
                 pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
                 gfx.meshlet_dispatch_args_pso = zf.createPso(pipeline_desc, gfx.meshlet_dispatch_args_shader) catch unreachable;
+            }
+
+            {
+                var render_targets = [_]zf.IGraphics.TinyImageFormat{
+                    .R32_UINT, // TODO: Read from visibility buffer format
+                };
+                var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
+                pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_MESH;
+                var mesh_desc = &pipeline_desc.__union_field1.mMeshDesc;
+                mesh_desc.* = std.mem.zeroes(zf.MeshPipelineDesc);
+                mesh_desc.mPrimitiveTopo = zf.PrimitiveTopology.PRIMITIVE_TOPO_TRI_LIST;
+                mesh_desc.mRenderTargetCount = render_targets.len;
+                mesh_desc.pColorFormats = @ptrCast(&render_targets);
+                mesh_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
+                mesh_desc.mSampleQuality = 0;
+
+                var rasterizer_state_desc = std.mem.zeroes(zf.RasterizerStateDesc);
+                rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_NONE;
+                rasterizer_state_desc.mFillMode = zf.FillMode.FILL_MODE_SOLID;
+                mesh_desc.pRasterizerState = @ptrCast(&rasterizer_state_desc);
+
+                var depth_state_desc = std.mem.zeroes(zf.DepthStateDesc);
+                depth_state_desc.mDepthWrite = true;
+                depth_state_desc.mDepthTest = true;
+                depth_state_desc.mDepthFunc = zf.CompareMode.CMP_LEQUAL;
+                mesh_desc.pDepthState = @ptrCast(&depth_state_desc);
+                mesh_desc.mDepthStencilFormat = .D32_SFLOAT;
+
+                gfx.meshlet_rasterizer_pso = zf.createPso(pipeline_desc, gfx.meshlet_rasterizer_shader) catch unreachable;
             }
         }
         // Materials
@@ -1061,6 +1174,24 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
                 pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
             }
+            {
+                gfx.meshlet_rasterizer_material = std.mem.zeroes(GfxMaterial);
+                const pass_type = Pass.default;
+
+                const pass_index: usize = @intFromEnum(pass_type);
+                var pass = &gfx.meshlet_rasterizer_material.passes[pass_index];
+
+                pass.pass = pass_type;
+                pass.pso = gfx.meshlet_rasterizer_pso;
+                pass.shader = gfx.meshlet_rasterizer_shader;
+
+                const descriptor_set_handles = zf.createDescriptorSets(gfx.meshlet_rasterizer_shader) catch unreachable;
+                pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+                pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+                pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+                pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+                pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
+            }
         }
         // Buffers
         // =======
@@ -1070,13 +1201,29 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             gfx.candidate_meshlets_buffers[frame_index] = zf.createRawBuffer(@intCast(1 << 20), GPUMeshletCandidate, true, true, "Candidate Meshlets");
             gfx.visible_meshlet_counters_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Visible Meshlet Counters");
             gfx.visible_meshlets_buffers[frame_index] = zf.createRawBuffer(@intCast(1 << 20), GPUMeshletCandidate, true, true, "Visible Meshlets");
-            gfx.cull_args_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlets Cull Args");
-            gfx.dispatch_args_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlets Dispatch Args");
+            gfx.meshlet_cull_args_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlets Cull Args");
+            gfx.meshlet_dispatch_args_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlets Dispatch Args");
             gfx.clear_counters_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletClearCountersParams), "Clear Counters");
             gfx.meshlet_cull_instances_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletCullInstancesParams), "Meshlet Cull Instances Params");
             gfx.meshlet_cull_args_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletCullArgsParams), "Meshlet Cull Args Params");
             gfx.meshlet_cull_meshlets_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletCullMeshletsParams), "Meshlet Cull Meshlets Params");
             gfx.meshlet_dispatch_args_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletDispatchArgsParams), "Meshlet Dispatch Args Params");
+        }
+        // Render Targets
+        // ==============
+        {
+            var desc = std.mem.zeroes(zf.RenderTargetDesc);
+            desc.pName = "Visibility Buffer";
+            desc.mArraySize = 1;
+            desc.mDepth = 1;
+            desc.mFormat = .R32_UINT;
+            desc.mStartState = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+            desc.mWidth = @intCast(window_width);
+            desc.mHeight = @intCast(window_height);
+            desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
+            desc.mSampleQuality = 0;
+            desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
+            gfx.visibility_buffer = zf.createRenderTarget(desc) catch unreachable;
         }
         // CPU Data
         // ========
@@ -1464,7 +1611,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
             var cull_args_params = MeshletCullArgsParams{
                 .counters_buffer_index = zf.getBufferBindlessIndex(gfx.candidate_meshlet_counters_buffers[frame_index]),
-                .dispatch_args_buffer_index = zf.getBufferBindlessIndex(gfx.cull_args_buffers[frame_index]),
+                .dispatch_args_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_cull_args_buffers[frame_index]),
             };
             const data_slice = zf.DataSlice{
                 .data = @ptrCast(&cull_args_params),
@@ -1474,7 +1621,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
             var buffer_barriers = [_]zf.BufferBarrier{
                 .{
-                    .buffer_handle = gfx.cull_args_buffers[frame_index],
+                    .buffer_handle = gfx.meshlet_cull_args_buffers[frame_index],
                     .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
                     .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
                 },
@@ -1529,7 +1676,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                     .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
                 },
                 .{
-                    .buffer_handle = gfx.cull_args_buffers[frame_index],
+                    .buffer_handle = gfx.meshlet_cull_args_buffers[frame_index],
                     .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
                     .new_state = zf.ResourceState.RESOURCE_STATE_INDIRECT_ARGUMENT,
                 },
@@ -1538,7 +1685,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             zf.cmdResourceBarrier(&buffer_barriers, null, null);
             gfx.meshlet_cull_meshlets_material.bindMaterialPass(.default, frame_index, 0);
 
-            zf.cmdExecuteIndirect(.INDIRECT_DISPATCH, 1, gfx.cull_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
+            zf.cmdExecuteIndirect(.INDIRECT_DISPATCH, 1, gfx.meshlet_cull_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
 
             buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
             buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
@@ -1561,7 +1708,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
             var cull_args_params = MeshletDispatchArgsParams{
                 .visible_counters_buffer_index = zf.getBufferBindlessIndex(gfx.visible_meshlet_counters_buffers[frame_index]),
-                .dispatch_args_buffer_index = zf.getBufferBindlessIndex(gfx.dispatch_args_buffers[frame_index]),
+                .dispatch_args_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_dispatch_args_buffers[frame_index]),
             };
             const data_slice = zf.DataSlice{
                 .data = @ptrCast(&cull_args_params),
@@ -1571,7 +1718,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
             var buffer_barriers = [_]zf.BufferBarrier{
                 .{
-                    .buffer_handle = gfx.dispatch_args_buffers[frame_index],
+                    .buffer_handle = gfx.meshlet_dispatch_args_buffers[frame_index],
                     .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
                     .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
                 },
@@ -2449,6 +2596,18 @@ fn updateDescriptorSets() void {
                 };
 
                 gfx.meshlet_dispatch_args_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
+            }
+
+            {
+                const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                    .{
+                        .name = "g_CBO",
+                        .binding_type = .buffer,
+                        .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+                    },
+                };
+
+                gfx.meshlet_rasterizer_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
             }
         }
     }

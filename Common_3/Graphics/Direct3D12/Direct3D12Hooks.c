@@ -93,6 +93,23 @@ HRESULT hook_create_graphics_pipeline_state(ID3D12Device* pDevice, const D3D12_G
     return COM_CALL(CreateGraphicsPipelineState, pDevice, pDesc, IID_ARGS(ID3D12PipelineState, ppPipeline));
 }
 
+#if defined(TIDES)
+HRESULT hook_create_mesh_pipeline_state(ID3D12Device* pDevice, const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc, void* pData,
+                                            uint32_t size, ID3D12PipelineState** ppPipeline)
+{
+    UNREF_PARAM(pData);
+    UNREF_PARAM(size);
+    ID3D12Device2* device = NULL;
+    HRESULT        deviceHres = COM_CALL(QueryInterface, pDevice, IID_ARGS(ID3D12Device2, &device));
+    if (SUCCEEDED(deviceHres))
+    {
+        return COM_CALL(CreatePipelineState, device, pDesc, IID_ARGS(ID3D12PipelineState, ppPipeline));
+    }
+
+    return deviceHres;
+}
+#endif
+
 HRESULT hook_create_compute_pipeline_state(ID3D12Device* pDevice, const D3D12_COMPUTE_PIPELINE_STATE_DESC* pDesc, void* pData,
                                            uint32_t size, ID3D12PipelineState** ppPipeline)
 {
