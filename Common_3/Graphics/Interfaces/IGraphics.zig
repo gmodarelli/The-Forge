@@ -408,6 +408,12 @@ pub const IndirectDispatchArguments = extern struct {
     mGroupCountZ: u32,
 };
 
+pub const IndirectDispatchMeshArguments = extern struct {
+    mGroupCountX: u32,
+    mGroupCountY: u32,
+    mGroupCountZ: u32,
+};
+
 pub const IndirectArgumentType = extern struct {
     bits: c_int = 0,
 
@@ -420,6 +426,7 @@ pub const IndirectArgumentType = extern struct {
     pub const INDIRECT_COMMAND_BUFFER_RESET: IndirectArgumentType = .{ .bits = 4 };
     /// metal ICB optimization
     pub const INDIRECT_COMMAND_BUFFER_OPTIMIZE: IndirectArgumentType = .{ .bits = 5 };
+    pub const INDIRECT_DISPATCH_MESH: IndirectArgumentType = .{ .bits = 6 };
 
     // pub usingnamespace cpp.FlagsMixin(IndirectArgumentType);
 };

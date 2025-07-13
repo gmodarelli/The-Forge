@@ -377,6 +377,9 @@ typedef struct NullDescriptors
     ID3D12CommandSignature* pDrawCommandSignature[MAX_LINKED_GPUS];
     ID3D12CommandSignature* pDrawIndexCommandSignature[MAX_LINKED_GPUS];
     ID3D12CommandSignature* pDispatchCommandSignature[MAX_LINKED_GPUS];
+#if defined(TIDES)
+    ID3D12CommandSignature* pDispatchMeshCommandSignature[MAX_LINKED_GPUS];
+#endif
 #if defined(XBOX)
     ID3D12CommandSignature* pAsyncDispatchCommandSignature[MAX_LINKED_GPUS];
 #endif
@@ -1208,6 +1211,13 @@ static void add_default_resources(Renderer* pRenderer)
         desc.ByteStride = sizeof(IndirectDispatchArguments);
         CHECK_HRESULT(COM_CALL(CreateCommandSignature, pRenderer->mDx.pDevice, &desc, NULL,
                                IID_ARGS(ID3D12CommandSignature, &pRenderer->pNullDescriptors->pAsyncDispatchCommandSignature[l])));
+#endif
+
+#if defined(TIDES)
+        arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
+        desc.ByteStride = sizeof(IndirectDispatchMeshArguments);
+        CHECK_HRESULT(COM_CALL(CreateCommandSignature, pRenderer->mDx.pDevice, &desc, NULL,
+                               IID_ARGS(ID3D12CommandSignature, &pRenderer->pNullDescriptors->pDispatchMeshCommandSignature[l])));
 #endif
     }
 }
@@ -6461,6 +6471,11 @@ void cmdExecuteIndirect(Cmd* pCmd, IndirectArgumentType type, uint32_t maxComman
             cmdSignature = pCmd->pRenderer->pNullDescriptors->pDispatchCommandSignature[nodeIndex];
         }
         break;
+#if defined(TIDES)
+    case INDIRECT_DISPATCH_MESH:
+        cmdSignature = pCmd->pRenderer->pNullDescriptors->pDispatchMeshCommandSignature[nodeIndex];
+        break;
+#endif
     default:
         ASSERTFAIL("Invalid IndirectArgumentType %u", (uint32_t)type);
         break;

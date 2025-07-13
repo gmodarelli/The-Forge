@@ -254,6 +254,15 @@ typedef struct IndirectDispatchArguments
     uint32_t mGroupCountZ;
 } IndirectDispatchArguments;
 
+#if defined(TIDES)
+typedef struct IndirectDispatchMeshArguments
+{
+    uint32_t mGroupCountX;
+    uint32_t mGroupCountY;
+    uint32_t mGroupCountZ;
+} IndirectDispatchMeshArguments;
+#endif
+
 #define INDIRECT_DRAW_ELEM_INDEX(m)       (offsetof(IndirectDrawArguments, m) / sizeof(uint32_t))
 #define INDIRECT_DRAW_INDEX_ELEM_INDEX(m) (offsetof(IndirectDrawIndexArguments, m) / sizeof(uint32_t))
 #define INDIRECT_DISPATCH_ELEM_INDEX(m)   (offsetof(IndirectDispatchArguments, m) / sizeof(uint32_t))
@@ -265,7 +274,10 @@ typedef enum IndirectArgumentType
     INDIRECT_DISPATCH,
     INDIRECT_COMMAND_BUFFER,         // metal ICB
     INDIRECT_COMMAND_BUFFER_RESET,   // metal ICB reset
-    INDIRECT_COMMAND_BUFFER_OPTIMIZE // metal ICB optimization
+    INDIRECT_COMMAND_BUFFER_OPTIMIZE, // metal ICB optimization
+#if defined(TIDES)
+    INDIRECT_DISPATCH_MESH,
+#endif
 } IndirectArgumentType;
 /************************************************/
 
