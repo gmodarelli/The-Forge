@@ -2586,11 +2586,11 @@ void InitCommon(const RendererContextDesc* pDesc, RendererContext* pContext)
 #endif
 
 #if defined(USE_DRED)
-    if (SUCCEEDED(d3d12dll_GetDebugInterface(IID_ARGS(&pContext->mDx.pDredSettings))))
+    if (SUCCEEDED(d3d12dll_GetDebugInterface(IID_ARGS(ID3D12DeviceRemovedExtendedDataSettings, &pContext->mDx.pDredSettings))))
     {
         // Turn on AutoBreadcrumbs and Page Fault reporting
-        pContext->mDx.pDredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-        pContext->mDx.pDredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        COM_CALL(SetAutoBreadcrumbsEnablement, pContext->mDx.pDredSettings, D3D12_DRED_ENABLEMENT_FORCED_ON);
+        COM_CALL(SetPageFaultEnablement, pContext->mDx.pDredSettings, D3D12_DRED_ENABLEMENT_FORCED_ON);
     }
 #endif
 }
@@ -2602,7 +2602,7 @@ void ExitCommon(RendererContext* pContext)
     SAFE_RELEASE(pContext->mDx.pDebug);
 #endif
 #if defined(USE_DRED)
-    SAFE_RELEASE(pContext->pDredSettings);
+    SAFE_RELEASE(pContext->mDx.pDredSettings);
 #endif
 
 #if defined(ENABLE_GRAPHICS_VALIDATION) && !defined(XBOX)
