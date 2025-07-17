@@ -14,7 +14,7 @@ const App = struct {
     camera: Camera = .{},
 
     first_cursor: bool = true,
-    cursor_last: [2]f32 = [2]f32{0.0, 0.0},
+    cursor_last: [2]f32 = [2]f32{ 0.0, 0.0 },
     cursor_sensitivity: f32 = 0.1,
     cursor_look_at: bool = false,
 
@@ -83,8 +83,8 @@ pub fn main() !void {
         // gfx.loadTexture(leaves_giant_pine_albedo_key, "content/textures/Leaves_GiantPine_C.dds");
 
         // Load materials
-        gfx.loadMaterial(bark_mat_key, .{ .base_color = [4]f32{ 0.173, 0.08, 0.034, 1.0 }});
-        gfx.loadMaterial(crown_mat_key, .{ .base_color = [4]f32{ 0.478, 0.56, 0.077, 1.0 }});
+        gfx.loadMaterial(bark_mat_key, .{ .base_color = [4]f32{ 0.173, 0.08, 0.034, 1.0 } });
+        gfx.loadMaterial(crown_mat_key, .{ .base_color = [4]f32{ 0.478, 0.56, 0.077, 1.0 } });
         // gfx.loadMaterial(default_mat_key, .{});
         // gfx.loadMaterial(bark_birch_mat_key, .{
         //     .albedo_texture = bark_birch_tree_albedo_key,
@@ -104,11 +104,11 @@ pub fn main() !void {
         // gfx.registerRenderable(bush_large_key, bush_large_key, &[_]gfx.HashKey{ leaves_giant_pine_mat_key });
     }
 
-    app.camera.position += zmath.Vec{0.0, 7.0, -20.0, 0.0 };
+    app.camera.position += zmath.Vec{ 0.0, 7.0, -20.0, 0.0 };
     app.camera.updateView();
 
     app.camera.aspect = @as(f32, @floatFromInt(window_width)) / @as(f32, @floatFromInt(window_height));
-    app.camera.fov = std.math.pi * 0.25 * 0.75;// std.math.degreesToRadians(45.0);
+    app.camera.fov = std.math.pi * 0.25 * 0.75; // std.math.degreesToRadians(45.0);
     app.camera.near_plane = 0.25;
     app.camera.far_plane = 250.0;
     app.camera.updateProjection();
@@ -118,12 +118,12 @@ pub fn main() !void {
 
     // Create fake entities
     {
-        var x: i32 = -10;
-        while (x <= 10) : (x += 1) {
-            var z: i32 = -10;
-            while (z <= 10) : (z += 1) {
+        var x: i32 = 0;
+        while (x <= 2) : (x += 1) {
+            var z: i32 = 0;
+            while (z <= 2) : (z += 1) {
                 app.entities.append(.{
-                    .position = [3]f32{ @floatFromInt(x), 0.0, @floatFromInt(z) },
+                    .position = [3]f32{ @floatFromInt(x * 4), 0.0, @floatFromInt(z * 4) },
                     .unform_scale = 1.0,
                     .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
                     .renderable_hash = birch_1_key,

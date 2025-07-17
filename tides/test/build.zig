@@ -206,10 +206,6 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     defer allocator.free(meshlet_build_indirect_cull_args_output_path);
     compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_build_indirect_cull_args_output_path, "BuildMeshletCullIndirectArgsCS", "MESHLET_CULL_ARGUMENTS", .compute);
 
-    const meshlet_build_indirect_dispatch_args_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletBuildDispatchIndirectArgs.comp" }) catch unreachable;
-    defer allocator.free(meshlet_build_indirect_dispatch_args_output_path);
-    compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_build_indirect_dispatch_args_output_path, "BuildMeshletDispatchIndirectArgsCS", "MESHLET_DISPATCH_ARGUMENTS", .compute);
-
     const meshlet_cull_meshlets_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletCullMeshlets.comp" }) catch unreachable;
     defer allocator.free(meshlet_cull_meshlets_output_path);
     compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_cull_meshlets_output_path, "CullMeshletsCS", "CULL_MESHLETS", .compute);
@@ -221,6 +217,22 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     const meshlet_rasterizer_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletRasterizer.frag" }) catch unreachable;
     defer allocator.free(meshlet_rasterizer_pixel_output_path);
     compileShader(step, "shaders/MeshletRasterizerMS.hlsl", meshlet_rasterizer_pixel_output_path, "pixel", "PIXEL_SHADER", .pixel);
+
+    const meshlet_bin_prepare_args_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletBinPrepareArgs.comp" }) catch unreachable;
+    defer allocator.free(meshlet_bin_prepare_args_output_path);
+    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_prepare_args_output_path, "PrepareArgsCS", "PREPARE_ARGS", .compute);
+
+    const meshlet_bin_classify_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletBinClassifyMeshlets.comp" }) catch unreachable;
+    defer allocator.free(meshlet_bin_classify_output_path);
+    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_classify_output_path, "ClassifyMeshletsCS", "CLASSIFY_MESHLETS", .compute);
+
+    const meshlet_bin_allocate_bin_ranges_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletBinAllocateBins.comp" }) catch unreachable;
+    defer allocator.free(meshlet_bin_allocate_bin_ranges_output_path);
+    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_allocate_bin_ranges_output_path, "AllocateBinRangesCS", "ALLOCATE_BIN_RANGES", .compute);
+
+    const meshlet_bin_write_bins_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletBinWriteBins.comp" }) catch unreachable;
+    defer allocator.free(meshlet_bin_write_bins_output_path);
+    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_write_bins_output_path, "WriteBinsCS", "WRITE_BINS", .compute);
 }
 
 const ShaderType = enum {

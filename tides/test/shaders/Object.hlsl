@@ -1,6 +1,21 @@
 #include "Globals.hlsli"
 #include "Utils.hlsli"
 
+struct InstanceData
+{
+    uint transform_index;
+    uint material_index;
+    uint mesh_index;
+    uint sub_mesh_index;
+};
+
+InstanceData getInstanceData(uint instance_index)
+{
+    ByteAddressBuffer instance_buffer = ResourceDescriptorHeap[g_frame.instance_buffer_index];
+    InstanceData instance = instance_buffer.Load<InstanceData>(instance_index * sizeof(InstanceData));
+    return instance;
+}
+
 struct Vertex
 {
     float3 position;

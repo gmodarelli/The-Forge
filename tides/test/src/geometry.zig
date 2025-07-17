@@ -233,7 +233,6 @@ pub fn loadMesh(load_desc: *MeshLoadDesc) void {
     std.debug.assert(std.mem.eql(u8, &magic, "TidesMesh"));
 
     const mesh_count = reader.readInt(usize, .little) catch unreachable;
-    std.debug.assert(mesh_count == 2);
 
     for (0..mesh_count) |_| {
         var mesh_data: MeshData = undefined;

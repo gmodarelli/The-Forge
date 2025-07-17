@@ -102,14 +102,8 @@ struct MaterialData
     uint normal_texture_index;
     uint normal_sampler_index;
     float4 base_color;
-};
-
-struct InstanceData
-{
-    uint transform_index;
-    uint material_index;
-    uint mesh_index;
-    uint sub_mesh_index;
+    uint rasterizer_bin;
+    uint3 _pad0;
 };
 
 cbuffer g_CBO : register(b0, SPACE_PerFrame)
@@ -130,10 +124,10 @@ cbuffer g_ShadowCasterCB : register(b1, SPACE_PerFrame)
 };
 #endif
 
-InstanceData getInstanceData(uint instance_index)
+Instance getInstance(uint instance_index)
 {
     ByteAddressBuffer instance_buffer = ResourceDescriptorHeap[g_frame.instance_buffer_index];
-    InstanceData instance = instance_buffer.Load<InstanceData>(instance_index * sizeof(InstanceData));
+    Instance instance = instance_buffer.Load<Instance>(instance_index * sizeof(Instance));
     return instance;
 }
 

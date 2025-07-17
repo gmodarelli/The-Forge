@@ -36,6 +36,7 @@ pub fn buildLib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
         "-DTIDES",
         "-DD3D12_AGILITY_SDK=1",
         "-DD3D12_AGILITY_SDK_VERSION=715",
+        "-DDRED",
         "-msse2",
         "-fms-extensions",
     };

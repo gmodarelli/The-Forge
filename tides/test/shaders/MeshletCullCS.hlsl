@@ -73,27 +73,14 @@ void CullInstancesCS(uint thread_id : SV_DispatchThreadID)
         // Limit meshlet count to the buffer size
         // TODO: Set an out-of-memory flag to let the CPU know to grow the meshlet buffer
         uint global_mesh_index;
-        {
-            uint count = WaveActiveSum(mesh.meshlet_count);
-            if (WaveIsFirstLane())
-            {
-                InterlockedAdd(counters_buffer[0], count, global_mesh_index);
-            }
-            global_mesh_index = WaveReadLaneFirst(global_mesh_index) + WavePrefixSum(mesh.meshlet_count);
-        }
+        InterlockedAdd_Varying_WaveOps(counters_buffer, 0, mesh.meshlet_count, global_mesh_index);
         int clamped_meshlet_count = min(global_mesh_index + mesh.meshlet_count, MESHLET_COUNT_MAX);
         int meshlets_to_add_count = max(clamped_meshlet_count - (int)global_mesh_index, 0);
 
         // Add all meshlets of the current instance to the candidate meshlets buffer
         uint element_offset;
-        {
-            uint count = WaveActiveSum(meshlets_to_add_count);
-            if (WaveIsFirstLane())
-            {
-                InterlockedAdd(counters_buffer[1], count, element_offset);
-            }
-            element_offset = WaveReadLaneFirst(element_offset) + WavePrefixSum(meshlets_to_add_count);
-        }
+        InterlockedAdd_Varying_WaveOps(counters_buffer, 1, meshlets_to_add_count, element_offset);
+
         for (uint i = 0; i < meshlets_to_add_count; i++)
         {
             MeshletCandidate meshlet;
@@ -166,8 +153,7 @@ void CullMeshletsCS(uint thread_id : SV_DispatchThreadID)
         uint candidate_index = thread_id;
         MeshletCandidate candidate = meshlet_candidates_buffer[candidate_index];
 
-        ByteAddressBuffer instance_buffer = ResourceDescriptorHeap[g_frame.instance_buffer_index];
-        Instance instance = instance_buffer.Load<Instance>(candidate.instance_id * sizeof(Instance));
+        Instance instance = getInstance(candidate.instance_id);
 
         ByteAddressBuffer mesh_buffer = ResourceDescriptorHeap[g_frame.meshes_buffer_index];
         Mesh mesh = mesh_buffer.Load<Mesh>(instance.mesh_index * sizeof(Mesh));
@@ -179,50 +165,14 @@ void CullMeshletsCS(uint thread_id : SV_DispatchThreadID)
         if (is_visible)
         {
             uint element_offset;
-            {
-                uint count = WaveActiveSum(true);
-                if (WaveIsFirstLane())
-                {
-                    InterlockedAdd(visible_counters_buffer[0], count, element_offset);
-                }
-                element_offset = WaveReadLaneFirst(element_offset) + WavePrefixSum(true);
-
-                RWStructuredBuffer<MeshletCandidate> visible_meshlet_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.visible_meshlets_buffer_index];
-                visible_meshlet_buffer[element_offset] = candidate;
-            }
+            InterlockedAdd_WaveOps(visible_counters_buffer, 0, 1, element_offset);
+            RWStructuredBuffer<MeshletCandidate> visible_meshlet_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.visible_meshlets_buffer_index];
+            visible_meshlet_buffer[element_offset] = candidate;
         }
     }
 }
 
 #endif // CULL_MESHLETS
-
-#ifdef MESHLET_DISPATCH_ARGUMENTS
-
-#include "Defines.hlsli"
-
-struct MeshletDispatchArgsParams
-{
-    uint visible_counters_buffer_index;
-    uint dispatch_args_buffer_index;
-};
-
-cbuffer g_MeshletDispatchArgsParams : register(b0, SPACE_PerFrame)
-{
-    MeshletDispatchArgsParams g_meshlet_dispatch_args_params;
-};
-
-[RootSignature(ComputeRootSignature)]
-[numthreads(1, 1, 1)]
-void BuildMeshletDispatchIndirectArgsCS()
-{
-    RWStructuredBuffer<uint> counters_buffer = ResourceDescriptorHeap[g_meshlet_dispatch_args_params.visible_counters_buffer_index];
-    RWStructuredBuffer<uint3> args_buffer = ResourceDescriptorHeap[g_meshlet_dispatch_args_params.dispatch_args_buffer_index];
-    uint meshlets_count = counters_buffer[0];
-    uint3 args = uint3(meshlets_count, 1, 1);
-    args_buffer[0] = args;
-}
-
-#endif // MESHLET_DISPATCH_ARGUMENTS
 
 bool FrustumCull(float3 aabb_center, float3 aabb_extents, float4x4 world, float4x4 view_proj)
 {
