@@ -4979,7 +4979,11 @@ void cmdBindDescriptorSet(Cmd* pCmd, uint32_t index, DescriptorSet* pDescriptorS
     ASSERT(index < pDescriptorSet->mDx.mMaxSets);
 
     // Bind the descriptor tables associated with this DescriptorSet
+#if defined(TIDES)
+    const uint32_t pipeline = (pCmd->mDx.mPipelineType == PIPELINE_TYPE_MESH || pCmd->mDx.mPipelineType == PIPELINE_TYPE_GRAPHICS) ? 0 : 1;
+#else
     const uint32_t pipeline = pCmd->mDx.mPipelineType == PIPELINE_TYPE_GRAPHICS ? 0 : 1;
+#endif
 
     if (pDescriptorSet->mDx.mCbvSrvUavHandle != D3D12_DESCRIPTOR_ID_NONE)
     {
@@ -5821,6 +5825,14 @@ void cmdBindPipeline(Cmd* pCmd, Pipeline* pPipeline)
         hook_SetPipelineState(pCmd->mDx.pCmdList, pPipeline->mDx.pPipelineState);
         pCmd->mDx.mPipelineType = PIPELINE_TYPE_GRAPHICS;
     }
+#if defined(TIDES)
+    else if (pPipeline->mDx.mType == PIPELINE_TYPE_MESH)
+    {
+        ASSERT(pPipeline->mDx.pPipelineState);
+        hook_SetPipelineState(pCmd->mDx.pCmdList, pPipeline->mDx.pPipelineState);
+        pCmd->mDx.mPipelineType = PIPELINE_TYPE_MESH;
+    }
+#endif
     else
     {
         ASSERT(pPipeline->mDx.pPipelineState);
