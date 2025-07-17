@@ -132,5 +132,21 @@
 	originalValue = WaveReadLaneFirst(originalValue) + WavePrefixSum(numValues);				\
 }
 
+#define InterlockedAdd_WaveOps_ByteAddressBuffer(bufferResource, elementOffset, numValues, originalValue) 			\
+{																								\
+	uint count = WaveActiveCountBits(true) * numValues;											\
+	if(WaveIsFirstLane())																		\
+		bufferResource.InterlockedAdd(elementOffset, count, originalValue);						\
+	originalValue = WaveReadLaneFirst(originalValue) + WavePrefixCountBits(true);				\
+}
+
+#define InterlockedAdd_Varying_WaveOps_ByteAddressBuffer(bufferResource, elementOffset, numValues, originalValue) 	\
+{																								\
+	uint count = WaveActiveSum(numValues);														\
+	if(WaveIsFirstLane())																		\
+		bufferResource.InterlockedAdd(elementOffset, count, originalValue);						\
+	originalValue = WaveReadLaneFirst(originalValue) + WavePrefixSum(numValues);				\
+}
+
 
 #endif // _DEFINES_HLSLI

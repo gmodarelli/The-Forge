@@ -84,7 +84,7 @@ pub fn main() !void {
 
         // Load materials
         gfx.loadMaterial(bark_mat_key, .{ .base_color = [4]f32{ 0.173, 0.08, 0.034, 1.0 } });
-        gfx.loadMaterial(crown_mat_key, .{ .base_color = [4]f32{ 0.478, 0.56, 0.077, 1.0 } });
+        gfx.loadMaterial(crown_mat_key, .{ .base_color = [4]f32{ 0.478, 0.56, 0.077, 1.0 }, .alpha_tested = true });
         // gfx.loadMaterial(default_mat_key, .{});
         // gfx.loadMaterial(bark_birch_mat_key, .{
         //     .albedo_texture = bark_birch_tree_albedo_key,

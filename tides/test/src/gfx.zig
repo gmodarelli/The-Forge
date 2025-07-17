@@ -241,8 +241,10 @@ pub const Gfx = struct {
 
     meshlet_rasterizer_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     meshlet_rasterizer_pso: zf.PsoHandle = zf.PsoHandle.nil,
-    meshlet_rasterizer_material: GfxMaterial = undefined,
-    meshlet_rasterize_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    meshlet_rasterizer_opaque_material: GfxMaterial = undefined,
+    meshlet_rasterizer_masked_material: GfxMaterial = undefined,
+    meshlet_rasterize_opaque_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+    meshlet_rasterize_masked_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
 
     // Sprite Renderer
     // ===============
@@ -335,6 +337,7 @@ pub const MaterialDataDesc = struct {
     albedo_texture: ?zf.HashKey = null,
     normal_texture: ?zf.HashKey = null,
     base_color: [4]f32 = .{ 0.5, 0.5, 0.5, 1.0 },
+    alpha_tested: bool = false,
 };
 
 pub const GpuMaterialData = struct {
@@ -1314,11 +1317,29 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
             }
             {
-                gfx.meshlet_rasterizer_material = std.mem.zeroes(GfxMaterial);
+                gfx.meshlet_rasterizer_opaque_material = std.mem.zeroes(GfxMaterial);
                 const pass_type = Pass.default;
 
                 const pass_index: usize = @intFromEnum(pass_type);
-                var pass = &gfx.meshlet_rasterizer_material.passes[pass_index];
+                var pass = &gfx.meshlet_rasterizer_opaque_material.passes[pass_index];
+
+                pass.pass = pass_type;
+                pass.pso = gfx.meshlet_rasterizer_pso;
+                pass.shader = gfx.meshlet_rasterizer_shader;
+
+                const descriptor_set_handles = zf.createDescriptorSets(gfx.meshlet_rasterizer_shader) catch unreachable;
+                pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+                pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+                pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+                pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+                pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
+            }
+            {
+                gfx.meshlet_rasterizer_masked_material = std.mem.zeroes(GfxMaterial);
+                const pass_type = Pass.default;
+
+                const pass_index: usize = @intFromEnum(pass_type);
+                var pass = &gfx.meshlet_rasterizer_masked_material.passes[pass_index];
 
                 pass.pass = pass_type;
                 pass.pso = gfx.meshlet_rasterizer_pso;
@@ -1344,7 +1365,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             gfx.meshlet_cull_args_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlets Cull Args");
             gfx.meshlet_bin_meshlet_count_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlet Bin Meshlet Count");
             gfx.meshlet_bin_meshlet_global_count_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlet Bin Meshlet Global Count");
-            gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlet Bin Meshlet Offset and Count");
+            gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index] = zf.createRawBuffer(256, u32, true, true, "Meshlet Bin Meshlet Offset and Count");
             gfx.meshlet_bin_binned_meshlets_buffers[frame_index] = zf.createRawBuffer(meshlets_max_count, u32, true, true, "Binned Meshlets");
             gfx.meshlet_bin_classify_meshes_dispatch_args_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlet Dispatch Args");
             gfx.meshlet_clear_counters_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletClearCountersParams), "Clear Counters");
@@ -1352,7 +1373,8 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
             gfx.meshlet_cull_args_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletCullArgsParams), "Meshlet Cull Args Params");
             gfx.meshlet_cull_meshlets_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletCullMeshletsParams), "Meshlet Cull Meshlets Params");
             gfx.meshlet_bin_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletBinningParams), "Meshlet Binning Params");
-            gfx.meshlet_rasterize_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletRasterizeParams), "Meshlet Rasterize Params");
+            gfx.meshlet_rasterize_opaque_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletRasterizeParams), "Meshlet Rasterize Opaque Params");
+            gfx.meshlet_rasterize_masked_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletRasterizeParams), "Meshlet Rasterize Cutout Params");
         }
         // Render Targets
         // ==============
@@ -1831,7 +1853,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             // defer zf.endGpuProfile(inner_profile_index);
 
             var binning_params = MeshletBinningParams{
-                .bins_count = 1,
+                .bins_count = 2,
                 .rw_meshlet_counts_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_bin_meshlet_count_buffers[frame_index]),
                 .rw_meshlet_offset_and_counts_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index]),
                 .rw_global_meshlet_counter_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_bin_meshlet_global_count_buffers[frame_index]),
@@ -1980,13 +2002,25 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 .bin_index = 0,
                 .visible_meshlets_buffer_index = zf.getBufferBindlessIndex(gfx.visible_meshlets_buffers[frame_index]),
                 .binned_meshlets_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_bin_binned_meshlets_buffers[frame_index]),
-                .meshlet_bin_data_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_bin_meshlet_global_count_buffers[frame_index]),
+                .meshlet_bin_data_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index]),
             };
-            const data_slice = zf.DataSlice{
-                .data = @ptrCast(&rasterize_params),
-                .size = @sizeOf(MeshletRasterizeParams),
-            };
-            zf.updateUniformBuffer(data_slice, gfx.meshlet_rasterize_constant_buffers[frame_index]);
+
+            {
+                const data_slice = zf.DataSlice{
+                    .data = @ptrCast(&rasterize_params),
+                    .size = @sizeOf(MeshletRasterizeParams),
+                };
+                zf.updateUniformBuffer(data_slice, gfx.meshlet_rasterize_opaque_constant_buffers[frame_index]);
+            }
+
+            {
+                rasterize_params.bin_index = 1;
+                const data_slice = zf.DataSlice{
+                    .data = @ptrCast(&rasterize_params),
+                    .size = @sizeOf(MeshletRasterizeParams),
+                };
+                zf.updateUniformBuffer(data_slice, gfx.meshlet_rasterize_masked_constant_buffers[frame_index]);
+            }
 
             var rt_barriers = [_]zf.RenderTargetBarrier{
                 .{
@@ -2023,9 +2057,11 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             zf.cmdBindRenderTargets(&bind_render_targets);
             zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
 
-            gfx.meshlet_rasterizer_material.bindMaterialPass(.default, frame_index, 0);
-
+            gfx.meshlet_rasterizer_opaque_material.bindMaterialPass(.default, frame_index, 0);
             zf.cmdExecuteIndirect(.INDIRECT_DISPATCH_MESH, 1, gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
+
+            gfx.meshlet_rasterizer_masked_material.bindMaterialPass(.default, frame_index, 0);
+            zf.cmdExecuteIndirect(.INDIRECT_DISPATCH_MESH, 1, gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index], @sizeOf([4]u32), zf.BufferHandle.nil, 0);
 
             rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
             rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
@@ -2922,11 +2958,28 @@ fn updateDescriptorSets() void {
                     .{
                         .name = "g_RasterizerParams",
                         .binding_type = .buffer,
-                        .buffer_handle = gfx.meshlet_rasterize_constant_buffers[frame_index],
+                        .buffer_handle = gfx.meshlet_rasterize_opaque_constant_buffers[frame_index],
                     },
                 };
 
-                gfx.meshlet_rasterizer_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
+                gfx.meshlet_rasterizer_opaque_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
+            }
+
+            {
+                const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                    .{
+                        .name = "g_CBO",
+                        .binding_type = .buffer,
+                        .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+                    },
+                    .{
+                        .name = "g_RasterizerParams",
+                        .binding_type = .buffer,
+                        .buffer_handle = gfx.meshlet_rasterize_masked_constant_buffers[frame_index],
+                    },
+                };
+
+                gfx.meshlet_rasterizer_masked_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
             }
         }
     }
@@ -3206,7 +3259,7 @@ pub fn loadMaterial(key: zf.HashKey, material_desc: MaterialDataDesc) void {
 
     const material_index = gfx.material_data.items.len;
     var material = GpuMaterialData{};
-    material.rasterizer_bin = 0;
+    material.rasterizer_bin = if (material_desc.alpha_tested) 1 else 0;
     @memcpy(material.base_color[0..], material_desc.base_color[0..]);
 
     if (material_desc.albedo_texture) |texture_key| {

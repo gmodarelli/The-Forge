@@ -24,27 +24,27 @@ cbuffer g_BinningParams : register(b0, SPACE_PerFrame)
 
 uint GetMeshletsCount()
 {
-    StructuredBuffer<uint> visible_counters_buffer = ResourceDescriptorHeap[g_binning_params.visible_meshlets_counter_buffer_index];
-    return visible_counters_buffer[0];
+	ByteAddressBuffer visible_counters_buffer = ResourceDescriptorHeap[g_binning_params.visible_meshlets_counter_buffer_index];
+    return visible_counters_buffer.Load<uint>(0);
 }
 
 [RootSignature(ComputeRootSignature)]
 [numthreads(1, 1, 1)]
 void PrepareArgsCS()
 {
-    RWStructuredBuffer<uint> meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_meshlet_counts_buffer_index];
+	RWByteAddressBuffer meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_meshlet_counts_buffer_index];
     for (uint i = 0; i < g_binning_params.bins_count; i++)
     {
-        meshlet_counts_buffer[i] = 0;
+        meshlet_counts_buffer.Store<uint>(i * sizeof(uint), 0);
     }
 
-    RWStructuredBuffer<uint> global_meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_global_meshlet_counter_buffer_index];
-    global_meshlet_counts_buffer[0] = 0;
+    RWByteAddressBuffer global_meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_global_meshlet_counter_buffer_index];
+    global_meshlet_counts_buffer.Store<uint>(0, 0);
 
     uint meshlets_count = GetMeshletsCount();
     uint3 args = uint3((meshlets_count + 64 - 1) / 64, 1, 1);
-    RWStructuredBuffer<uint3> dispatch_args_buffer = ResourceDescriptorHeap[g_binning_params.rw_dispatch_args_buffer_index];
-    dispatch_args_buffer[0] = args;
+    RWByteAddressBuffer dispatch_args_buffer = ResourceDescriptorHeap[g_binning_params.rw_dispatch_args_buffer_index];
+    dispatch_args_buffer.Store<uint3>(0, args);
 }
 
 #endif // PREPARE_ARGS
@@ -60,14 +60,14 @@ cbuffer g_BinningParams : register(b1, SPACE_PerFrame)
 
 uint GetMeshletsCount()
 {
-    StructuredBuffer<uint> visible_counters_buffer = ResourceDescriptorHeap[g_binning_params.visible_meshlets_counter_buffer_index];
-    return visible_counters_buffer[0];
+	ByteAddressBuffer visible_counters_buffer = ResourceDescriptorHeap[g_binning_params.visible_meshlets_counter_buffer_index];
+    return visible_counters_buffer.Load<uint>(0);
 }
 
 uint GetBin(uint meshlet_index)
 {
-    StructuredBuffer<MeshletCandidate> visible_meshlet_buffer = ResourceDescriptorHeap[g_binning_params.visible_meshlets_buffer_index];
-    MeshletCandidate candidate = visible_meshlet_buffer[meshlet_index];
+	ByteAddressBuffer visible_meshlet_buffer = ResourceDescriptorHeap[g_binning_params.visible_meshlets_buffer_index];
+    MeshletCandidate candidate = visible_meshlet_buffer.Load<MeshletCandidate>(meshlet_index * sizeof(MeshletCandidate));
 
     Instance instance = getInstance(candidate.instance_id);
 	MaterialData material = getMaterial(instance.material_index);
@@ -79,7 +79,7 @@ uint GetBin(uint meshlet_index)
 void ClassifyMeshletsCS(uint thread_id : SV_DispatchThreadID)
 {
 	uint meshlet_index = thread_id;
-    RWStructuredBuffer<uint> meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_meshlet_counts_buffer_index];
+    RWByteAddressBuffer meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_meshlet_counts_buffer_index];
 
 	if(meshlet_index >= GetMeshletsCount())
 		return;
@@ -98,7 +98,7 @@ void ClassifyMeshletsCS(uint thread_id : SV_DispatchThreadID)
 			{
 				// Accumulate the meshlet count for all active threads
 				uint original_value;
-				InterlockedAdd_WaveOps(meshlet_counts_buffer, first_bin, 1, original_value);
+				InterlockedAdd_WaveOps_ByteAddressBuffer(meshlet_counts_buffer, first_bin * sizeof(uint), 1, original_value);
 				finished = true;
 			}
 		}
@@ -120,22 +120,22 @@ cbuffer g_BinningParams : register(b0, SPACE_PerFrame)
 [numthreads(64, 1, 1)]
 void AllocateBinRangesCS(uint thread_id : SV_DispatchThreadID)
 {
-    StructuredBuffer<uint> meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.meshlet_counts_buffer_index];
-    RWStructuredBuffer<uint> global_meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_global_meshlet_counter_buffer_index];
-    RWStructuredBuffer<uint4> global_meshlet_offset_and_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_meshlet_offset_and_counts_buffer_index];
+    ByteAddressBuffer meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.meshlet_counts_buffer_index];
+    RWByteAddressBuffer global_meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_global_meshlet_counter_buffer_index];
+    RWByteAddressBuffer meshlet_offset_and_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_meshlet_offset_and_counts_buffer_index];
 
     uint bin = thread_id;
 	if(bin >= g_binning_params.bins_count)
 		return;
 
 	// Compute the amount of meshlets for each bin and prefix sum to get the global index offset
-	uint meshlets_count = meshlet_counts_buffer[bin];
+	uint meshlets_count = meshlet_counts_buffer.Load<uint>(bin * sizeof(uint));
 	uint offset = WavePrefixSum(meshlets_count);
 	uint global_offset;
 	if(WaveIsFirstLane())
-		InterlockedAdd(global_meshlet_counts_buffer[0], meshlets_count, global_offset);
+		global_meshlet_counts_buffer.InterlockedAdd(0, meshlets_count, global_offset);
 	offset += WaveReadLaneFirst(global_offset);
-	global_meshlet_offset_and_counts_buffer[bin] = uint4(0, 1, 1, offset);
+	meshlet_offset_and_counts_buffer.Store<uint4>(bin * sizeof(uint4), uint4(0, 1, 1, offset));
 }
 
 #endif // ALLOCATE_BIN_RANGES
@@ -151,14 +151,14 @@ cbuffer g_BinningParams : register(b1, SPACE_PerFrame)
 
 uint GetMeshletsCount()
 {
-    StructuredBuffer<uint> visible_counters_buffer = ResourceDescriptorHeap[g_binning_params.visible_meshlets_counter_buffer_index];
-    return visible_counters_buffer[0];
+	ByteAddressBuffer visible_counters_buffer = ResourceDescriptorHeap[g_binning_params.visible_meshlets_counter_buffer_index];
+    return visible_counters_buffer.Load<uint>(0);
 }
 
 uint GetBin(uint meshlet_index)
 {
-    StructuredBuffer<MeshletCandidate> visible_meshlet_buffer = ResourceDescriptorHeap[g_binning_params.visible_meshlets_buffer_index];
-    MeshletCandidate candidate = visible_meshlet_buffer[meshlet_index];
+	ByteAddressBuffer visible_meshlet_buffer = ResourceDescriptorHeap[g_binning_params.visible_meshlets_buffer_index];
+    MeshletCandidate candidate = visible_meshlet_buffer.Load<MeshletCandidate>(meshlet_index * sizeof(MeshletCandidate));
 
     Instance instance = getInstance(candidate.instance_id);
 	MaterialData material = getMaterial(instance.material_index);
@@ -169,10 +169,9 @@ uint GetBin(uint meshlet_index)
 [numthreads(64, 1, 1)]
 void WriteBinsCS(uint thread_id : SV_DispatchThreadID)
 {
-    StructuredBuffer<uint> meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.meshlet_counts_buffer_index];
-    RWStructuredBuffer<uint> global_meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_global_meshlet_counter_buffer_index];
-    RWStructuredBuffer<uint4> global_meshlet_offset_and_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_meshlet_offset_and_counts_buffer_index];
-    RWStructuredBuffer<uint> binned_meshlets_buffer = ResourceDescriptorHeap[g_binning_params.rw_binned_meshlets_buffer_index];
+    RWByteAddressBuffer global_meshlet_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_global_meshlet_counter_buffer_index];
+    RWByteAddressBuffer global_meshlet_offset_and_counts_buffer = ResourceDescriptorHeap[g_binning_params.rw_meshlet_offset_and_counts_buffer_index];
+    RWByteAddressBuffer binned_meshlets_buffer = ResourceDescriptorHeap[g_binning_params.rw_binned_meshlets_buffer_index];
 
     uint meshlet_index = thread_id;
 	if(meshlet_index >= GetMeshletsCount())
@@ -180,7 +179,7 @@ void WriteBinsCS(uint thread_id : SV_DispatchThreadID)
 
 	uint bin = GetBin(meshlet_index);
 
-	uint offset = global_meshlet_offset_and_counts_buffer[bin].w;
+	uint offset = global_meshlet_offset_and_counts_buffer.Load<uint4>(bin * sizeof(uint4)).w;
 	uint meshlet_offset;
 
 	// WaveOps optimzed loop to write meshlet indices to its associated bins.
@@ -200,14 +199,14 @@ void WriteBinsCS(uint thread_id : SV_DispatchThreadID)
 				uint original_value;
 				uint count = WaveActiveCountBits(true);
 				if(WaveIsFirstLane())
-					InterlockedAdd(global_meshlet_offset_and_counts_buffer[first_bin].x, count, original_value);
+					global_meshlet_offset_and_counts_buffer.InterlockedAdd(first_bin * sizeof(uint4), count, original_value);
 				meshlet_offset = WaveReadLaneFirst(original_value) + WavePrefixCountBits(true);
 				finished = true;
 			}
 		}
 	}
 
-	binned_meshlets_buffer[offset + meshlet_offset] = meshlet_index;
+	binned_meshlets_buffer.Store<uint>((offset + meshlet_offset) * sizeof(uint), meshlet_index);
 }
 
 #endif // WRITE_BINS
