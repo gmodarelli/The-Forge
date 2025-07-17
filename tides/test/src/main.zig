@@ -119,11 +119,11 @@ pub fn main() !void {
     // Create fake entities
     {
         var x: i32 = 0;
-        while (x <= 2) : (x += 1) {
+        while (x <= 20) : (x += 1) {
             var z: i32 = 0;
-            while (z <= 2) : (z += 1) {
+            while (z <= 20) : (z += 1) {
                 app.entities.append(.{
-                    .position = [3]f32{ @floatFromInt(x * 4), 0.0, @floatFromInt(z * 4) },
+                    .position = [3]f32{ -10.0 + @as(f32, @floatFromInt(x * 4)), 0.0, -10.0 + @as(f32, @floatFromInt(z * 4)) },
                     .unform_scale = 1.0,
                     .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
                     .renderable_hash = birch_1_key,
