@@ -123,6 +123,11 @@ pub const CSMSettings = struct {
     filter_across_cascades: bool = true,
 };
 
+pub const VisibilityDebugParams = struct {
+    visible_meshlets_buffer_index: u32,
+    _pad0: [3]u32,
+};
+
 pub const Gfx = struct {
     // Static samplers
     linear_repeat_static_sampler: zf.StaticSamplerHandle = zf.StaticSamplerHandle.nil,
@@ -193,7 +198,6 @@ pub const Gfx = struct {
     mesh_buffer_mutex: std.Thread.Mutex,
     registered_instances_count: u32 = 0,
     instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
-    visibility_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
 
     meshlet_clear_counters_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
     meshlet_clear_counters_pso: zf.PsoHandle = zf.PsoHandle.nil,
@@ -246,6 +250,14 @@ pub const Gfx = struct {
     meshlet_rasterize_opaque_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     meshlet_rasterize_masked_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
 
+    // Visibility Shading
+    // ==================
+    visibility_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
+    visibility_debug_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    visibility_debug_pso: zf.PsoHandle = zf.PsoHandle.nil,
+    visibility_debug_material: GfxMaterial = undefined,
+    visibility_debug_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
+
     // Sprite Renderer
     // ===============
     roboto: *font.FontDesc = undefined,
@@ -287,9 +299,9 @@ pub const Gfx = struct {
     material_map: MaterialHashMap,
 
     // Profiler indices
-    shadows_profile_index: usize = 0,
-    gbuffer_profile_index: usize = 0,
-    deferred_shading_profile_index: usize = 0,
+    gpu_culling_profile_index: usize = 0,
+    meshlet_rasterizer_profile_index: usize = 0,
+    visibility_shading_profile_index: usize = 0,
     ui_profile_index: usize = 0,
     compositor_profile_index: usize = 0,
 };
@@ -300,6 +312,7 @@ pub const Frame = struct {
     view_projection_matrix: [16]f32,
     inv_view_projection_matrix: [16]f32,
     cascade_view_projections: [CSMSettings.cascades_max_count][16]f32,
+    viewport_info: [4]f32,
     camera_position: [4]f32,
     camera_near_plane: f32,
     camera_far_plane: f32,
@@ -472,9 +485,9 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     zf.initializeGpu(gpu_desc, gfx_allocator) catch unreachable;
 
     gfx = gfx_allocator.create(Gfx) catch unreachable;
-    gfx.shadows_profile_index = 0;
-    gfx.gbuffer_profile_index = 0;
-    gfx.deferred_shading_profile_index = 0;
+    gfx.gpu_culling_profile_index = 0;
+    gfx.meshlet_rasterizer_profile_index = 0;
+    gfx.visibility_shading_profile_index = 0;
     gfx.ui_profile_index = 0;
     gfx.compositor_profile_index = 0;
 
@@ -969,6 +982,61 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     gfx.material_buffer = zf.createRawBuffer(8 * 1024, GpuMaterialData, true, false, "Material Buffer");
     gfx.material_buffer_offset = 0;
     gfx.material_buffer_mutex = std.Thread.Mutex{};
+
+    // Visibility Buffer Initialization
+    // ================================
+    {
+        // Shaders
+        // =======
+        {
+            const shader_load_desc = zf.ShaderLoadDesc{
+                .compute = .{
+                    .path = "shaders/VisibilityDebug.comp",
+                    .entry = "VisibilityDebugCS",
+                },
+                .vertex = null,
+                .pixel = null,
+                .mesh = null,
+                .amplification = null,
+            };
+            gfx.visibility_debug_shader = zf.compileShader(shader_load_desc) catch unreachable;
+        }
+
+        // PSOs
+        // ====
+        {
+            var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
+            pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
+            gfx.visibility_debug_pso = zf.createPso(pipeline_desc, gfx.visibility_debug_shader) catch unreachable;
+        }
+
+        // Materials
+        // =========
+        {
+            gfx.visibility_debug_material = std.mem.zeroes(GfxMaterial);
+            const pass_type = Pass.default;
+
+            const pass_index: usize = @intFromEnum(pass_type);
+            var pass = &gfx.visibility_debug_material.passes[pass_index];
+
+            pass.pass = pass_type;
+            pass.pso = gfx.visibility_debug_pso;
+            pass.shader = gfx.visibility_debug_shader;
+
+            const descriptor_set_handles = zf.createDescriptorSets(gfx.visibility_debug_shader) catch unreachable;
+            pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
+            pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
+            pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
+            pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
+            pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
+        }
+
+        // Buffers
+        // =======
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            gfx.visibility_debug_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(VisibilityDebugParams), "Visibility Debug Params");
+        }
+    }
 
     // Meshlet Renderer Initialization
     // ===============================
@@ -1620,9 +1688,36 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     _ = delta_time;
     const frame_index = zf.frameStart();
 
+    const viewport_width: f32 = @floatFromInt(window_width);
+    const viewport_height: f32 = @floatFromInt(window_width);
+    const viewport_inv_width: f32 = 1.0 / viewport_width;
+    const viewport_inv_height: f32 = 1.0 / viewport_height;
+
     spriteRenderer_Begin(frame_index);
 
-    var frame = Frame{ .view_matrix = undefined, .projection_matrix = undefined, .view_projection_matrix = undefined, .inv_view_projection_matrix = undefined, .cascade_view_projections = undefined, .camera_position = undefined, .camera_near_plane = camera.near_plane, .camera_far_plane = camera.far_plane, .time = @floatCast(zglfw.getTime()), ._padding0 = 42, .linear_repeat_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_repeat_sampler), .linear_clamp_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_clamp_sampler), .shadow_sampler_index = zf.getSamplerBindlessIndex(gfx.shadow_sampler), .shadow_pcf_sampler_index = zf.getSamplerBindlessIndex(gfx.shadow_pcf_sampler), .vertex_buffer_index = zf.getBufferBindlessIndex(gfx.vertex_buffer), .material_buffer_index = zf.getBufferBindlessIndex(gfx.material_buffer), .instance_buffer_index = zf.getBufferBindlessIndex(gfx.instance_buffers[frame_index]), .meshes_buffer_index = zf.getBufferBindlessIndex(gfx.mesh_buffer), .instances_count = gfx.registered_instances_count, ._padding1 = [3]u32{ 42, 42, 42 } };
+    var frame = Frame{
+        .view_matrix = undefined,
+        .projection_matrix = undefined,
+        .view_projection_matrix = undefined,
+        .inv_view_projection_matrix = undefined,
+        .cascade_view_projections = undefined,
+        .viewport_info = .{ viewport_width, viewport_height, viewport_inv_width, viewport_inv_height },
+        .camera_position = undefined,
+        .camera_near_plane = camera.near_plane,
+        .camera_far_plane = camera.far_plane,
+        .time = @floatCast(zglfw.getTime()),
+        ._padding0 = 42,
+        .linear_repeat_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_repeat_sampler),
+        .linear_clamp_sampler_index = zf.getSamplerBindlessIndex(gfx.linear_clamp_sampler),
+        .shadow_sampler_index = zf.getSamplerBindlessIndex(gfx.shadow_sampler),
+        .shadow_pcf_sampler_index = zf.getSamplerBindlessIndex(gfx.shadow_pcf_sampler),
+        .vertex_buffer_index = zf.getBufferBindlessIndex(gfx.vertex_buffer),
+        .material_buffer_index = zf.getBufferBindlessIndex(gfx.material_buffer),
+        .instance_buffer_index = zf.getBufferBindlessIndex(gfx.instance_buffers[frame_index]),
+        .meshes_buffer_index = zf.getBufferBindlessIndex(gfx.mesh_buffer),
+        .instances_count = gfx.registered_instances_count,
+        ._padding1 = [3]u32{ 42, 42, 42 }
+    };
     zmath.storeMat(&frame.view_matrix, zmath.transpose(camera.view));
     zmath.storeMat(&frame.projection_matrix, zmath.transpose(camera.proj));
     zmath.storeMat(&frame.view_projection_matrix, zmath.transpose(camera.view_proj));
@@ -1665,8 +1760,8 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     // Meshlet Pass
     // ============
     {
-        const profile_index = zf.startGpuProfile("Meshlet Rendering");
-        defer zf.endGpuProfile(profile_index);
+        gfx.gpu_culling_profile_index = zf.startGpuProfile("GPU Culling");
+        defer zf.endGpuProfile(gfx.gpu_culling_profile_index);
 
         // Clear counters
         {
@@ -1849,8 +1944,8 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         // Bin meshlets
         {
-            // const inner_profile_index = zf.startGpuProfile("Binning");
-            // defer zf.endGpuProfile(inner_profile_index);
+            gfx.meshlet_rasterizer_profile_index = zf.startGpuProfile("Meshlet Rasterizer");
+            defer zf.endGpuProfile(gfx.meshlet_rasterizer_profile_index);
 
             var binning_params = MeshletBinningParams{
                 .bins_count = 2,
@@ -1992,7 +2087,9 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 zf.cmdResourceBarrier(&buffer_barriers, null, null);
             }
         }
+    }
 
+    {
         // Rasterize meshlets
         {
             const inner_profile_index = zf.startGpuProfile("Rasterize Meshlets");
@@ -2076,9 +2173,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
     // Shadow Caster Pass
     if (false) {
-        gfx.shadows_profile_index = zf.startGpuProfile("Main Light Shadows");
-        defer zf.endGpuProfile(gfx.shadows_profile_index);
-
         var rt_barriers = [_]zf.RenderTargetBarrier{
             .{
                 .render_target_handle = gfx.shadow_depth_buffer,
@@ -2122,9 +2216,9 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     }
 
     // GBuffer Pass
-    {
-        gfx.gbuffer_profile_index = zf.startGpuProfile("GBuffer Pass");
-        defer zf.endGpuProfile(gfx.gbuffer_profile_index);
+    if (false) {
+        gfx.meshlet_rasterizer_profile_index = zf.startGpuProfile("GBuffer Pass");
+        defer zf.endGpuProfile(gfx.meshlet_rasterizer_profile_index);
 
         var rt_barriers = [_]zf.RenderTargetBarrier{
             .{
@@ -2177,10 +2271,21 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         zf.cmdResourceBarrier(null, null, &rt_barriers);
     }
 
-    // Deferred Shading Pass
+    // Visibility Shading Pass
     {
-        gfx.deferred_shading_profile_index = zf.startGpuProfile("Deferred Shading");
-        defer zf.endGpuProfile(gfx.deferred_shading_profile_index);
+        gfx.visibility_shading_profile_index = zf.startGpuProfile("Visibility Shading");
+        defer zf.endGpuProfile(gfx.visibility_shading_profile_index);
+
+        var pass_params = VisibilityDebugParams{
+            .visible_meshlets_buffer_index = zf.getBufferBindlessIndex(gfx.visible_meshlets_buffers[frame_index]),
+            ._pad0 = .{ 42, 42, 42 },
+        };
+
+        const data_slice = zf.DataSlice{
+            .data = @ptrCast(&pass_params),
+            .size = @sizeOf(VisibilityDebugParams),
+        };
+        zf.updateUniformBuffer(data_slice, gfx.visibility_debug_constant_buffers[frame_index]);
 
         var texture_barriers = [_]zf.TextureBarrier{
             .{
@@ -2188,22 +2293,15 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
                 .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
             },
-            .{
-                .render_texture_handle = gfx.debug_buffer,
-                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-            },
         };
 
         zf.cmdResourceBarrier(null, &texture_barriers, null);
-        gfx.deferred_shading_material.bindMaterialPass(.default, frame_index, 0);
-        const thread_group_size = zf.getShaderThreadGroupSize(gfx.deferred_shading_material.getPassShaderHandle(.default));
+        gfx.visibility_debug_material.bindMaterialPass(.default, frame_index, 0);
+        const thread_group_size = zf.getShaderThreadGroupSize(gfx.visibility_debug_material.getPassShaderHandle(.default));
         zf.cmdDispatch((window_width + thread_group_size.x - 1) / thread_group_size.x, (window_height + thread_group_size.y - 1) / thread_group_size.y, thread_group_size.z);
 
         texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
         texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-        texture_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-        texture_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
 
         zf.cmdResourceBarrier(null, &texture_barriers, null);
     }
@@ -2294,11 +2392,11 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         {
             text_y += text_line_height;
-            const gpu_time = zf.getProfilerAvgTimeMs(gfx.shadows_profile_index);
+            const gpu_time = zf.getProfilerAvgTimeMs(gfx.gpu_culling_profile_index);
             var text_buffer: [32]u8 = undefined;
             const text = std.fmt.bufPrintZ(
                 text_buffer[0..],
-                "Shadows: {d:.3}ms",
+                "GPU Culling: {d:.3}ms",
                 .{gpu_time},
             ) catch unreachable;
 
@@ -2308,11 +2406,11 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         {
             text_y += text_line_height;
-            const gpu_time = zf.getProfilerAvgTimeMs(gfx.gbuffer_profile_index);
+            const gpu_time = zf.getProfilerAvgTimeMs(gfx.meshlet_rasterizer_profile_index);
             var text_buffer: [32]u8 = undefined;
             const text = std.fmt.bufPrintZ(
                 text_buffer[0..],
-                "GBuffer: {d:.3}ms",
+                "Meshlet Rasterizer: {d:.3}ms",
                 .{gpu_time},
             ) catch unreachable;
 
@@ -2322,11 +2420,11 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         {
             text_y += text_line_height;
-            const gpu_time = zf.getProfilerAvgTimeMs(gfx.deferred_shading_profile_index);
+            const gpu_time = zf.getProfilerAvgTimeMs(gfx.visibility_shading_profile_index);
             var text_buffer: [32]u8 = undefined;
             const text = std.fmt.bufPrintZ(
                 text_buffer[0..],
-                "Deferred Shading: {d:.3}ms",
+                "Visibility Shading: {d:.3}ms",
                 .{gpu_time},
             ) catch unreachable;
 
@@ -2980,6 +3078,48 @@ fn updateDescriptorSets() void {
                 };
 
                 gfx.meshlet_rasterizer_masked_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
+            }
+        }
+    }
+
+    // Visibility Shading
+    // ==================
+    {
+        // Visibility Debug: Persistent
+        {
+            const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                .{
+                    .name = "g_visibilityBuffer",
+                    .binding_type = .render_target,
+                    .render_target_handle = gfx.visibility_buffer,
+                },
+                .{
+                    .name = "g_outputBuffer",
+                    .binding_type = .render_texture,
+                    .render_texture_handle = gfx.scene_color,
+                },
+            };
+
+            gfx.visibility_debug_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0, 0);
+        }
+
+        // Visibility Debug: Per Frame
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            {
+                const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                    .{
+                        .name = "g_CBO",
+                        .binding_type = .buffer,
+                        .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+                    },
+                    .{
+                        .name = "g_PassParams",
+                        .binding_type = .buffer,
+                        .buffer_handle = gfx.visibility_debug_constant_buffers[frame_index],
+                    },
+                };
+
+                gfx.visibility_debug_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
             }
         }
     }

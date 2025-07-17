@@ -233,6 +233,10 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     const meshlet_bin_write_bins_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletBinWriteBins.comp" }) catch unreachable;
     defer allocator.free(meshlet_bin_write_bins_output_path);
     compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_write_bins_output_path, "WriteBinsCS", "WRITE_BINS", .compute);
+
+    const visibility_debug_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "VisibilityDebug.comp" }) catch unreachable;
+    defer allocator.free(visibility_debug_output_path);
+    compileShader(step, "shaders/VisibilityDebugCS.hlsl", visibility_debug_output_path, "VisibilityDebugCS", "", .compute);
 }
 
 const ShaderType = enum {
