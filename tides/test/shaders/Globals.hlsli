@@ -11,8 +11,6 @@ struct Frame
     float4x4 projection;
     float4x4 view_proj;
     float4x4 inv_view_proj;
-    // TODO: Add inverted view, projection
-    float4x4 cascade_view_proj[CASCADES_MAX_COUNT];
     float4 viewport_info; // xy: size, zw: inv_size
     float4 camera_position;
     float camera_near_plane;

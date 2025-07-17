@@ -113,16 +113,6 @@ pub const Renderable = struct {
     material_count: u32,
 };
 
-pub const CSMSettings = struct {
-    pub const cascades_max_count: u32 = 4;
-
-    cascades_count: u32 = 4,
-    cascades_distances: [cascades_max_count]f32 = .{ 0.05, 0.15, 0.5, 1.0 },
-    resolution: u32 = 2048,
-    stabilize_cascades: bool = true,
-    filter_across_cascades: bool = true,
-};
-
 pub const VisibilityDebugParams = struct {
     visible_meshlets_buffer_index: u32,
     _pad0: [3]u32,
@@ -139,44 +129,12 @@ pub const Gfx = struct {
     shadow_sampler: zf.SamplerHandle = zf.SamplerHandle.nil,
     shadow_pcf_sampler: zf.SamplerHandle = zf.SamplerHandle.nil,
 
-    // Shaders
-    blit_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
-    object_gbuffer_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
-    object_shadow_caster_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
-    gauss_blur_horizontal_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
-    gauss_blur_vertical_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
-    clear_buffer_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
-    deferred_shading_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
-
-    // PSOs
-    object_gbuffer_pso: zf.PsoHandle = zf.PsoHandle.nil,
-    object_shadow_caster_pso: zf.PsoHandle = zf.PsoHandle.nil,
-    gauss_horizontal_pso: zf.PsoHandle = zf.PsoHandle.nil,
-    gauss_vertical_pso: zf.PsoHandle = zf.PsoHandle.nil,
-    clear_buffer_pso: zf.PsoHandle = zf.PsoHandle.nil,
-    deferred_shading_pso: zf.PsoHandle = zf.PsoHandle.nil,
-
     // Render Targets and Render Textures
-    gbuffer0: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
-    gbuffer1: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
-    shadow_depth_buffer: zf.RenderTargetHandle = zf.RenderTargetHandle.nil,
     scene_color: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
-    debug_buffer: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
-    gauss_blur_a: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
-    gauss_blur_b: zf.RenderTextureHandle = zf.RenderTextureHandle.nil,
 
     // Uniform buffers
     global_frame_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
-    shadow_caster_constant_buffers: [zf.frames_in_flight_count][CSMSettings.cascades_max_count]zf.BufferHandle = undefined,
-    gauss_blur_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
-    clear_buffer_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
-    timings_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
-    sprite_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
-
-    // CSM Settings
-    cms_settings: CSMSettings,
-    shadow_frame_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
 
     // Renderables
     renderables: RenderableHashMap,
@@ -267,6 +225,7 @@ pub const Gfx = struct {
     sprite_instance_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     sprite_material: GfxMaterial = undefined,
     sprite_instances: std.ArrayList(SpriteInstance) = undefined,
+    sprite_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = .{ zf.BufferHandle.nil, zf.BufferHandle.nil },
 
     // Compositor Renderer
     // ===================
@@ -277,15 +236,6 @@ pub const Gfx = struct {
     material_buffer: zf.BufferHandle = undefined,
     material_buffer_offset: u64 = 0,
     material_buffer_mutex: std.Thread.Mutex,
-
-    // NOTE: Material is not the best name here
-    // Materials
-    object_material: GfxMaterial = undefined,
-    gauss_blur_horizontal_material: GfxMaterial = undefined,
-    gauss_blur_vertical_material: GfxMaterial = undefined,
-    clear_buffer_material: GfxMaterial = undefined,
-    deferred_shading_material: GfxMaterial = undefined,
-    timings_material: GfxMaterial = undefined,
 
     // CPU Geometry data
     mesh_map: MeshHashMap,
@@ -311,7 +261,6 @@ pub const Frame = struct {
     projection_matrix: [16]f32,
     view_projection_matrix: [16]f32,
     inv_view_projection_matrix: [16]f32,
-    cascade_view_projections: [CSMSettings.cascades_max_count][16]f32,
     viewport_info: [4]f32,
     camera_position: [4]f32,
     camera_near_plane: f32,
@@ -328,18 +277,6 @@ pub const Frame = struct {
     meshes_buffer_index: u32,
     instances_count: u32,
     _padding1: [3]u32,
-};
-
-pub const ShadowFrame = struct {
-    shadow_matrix: [16]f32,
-    cascade_offsets: [CSMSettings.cascades_max_count][4]f32,
-    cascade_scales: [CSMSettings.cascades_max_count][4]f32,
-    cascade_splits: [CSMSettings.cascades_max_count]f32,
-};
-
-pub const ShadowCasterFrame = struct {
-    cascade_index: u32,
-    _padding: [3]u32,
 };
 
 pub const Transform = struct {
@@ -413,11 +350,11 @@ pub const GfxMaterialPass = struct {
     pso: zf.PsoHandle,
     shader: zf.ShaderHandle,
 
-    per_draw_descriptor_sets: [CSMSettings.cascades_max_count]zf.DescriptorSetHandle,
-    per_batch_descriptor_sets: [CSMSettings.cascades_max_count]zf.DescriptorSetHandle,
-    per_frame_descriptor_sets: [CSMSettings.cascades_max_count]zf.DescriptorSetHandle,
-    persistent_descriptor_sets: [CSMSettings.cascades_max_count]zf.DescriptorSetHandle,
-    persistent_samplers_descriptor_sets: [CSMSettings.cascades_max_count]zf.DescriptorSetHandle,
+    per_draw_descriptor_sets: [4]zf.DescriptorSetHandle,
+    per_batch_descriptor_sets: [4]zf.DescriptorSetHandle,
+    per_frame_descriptor_sets: [4]zf.DescriptorSetHandle,
+    persistent_descriptor_sets: [4]zf.DescriptorSetHandle,
+    persistent_samplers_descriptor_sets: [4]zf.DescriptorSetHandle,
 
     pub fn bindPipeline(self: *GfxMaterialPass) void {
         zf.cmdBindPipeline(self.pso);
@@ -550,23 +487,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
     {
         const shader_load_desc = zf.ShaderLoadDesc{
             .vertex = .{
-                .path = "shaders/Blit.vert",
-                .entry = "FullscreenVertex",
-            },
-            .pixel = .{
-                .path = "shaders/Blit.frag",
-                .entry = "BlitFragment",
-            },
-            .compute = null,
-            .mesh = null,
-            .amplification = null,
-        };
-        gfx.blit_shader = zf.compileShader(shader_load_desc) catch unreachable;
-    }
-
-    {
-        const shader_load_desc = zf.ShaderLoadDesc{
-            .vertex = .{
                 .path = "shaders/Compositor.vert",
                 .entry = "FullscreenTriangleVS",
             },
@@ -598,115 +518,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.sprite_shader = zf.compileShader(shader_load_desc) catch unreachable;
     }
 
-    {
-        const shader_load_desc = zf.ShaderLoadDesc{
-            .vertex = .{
-                .path = "shaders/ObjectGBuffer.vert",
-                .entry = "GBufferVS",
-            },
-            .pixel = .{
-                .path = "shaders/ObjectGBuffer.frag",
-                .entry = "GBufferPS",
-            },
-            .compute = null,
-            .mesh = null,
-            .amplification = null,
-        };
-        gfx.object_gbuffer_shader = zf.compileShader(shader_load_desc) catch unreachable;
-    }
-
-    {
-        const shader_load_desc = zf.ShaderLoadDesc{
-            .vertex = .{
-                .path = "shaders/ObjectShadowCaster.vert",
-                .entry = "ShadowCasterVS",
-            },
-            .pixel = .{
-                .path = "shaders/ObjectShadowCaster.frag",
-                .entry = "ShadowCasterPS",
-            },
-            .compute = null,
-            .mesh = null,
-            .amplification = null,
-        };
-        gfx.object_shadow_caster_shader = zf.compileShader(shader_load_desc) catch unreachable;
-    }
-
-    {
-        const shader_load_desc = zf.ShaderLoadDesc{
-            .compute = .{
-                .path = "shaders/GaussBlurH.comp",
-                .entry = "main",
-            },
-            .vertex = null,
-            .pixel = null,
-            .mesh = null,
-            .amplification = null,
-        };
-        gfx.gauss_blur_horizontal_shader = zf.compileShader(shader_load_desc) catch unreachable;
-    }
-
-    {
-        const shader_load_desc = zf.ShaderLoadDesc{
-            .compute = .{
-                .path = "shaders/GaussBlurV.comp",
-                .entry = "main",
-            },
-            .vertex = null,
-            .pixel = null,
-            .mesh = null,
-            .amplification = null,
-        };
-        gfx.gauss_blur_vertical_shader = zf.compileShader(shader_load_desc) catch unreachable;
-    }
-
-    {
-        const shader_load_desc = zf.ShaderLoadDesc{
-            .compute = .{
-                .path = "shaders/ClearBuffer.comp",
-                .entry = "main",
-            },
-            .vertex = null,
-            .pixel = null,
-            .mesh = null,
-            .amplification = null,
-        };
-        gfx.clear_buffer_shader = zf.compileShader(shader_load_desc) catch unreachable;
-    }
-
-    {
-        const shader_load_desc = zf.ShaderLoadDesc{
-            .compute = .{
-                .path = "shaders/DeferredShading.comp",
-                .entry = "main",
-            },
-            .vertex = null,
-            .pixel = null,
-            .mesh = null,
-            .amplification = null,
-        };
-        gfx.deferred_shading_shader = zf.compileShader(shader_load_desc) catch unreachable;
-    }
-
     // PSOs
-    {
-        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
-        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
-        gfx.gauss_horizontal_pso = zf.createPso(pipeline_desc, gfx.gauss_blur_horizontal_shader) catch unreachable;
-    }
-
-    {
-        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
-        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
-        gfx.gauss_vertical_pso = zf.createPso(pipeline_desc, gfx.gauss_blur_vertical_shader) catch unreachable;
-    }
-
-    {
-        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
-        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
-        gfx.deferred_shading_pso = zf.createPso(pipeline_desc, gfx.deferred_shading_shader) catch unreachable;
-    }
-
     {
         var render_targets = [_]zf.IGraphics.TinyImageFormat{zf.getSwapChainFormat()};
         var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
@@ -754,80 +566,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.sprite_pso = zf.createPso(pipeline_desc, gfx.sprite_shader) catch unreachable;
     }
 
-    {
-        var render_targets = [_]zf.IGraphics.TinyImageFormat{
-            .R8G8B8A8_SRGB, // TODO: Read from gbuffer0 format
-            .R8G8B8A8_UNORM, // TODO: Read from gbuffer1 format
-        };
-        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
-        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_GRAPHICS;
-        var graphics_desc = &pipeline_desc.__union_field1.mGraphicsDesc;
-        graphics_desc.* = std.mem.zeroes(zf.GraphicsPipelineDesc);
-        graphics_desc.mPrimitiveTopo = zf.PrimitiveTopology.PRIMITIVE_TOPO_TRI_LIST;
-        graphics_desc.mRenderTargetCount = render_targets.len;
-        graphics_desc.pColorFormats = @ptrCast(&render_targets);
-        graphics_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
-        graphics_desc.mSampleQuality = 0;
-
-        var rasterizer_state_desc = std.mem.zeroes(zf.RasterizerStateDesc);
-        rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_NONE;
-        rasterizer_state_desc.mFillMode = zf.FillMode.FILL_MODE_SOLID;
-        graphics_desc.pRasterizerState = @ptrCast(&rasterizer_state_desc);
-
-        var depth_state_desc = std.mem.zeroes(zf.DepthStateDesc);
-        depth_state_desc.mDepthWrite = true;
-        depth_state_desc.mDepthTest = true;
-        // depth_state_desc.mDepthFunc = zf.CompareMode.CMP_GEQUAL;
-        depth_state_desc.mDepthFunc = zf.CompareMode.CMP_LEQUAL;
-        graphics_desc.pDepthState = @ptrCast(&depth_state_desc);
-        graphics_desc.mDepthStencilFormat = .D32_SFLOAT;
-
-        // var blend_state_desc = std.mem.zeroes(zf.BlendStateDesc);
-        // blend_state_desc.mSrcFactors[0] = .BC_SRC_ALPHA;
-        // blend_state_desc.mDstFactors[0] = .BC_ONE_MINUS_SRC_ALPHA;
-        // blend_state_desc.mBlendModes[0] = .BM_ADD;
-        // blend_state_desc.mSrcAlphaFactors[0] = .BC_ONE;
-        // blend_state_desc.mDstAlphaFactors[0] = .BC_ZERO;
-        // blend_state_desc.mBlendAlphaModes[0] = .BM_ADD;
-        // blend_state_desc.mColorWriteMasks[0] = .COLOR_MASK_ALL;
-        // blend_state_desc.mRenderTargetMask = .BLEND_STATE_TARGET_0;
-        // blend_state_desc.mAlphaToCoverage = true;
-        // graphics_desc.pBlendState = @ptrCast(&blend_state_desc);
-
-        gfx.object_gbuffer_pso = zf.createPso(pipeline_desc, gfx.object_gbuffer_shader) catch unreachable;
-    }
-
-    {
-        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
-        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_GRAPHICS;
-        var graphics_desc = &pipeline_desc.__union_field1.mGraphicsDesc;
-        graphics_desc.* = std.mem.zeroes(zf.GraphicsPipelineDesc);
-        graphics_desc.mPrimitiveTopo = zf.PrimitiveTopology.PRIMITIVE_TOPO_TRI_LIST;
-        graphics_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
-        graphics_desc.mSampleQuality = 0;
-
-        var rasterizer_state_desc = std.mem.zeroes(zf.RasterizerStateDesc);
-        rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_NONE;
-        rasterizer_state_desc.mFillMode = zf.FillMode.FILL_MODE_SOLID;
-        rasterizer_state_desc.mDepthClampEnable = true;
-        graphics_desc.pRasterizerState = @ptrCast(&rasterizer_state_desc);
-
-        var depth_state_desc = std.mem.zeroes(zf.DepthStateDesc);
-        depth_state_desc.mDepthWrite = true;
-        depth_state_desc.mDepthTest = true;
-        depth_state_desc.mDepthFunc = zf.CompareMode.CMP_LEQUAL;
-        graphics_desc.pDepthState = @ptrCast(&depth_state_desc);
-        graphics_desc.mDepthStencilFormat = .D32_SFLOAT;
-
-        gfx.object_shadow_caster_pso = zf.createPso(pipeline_desc, gfx.object_shadow_caster_shader) catch unreachable;
-    }
-
-    {
-        var pipeline_desc = std.mem.zeroes(zf.PipelineDesc);
-        pipeline_desc.mType = zf.PipelineType.PIPELINE_TYPE_COMPUTE;
-        gfx.clear_buffer_pso = zf.createPso(pipeline_desc, gfx.clear_buffer_shader) catch unreachable;
-    }
-
     // Render Targets
     {
         var overlay_buffer_desc = std.mem.zeroes(zf.RenderTargetDesc);
@@ -842,32 +580,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         overlay_buffer_desc.mSampleQuality = 0;
         overlay_buffer_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
         gfx.overlay_buffer = zf.createRenderTarget(overlay_buffer_desc) catch unreachable;
-
-        var gbuffer0_desc = std.mem.zeroes(zf.RenderTargetDesc);
-        gbuffer0_desc.pName = "GBuffer 0";
-        gbuffer0_desc.mArraySize = 1;
-        gbuffer0_desc.mDepth = 1;
-        gbuffer0_desc.mFormat = .R8G8B8A8_SRGB;
-        gbuffer0_desc.mStartState = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-        gbuffer0_desc.mWidth = @intCast(window_width);
-        gbuffer0_desc.mHeight = @intCast(window_height);
-        gbuffer0_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
-        gbuffer0_desc.mSampleQuality = 0;
-        gbuffer0_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
-        gfx.gbuffer0 = zf.createRenderTarget(gbuffer0_desc) catch unreachable;
-
-        var gbuffer1_desc = std.mem.zeroes(zf.RenderTargetDesc);
-        gbuffer1_desc.pName = "GBuffer 1";
-        gbuffer1_desc.mArraySize = 1;
-        gbuffer1_desc.mDepth = 1;
-        gbuffer1_desc.mFormat = .R8G8B8A8_UNORM; // TODO: Use a better format for normals
-        gbuffer1_desc.mStartState = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-        gbuffer1_desc.mWidth = @intCast(window_width);
-        gbuffer1_desc.mHeight = @intCast(window_height);
-        gbuffer1_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
-        gbuffer1_desc.mSampleQuality = 0;
-        gbuffer1_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
-        gfx.gbuffer1 = zf.createRenderTarget(gbuffer1_desc) catch unreachable;
     }
 
     {
@@ -885,35 +597,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         depth_buffer_desc.mSampleQuality = 0;
         depth_buffer_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
         gfx.depth_buffer = zf.createRenderTarget(depth_buffer_desc) catch unreachable;
-    }
-
-    // NOTE: These settings should come from the app side I think
-    gfx.cms_settings.cascades_count = 4;
-    gfx.cms_settings.resolution = 2048;
-    gfx.cms_settings.cascades_distances[0] = 0.05;
-    gfx.cms_settings.cascades_distances[1] = 0.15;
-    gfx.cms_settings.cascades_distances[2] = 0.5;
-    gfx.cms_settings.cascades_distances[3] = 1.0;
-    gfx.cms_settings.filter_across_cascades = true;
-    gfx.cms_settings.stabilize_cascades = true;
-
-    {
-        var shadow_buffer_desc = std.mem.zeroes(zf.RenderTargetDesc);
-        shadow_buffer_desc.pName = "Shadow Depth Buffer";
-        shadow_buffer_desc.mArraySize = gfx.cms_settings.cascades_count;
-        shadow_buffer_desc.mMipLevels = 1;
-        shadow_buffer_desc.mClearValue.__struct_field3.depth = 1.0;
-        shadow_buffer_desc.mClearValue.__struct_field3.stencil = 0;
-        shadow_buffer_desc.mDepth = 1;
-        shadow_buffer_desc.mFormat = .D32_SFLOAT;
-        shadow_buffer_desc.mStartState = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-        shadow_buffer_desc.mWidth = gfx.cms_settings.resolution;
-        shadow_buffer_desc.mHeight = gfx.cms_settings.resolution;
-        shadow_buffer_desc.mSampleCount = zf.SampleCount.SAMPLE_COUNT_1;
-        shadow_buffer_desc.mSampleQuality = 0;
-        shadow_buffer_desc.mFlags = zf.TextureCreationFlags.TEXTURE_CREATION_FLAG_ON_TILE;
-        shadow_buffer_desc.mDescriptors = .DESCRIPTOR_TYPE_RENDER_TARGET_DEPTH_SLICES;
-        gfx.shadow_depth_buffer = zf.createRenderTarget(shadow_buffer_desc) catch unreachable;
     }
 
     // Render Textures
@@ -937,29 +620,13 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
 
         rt_desc.pName = "Scene Color";
         gfx.scene_color = zf.createRenderTexture(rt_desc) catch unreachable;
-
-        rt_desc.pName = "Debug Buffer";
-        gfx.debug_buffer = zf.createRenderTexture(rt_desc) catch unreachable;
-
-        rt_desc.pName = "Gaussian Blur A";
-        gfx.gauss_blur_a = zf.createRenderTexture(rt_desc) catch unreachable;
-
-        rt_desc.pName = "Gaussian Blur B";
-        gfx.gauss_blur_b = zf.createRenderTexture(rt_desc) catch unreachable;
     }
 
     // Uniform Buffers
     {
         for (0..zf.frames_in_flight_count) |frame_index| {
             gfx.global_frame_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(Frame), "Global Frame Constant Buffer");
-            gfx.shadow_frame_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(ShadowFrame), "Shadow Frame Constant Buffer");
-            gfx.gauss_blur_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(BlurData), "Gaussian Blur Constant Buffer");
-            gfx.clear_buffer_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(ClearBufferInput), "Clear Buffer Constant Buffer");
             gfx.sprite_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(SpriteConstantBuffer), "Sprite Constant Buffer");
-
-            for (0..CSMSettings.cascades_max_count) |cascade_index| {
-                gfx.shadow_caster_constant_buffers[frame_index][cascade_index] = zf.createUniformBuffer(@sizeOf(ShadowCasterFrame), "Shadow Caster Constant Buffer");
-            }
         }
     }
 
@@ -1495,86 +1162,6 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
     }
 
-    // Deferred Shading material
-    {
-        gfx.deferred_shading_material = std.mem.zeroes(GfxMaterial);
-        const pass_type = Pass.default;
-
-        const pass_index: usize = @intFromEnum(pass_type);
-        var pass = &gfx.deferred_shading_material.passes[pass_index];
-
-        pass.pass = pass_type;
-        pass.pso = gfx.deferred_shading_pso;
-        pass.shader = gfx.deferred_shading_shader;
-
-        const descriptor_set_handles = zf.createDescriptorSets(gfx.deferred_shading_shader) catch unreachable;
-        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
-    }
-
-    // Clear Buffer material
-    {
-        gfx.clear_buffer_material = std.mem.zeroes(GfxMaterial);
-        const pass_type = Pass.default;
-
-        const pass_index: usize = @intFromEnum(pass_type);
-        var pass = &gfx.clear_buffer_material.passes[pass_index];
-
-        pass.pass = pass_type;
-        pass.pso = gfx.clear_buffer_pso;
-        pass.shader = gfx.clear_buffer_shader;
-
-        const descriptor_set_handles = zf.createDescriptorSets(gfx.clear_buffer_shader) catch unreachable;
-        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
-    }
-
-    // Gauss Blur Horizontal material
-    {
-        gfx.gauss_blur_horizontal_material = std.mem.zeroes(GfxMaterial);
-        const pass_type = Pass.default;
-
-        const pass_index: usize = @intFromEnum(pass_type);
-        var pass = &gfx.gauss_blur_horizontal_material.passes[pass_index];
-
-        pass.pass = pass_type;
-        pass.pso = gfx.gauss_horizontal_pso;
-        pass.shader = gfx.gauss_blur_horizontal_shader;
-
-        const descriptor_set_handles = zf.createDescriptorSets(gfx.gauss_blur_horizontal_shader) catch unreachable;
-        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
-    }
-
-    // Gauss Blur Vertical material
-    {
-        gfx.gauss_blur_vertical_material = std.mem.zeroes(GfxMaterial);
-        const pass_type = Pass.default;
-
-        const pass_index: usize = @intFromEnum(pass_type);
-        var pass = &gfx.gauss_blur_vertical_material.passes[pass_index];
-
-        pass.pass = pass_type;
-        pass.pso = gfx.gauss_vertical_pso;
-        pass.shader = gfx.gauss_blur_vertical_shader;
-
-        const descriptor_set_handles = zf.createDescriptorSets(gfx.gauss_blur_vertical_shader) catch unreachable;
-        pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
-        pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
-        pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
-        pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
-        pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
-    }
-
     // Compositor material
     {
         gfx.compositor_material = std.mem.zeroes(GfxMaterial);
@@ -1595,67 +1182,10 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
     }
 
-    // Object material
-    {
-        gfx.object_material = std.mem.zeroes(GfxMaterial);
-
-        // GBuffer Pass
-        {
-            const pass_type = Pass.gbuffer;
-
-            const pass_index: usize = @intFromEnum(pass_type);
-            var pass = &gfx.object_material.passes[pass_index];
-
-            pass.pass = pass_type;
-            pass.pso = gfx.object_gbuffer_pso;
-            pass.shader = gfx.object_gbuffer_shader;
-
-            const descriptor_set_handles = zf.createDescriptorSets(gfx.object_gbuffer_shader) catch unreachable;
-            pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
-            pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
-            pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
-            pass.persistent_descriptor_sets[0] = descriptor_set_handles.persistent;
-            pass.persistent_samplers_descriptor_sets[0] = descriptor_set_handles.persistent_samplers;
-        }
-
-        // Shadow Caster Pass
-        {
-            const pass_type = Pass.shadow_caster;
-
-            const pass_index: usize = @intFromEnum(pass_type);
-            var pass = &gfx.object_material.passes[pass_index];
-
-            pass.pass = pass_type;
-            pass.pso = gfx.object_shadow_caster_pso;
-            pass.shader = gfx.object_shadow_caster_shader;
-
-            for (0..CSMSettings.cascades_max_count) |cascade_index| {
-                const descriptor_set_handles = zf.createDescriptorSets(gfx.object_shadow_caster_shader) catch unreachable;
-                pass.per_draw_descriptor_sets[cascade_index] = descriptor_set_handles.per_draw;
-                pass.per_batch_descriptor_sets[cascade_index] = descriptor_set_handles.per_batch;
-                pass.per_frame_descriptor_sets[cascade_index] = descriptor_set_handles.per_frame;
-                pass.persistent_descriptor_sets[cascade_index] = descriptor_set_handles.persistent;
-                pass.persistent_samplers_descriptor_sets[cascade_index] = descriptor_set_handles.persistent_samplers;
-            }
-        }
-    }
-
     updateDescriptorSets();
 
     // Load quad
     loadGltfMesh(HashKey.generate("quad"), "content/models", "Quad.gltf");
-
-    // // Testing custom mesh loading
-    // {
-    //     var mesh_data = std.ArrayList(geometry.MeshData).init(gfx_allocator);
-
-    //     var load_desc: geometry.MeshLoadDesc = undefined;
-    //     load_desc.base_path = "content/models";
-    //     load_desc.file_name = "Birch_1.mesh";
-    //     load_desc.allocator = gfx_allocator;
-    //     load_desc.mesh_data = &mesh_data;
-    //     geometry.loadMesh(&load_desc);
-    // }
 
     // Load fonts
     {
@@ -1700,7 +1230,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         .projection_matrix = undefined,
         .view_projection_matrix = undefined,
         .inv_view_projection_matrix = undefined,
-        .cascade_view_projections = undefined,
         .viewport_info = .{ viewport_width, viewport_height, viewport_inv_width, viewport_inv_height },
         .camera_position = undefined,
         .camera_near_plane = camera.near_plane,
@@ -1724,38 +1253,11 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     zmath.storeMat(&frame.inv_view_projection_matrix, zmath.transpose(zmath.inverse(camera.view_proj)));
     zmath.storeArr4(&frame.camera_position, camera.position);
 
-    var shadow_frame = ShadowFrame{
-        .shadow_matrix = undefined,
-        .cascade_offsets = undefined,
-        .cascade_scales = undefined,
-        .cascade_splits = undefined,
-    };
-
-    prepareCascadeShadowData(camera, &frame, &shadow_frame);
-
     const frame_data = zf.DataSlice{
         .data = @ptrCast(&frame),
         .size = @sizeOf(Frame),
     };
     zf.updateUniformBuffer(frame_data, gfx.global_frame_constant_buffers[frame_index]);
-
-    const shadow_frame_data = zf.DataSlice{
-        .data = @ptrCast(&shadow_frame),
-        .size = @sizeOf(ShadowFrame),
-    };
-    zf.updateUniformBuffer(shadow_frame_data, gfx.shadow_frame_constant_buffers[frame_index]);
-
-    for (0..CSMSettings.cascades_max_count) |cascade_index| {
-        var shadow_caster_frame = ShadowCasterFrame{
-            .cascade_index = @intCast(cascade_index),
-            ._padding = .{ 42, 42, 42 },
-        };
-        const shadow_caster_data = zf.DataSlice{
-            .data = @ptrCast(&shadow_caster_frame),
-            .size = @sizeOf(ShadowCasterFrame),
-        };
-        zf.updateUniformBuffer(shadow_caster_data, gfx.shadow_caster_constant_buffers[frame_index][cascade_index]);
-    }
 
     // Meshlet Pass
     // ============
@@ -2171,106 +1673,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         }
     }
 
-    // Shadow Caster Pass
-    if (false) {
-        var rt_barriers = [_]zf.RenderTargetBarrier{
-            .{
-                .render_target_handle = gfx.shadow_depth_buffer,
-                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                .new_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE,
-            },
-        };
-
-        zf.cmdResourceBarrier(null, null, &rt_barriers);
-
-        // for (0..gfx.cms_settings.cascades_count) |cascade_index| {
-        //     const profile_index_2 = switch (cascade_index) {
-        //         0 => zf.startGpuProfile("Shadow Cascade 1"),
-        //         1 => zf.startGpuProfile("Shadow Cascade 2"),
-        //         2 => zf.startGpuProfile("Shadow Cascade 3"),
-        //         3 => zf.startGpuProfile("Shadow Cascade 4"),
-        //         else => @panic("Can only have a maximum of 4 cascades"),
-        //     };
-        //     defer zf.endGpuProfile(profile_index_2);
-
-        //     var bind_render_targets = [_]zf.BindRenderTarget{
-        //         .{
-        //             .render_target_handle = gfx.shadow_depth_buffer,
-        //             .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-        //             .use_array_slice = true,
-        //             .array_slice = @intCast(cascade_index),
-        //         },
-        //     };
-        //     zf.cmdBindRenderTargets(&bind_render_targets);
-        //     zf.cmdSetDefaultViewportAndScissor(gfx.cms_settings.resolution, gfx.cms_settings.resolution);
-
-        //     gfx.object_material.bindMaterialPass(.shadow_caster, frame_index, @intCast(cascade_index));
-        //     zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
-
-        //     zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 6, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
-        // }
-
-        rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
-        rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-        zf.cmdResourceBarrier(null, null, &rt_barriers);
-    }
-
-    // GBuffer Pass
-    if (false) {
-        gfx.meshlet_rasterizer_profile_index = zf.startGpuProfile("GBuffer Pass");
-        defer zf.endGpuProfile(gfx.meshlet_rasterizer_profile_index);
-
-        var rt_barriers = [_]zf.RenderTargetBarrier{
-            .{
-                .render_target_handle = gfx.gbuffer0,
-                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
-            },
-            .{
-                .render_target_handle = gfx.gbuffer1,
-                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
-            },
-            .{
-                .render_target_handle = gfx.depth_buffer,
-                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                .new_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE,
-            },
-        };
-
-        zf.cmdResourceBarrier(null, null, &rt_barriers);
-
-        var bind_render_targets = [_]zf.BindRenderTarget{
-            .{
-                .render_target_handle = gfx.gbuffer0,
-                .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-            },
-            .{
-                .render_target_handle = gfx.gbuffer1,
-                .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-            },
-            .{
-                .render_target_handle = gfx.depth_buffer,
-                .load_action = zf.LoadActionType.LOAD_ACTION_LOAD,
-            },
-        };
-        zf.cmdBindRenderTargets(&bind_render_targets);
-        zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
-
-        // gfx.object_material.bindMaterialPass(.gbuffer, frame_index, 0);
-        // zf.cmdBindIndexBuffer(gfx.index_buffer, zf.IndexType.INDEX_TYPE_UINT32);
-
-        // zf.cmdExecuteIndirect(.INDIRECT_DRAW_INDEX, 6, gfx.indirect_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
-
-        rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
-        rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-        rt_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
-        rt_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-        rt_barriers[2].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
-        rt_barriers[2].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-        zf.cmdResourceBarrier(null, null, &rt_barriers);
-    }
-
     // Visibility Shading Pass
     {
         gfx.visibility_shading_profile_index = zf.startGpuProfile("Visibility Shading");
@@ -2304,67 +1706,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
 
         zf.cmdResourceBarrier(null, &texture_barriers, null);
-    }
-
-    // Blur
-    if (false) {
-        const profile_index = zf.startGpuProfile("Gaussian Blur");
-        defer zf.endGpuProfile(profile_index);
-
-        var blur = BlurData{
-            .sigma = 0.0,
-            .support = 0.995,
-            .sRGB = 1.0,
-            .padding = 42.0,
-        };
-
-        const blur_data = zf.DataSlice{
-            .data = @ptrCast(&blur),
-            .size = @sizeOf(BlurData),
-        };
-        zf.updateUniformBuffer(blur_data, gfx.gauss_blur_constant_buffers[frame_index]);
-
-        // Horizontal Blur
-        {
-            var texture_barriers = [_]zf.TextureBarrier{
-                .{
-                    .render_texture_handle = gfx.gauss_blur_a,
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                },
-            };
-            zf.cmdResourceBarrier(null, &texture_barriers, null);
-
-            gfx.gauss_blur_horizontal_material.bindMaterialPass(.default, frame_index, 0);
-            const thread_group_size = zf.getShaderThreadGroupSize(gfx.gauss_blur_horizontal_material.getPassShaderHandle(.default));
-            zf.cmdDispatch((window_width + thread_group_size.x - 1) / thread_group_size.x, (window_height + thread_group_size.y - 1) / thread_group_size.y, thread_group_size.z);
-
-            texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-            zf.cmdResourceBarrier(null, &texture_barriers, null);
-        }
-
-        // Vertical Blur
-        {
-            var texture_barriers = [_]zf.TextureBarrier{
-                .{
-                    .render_texture_handle = gfx.gauss_blur_b,
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                },
-            };
-            zf.cmdResourceBarrier(null, &texture_barriers, null);
-
-            gfx.gauss_blur_vertical_material.bindMaterialPass(.default, frame_index, 0);
-            const thread_group_size = zf.getShaderThreadGroupSize(gfx.gauss_blur_vertical_material.getPassShaderHandle(.default));
-            zf.cmdDispatch((window_width + thread_group_size.x - 1) / thread_group_size.x, (window_height + thread_group_size.y - 1) / thread_group_size.y, thread_group_size.z);
-
-            texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-            zf.cmdResourceBarrier(null, &texture_barriers, null);
-        }
     }
 
     {
@@ -2547,388 +1888,55 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     zf.frameSubmit();
 }
 
-fn prepareCascadeShadowData(camera: *Camera, frame: *Frame, shadow_frame: *ShadowFrame) void {
-    const global_shadow_matrix = makeGlobalShadowMatrix(camera);
-    zmath.storeMat(&shadow_frame.shadow_matrix, zmath.transpose(global_shadow_matrix));
-
-    var cascade_splits: [CSMSettings.cascades_max_count]f32 = undefined;
-    for (0..CSMSettings.cascades_max_count) |i| {
-        // TODO: Change this if we want other partition modes other than the manual one
-        cascade_splits[i] = gfx.cms_settings.cascades_distances[i];
-    }
-
-    // TODO: Change these if we want to use depth reduction to find the depth min/max values
-    const min_distance: f32 = 0.0;
-    // const max_distance: f32 = 1.0;
-
-    for (0..gfx.cms_settings.cascades_count) |cascade_index| {
-        const inv_view_proj = zmath.inverse(camera.view_proj);
-        var frustum_corners = [8]zmath.Vec{
-            .{ -1.0, 1.0, 0.0, 1.0 },
-            .{ 1.0, 1.0, 0.0, 1.0 },
-            .{ 1.0, -1.0, 0.0, 1.0 },
-            .{ -1.0, -1.0, 0.0, 1.0 },
-            .{ -1.0, 1.0, 1.0, 1.0 },
-            .{ 1.0, 1.0, 1.0, 1.0 },
-            .{ 1.0, -1.0, 1.0, 1.0 },
-            .{ -1.0, -1.0, 1.0, 1.0 },
-        };
-
-        for (0..8) |i| {
-            frustum_corners[i] = transformVec3Coord(frustum_corners[i], inv_view_proj);
-        }
-
-        const previous_split_distance = if (cascade_index == 0) min_distance else cascade_splits[cascade_index - 1];
-        const split_distance = cascade_splits[cascade_index];
-
-        // Get the corners of the current cascade slice of the view frustum
-        for (0..4) |i| {
-            const corner_ray = frustum_corners[i + 4] - frustum_corners[i];
-            const near_corner_ray = zmath.Vec{ corner_ray[0] * previous_split_distance, corner_ray[1] * previous_split_distance, corner_ray[2] * previous_split_distance, 1.0 };
-            const far_corner_ray = zmath.Vec{ corner_ray[0] * split_distance, corner_ray[1] * split_distance, corner_ray[2] * split_distance, 1.0 };
-            frustum_corners[i + 4] = frustum_corners[i] + far_corner_ray;
-            frustum_corners[i] = frustum_corners[i] + near_corner_ray;
-        }
-
-        // Calculate the centroid of the view frustum slice
-        var frustum_center = zmath.Vec{ 0.0, 0.0, 0.0, 1.0 };
-        for (0..8) |i| {
-            frustum_center = frustum_center + frustum_corners[i];
-        }
-        const weight: f32 = 1.0 / 8.0;
-        frustum_center[0] *= weight;
-        frustum_center[1] *= weight;
-        frustum_center[2] *= weight;
-        frustum_center[3] = 1.0;
-
-        const up_dir = zmath.Vec{ 0.0, 1.0, 0.0, 0.0 };
-        // Stabilize the cascade
-        // Calculate the radius of a bounding sphere surrounding the frustum corner
-        var sphere_radius: f32 = 0.0;
-        for (0..8) |i| {
-            const distance = zmath.length3(frustum_corners[i] - frustum_center);
-            sphere_radius = @max(sphere_radius, distance[0]);
-        }
-
-        sphere_radius = @ceil(sphere_radius * 16.0) / 16.0;
-        const max_extents = zmath.Vec{ sphere_radius, sphere_radius, sphere_radius, 0.0 };
-        const min_extents = zmath.Vec{ -sphere_radius, -sphere_radius, -sphere_radius, 0.0 };
-        const cascade_extents = max_extents - min_extents;
-
-        // Get the position of the shadow camera
-        // TODO: Get the actual sun light
-        var light_direction = zmath.normalize3(zmath.Vec{ 1.0, 1.0, 1.0, 0.0 });
-        light_direction[0] *= -min_extents[2];
-        light_direction[1] *= -min_extents[2];
-        light_direction[2] *= -min_extents[2];
-        const shadow_camera_position = frustum_center + light_direction;
-
-        var cascade_proj = zmath.orthographicOffCenterLh(min_extents[0], max_extents[0], max_extents[1], min_extents[1], 0.0, cascade_extents[2]);
-        const cascade_view = zmath.lookAtLh(shadow_camera_position, frustum_center, up_dir);
-
-        var cascade_view_proj = zmath.mul(cascade_view, cascade_proj);
-        // Stabilize the cascade (once more)
-        const cascade_resolution: f32 = @floatFromInt(gfx.cms_settings.resolution);
-        var shadow_origin = transformVec3Coord(zmath.Vec{ 0.0, 0.0, 0.0, 1.0 }, cascade_view_proj);
-        shadow_origin[0] *= cascade_resolution * 0.5;
-        shadow_origin[1] *= cascade_resolution * 0.5;
-        shadow_origin[2] *= cascade_resolution * 0.5;
-
-        const rounded_origin = zmath.round(shadow_origin);
-        var round_offset = rounded_origin - shadow_origin;
-        round_offset[0] *= (2.0 / cascade_resolution);
-        round_offset[1] *= (2.0 / cascade_resolution);
-        round_offset[2] = 0.0;
-        round_offset[3] = 0.0;
-
-        cascade_proj[3] = cascade_proj[3] + round_offset;
-        cascade_view_proj = zmath.mul(cascade_view, cascade_proj);
-
-        zmath.storeMat(&frame.cascade_view_projections[cascade_index], zmath.transpose(cascade_view_proj));
-
-        // Setting up shadow_frame data for this cascade
-        var tex_scale_bias = zmath.identity();
-        tex_scale_bias[0] = .{ 0.5, 0.0, 0.0, 0.0 };
-        tex_scale_bias[1] = .{ 0.0, -0.5, 0.0, 0.0 };
-        tex_scale_bias[2] = .{ 0.0, 0.0, 1.0, 0.0 };
-        tex_scale_bias[3] = .{ 0.5, 0.5, 0.0, 1.0 };
-        cascade_view_proj = zmath.mul(cascade_view_proj, tex_scale_bias);
-
-        // Store the split distance in terms of view space depth
-        const clip_distance = camera.far_plane - camera.near_plane;
-        shadow_frame.cascade_splits[cascade_index] = camera.near_plane + split_distance * clip_distance;
-
-        // Calculate the position of the lower corner of the cascade partition, in the UV space
-        // of the first cascade partition
-        const inv_cascade_view_proj = zmath.inverse(cascade_view_proj);
-        var cascade_corner = transformVec3Coord(.{ 0.0, 0.0, 0.0, 1.0 }, inv_cascade_view_proj);
-        cascade_corner = transformVec3Coord(cascade_corner, global_shadow_matrix);
-
-        // Do the same for the upper corner
-        var other_corner = transformVec3Coord(.{ 1.0, 1.0, 1.0, 1.0 }, inv_cascade_view_proj);
-        other_corner = transformVec3Coord(other_corner, global_shadow_matrix);
-
-        // Calculate the scale and offset
-        const corner_diff = other_corner - cascade_corner;
-        const cascade_scale = zmath.Vec{ 1.0 / corner_diff[0], 1.0 / corner_diff[1], 1.0 / corner_diff[2], 1.0 };
-        shadow_frame.cascade_offsets[cascade_index] = .{ -cascade_corner[0], -cascade_corner[1], -cascade_corner[2], 0.0 };
-        shadow_frame.cascade_scales[cascade_index] = .{ cascade_scale[0], cascade_scale[1], cascade_scale[2], 1.0 };
-    }
-}
-
-// Makes the "global" shadow matrix used as reference point for the cascades
-fn makeGlobalShadowMatrix(camera: *Camera) zmath.Mat {
-    const inv_view_proj = zmath.inverse(camera.view_proj);
-    var frustum_center = zmath.Vec{ 0.0, 0.0, 0.0, 1.0 };
-    var frustum_corners = [8]zmath.Vec{
-        .{ -1.0, 1.0, 0.0, 1.0 },
-        .{ 1.0, 1.0, 0.0, 1.0 },
-        .{ 1.0, -1.0, 0.0, 1.0 },
-        .{ -1.0, -1.0, 0.0, 1.0 },
-        .{ -1.0, 1.0, 1.0, 1.0 },
-        .{ 1.0, 1.0, 1.0, 1.0 },
-        .{ 1.0, -1.0, 1.0, 1.0 },
-        .{ -1.0, -1.0, 1.0, 1.0 },
-    };
-
-    for (0..8) |i| {
-        frustum_corners[i] = transformVec3Coord(frustum_corners[i], inv_view_proj);
-        frustum_center = frustum_center + frustum_corners[i];
-    }
-
-    const weight: f32 = 1.0 / 8.0;
-    frustum_center[0] *= weight;
-    frustum_center[1] *= weight;
-    frustum_center[2] *= weight;
-    frustum_center[3] = 1.0;
-
-    const up_dir = zmath.Vec{ 0.0, 1.0, 0.0, 0.0 };
-
-    // Get the position of the shadow camera
-    var light_direction = zmath.normalize3(zmath.Vec{ 1.0, 1.0, 1.0, 0.0 });
-    light_direction[0] *= -0.5;
-    light_direction[1] *= -0.5;
-    light_direction[2] *= -0.5;
-    const shadow_camera_position = frustum_center + light_direction;
-
-    // Come up with a new orthographic camera for the shaodw caster
-    const shadow_camera_proj = zmath.orthographicOffCenterLh(-0.5, 0.5, 0.5, -0.5, 0.0, 1.0);
-    const shadow_camera_view = zmath.lookAtLh(shadow_camera_position, frustum_center, up_dir);
-    const shadow_camera_view_proj = zmath.mul(shadow_camera_view, shadow_camera_proj);
-
-    var tex_scale_bias = zmath.scaling(0.5, -0.5, 1.0);
-    tex_scale_bias[3][0] = 0.5;
-    tex_scale_bias[3][1] = 0.5;
-    tex_scale_bias[3][2] = 0.0;
-
-    return zmath.mul(shadow_camera_view_proj, tex_scale_bias);
-}
-
 fn updateDescriptorSets() void {
-    // Compositor Material: Per Frame
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_CBO",
-                .binding_type = .buffer,
-                .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
-            },
-            .{
-                .name = "g_source",
-                .binding_type = .render_texture,
-                .render_texture_handle = gfx.scene_color,
-            },
-            .{
-                .name = "g_overlay",
-                .binding_type = .render_target,
-                .render_target_handle = gfx.overlay_buffer,
-            },
-        };
-
-        gfx.compositor_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
-    }
-
-    // Sprite Material: Per Frame
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_CB",
-                .binding_type = .buffer,
-                .buffer_handle = gfx.sprite_constant_buffers[frame_index],
-            },
-        };
-
-        gfx.sprite_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
-    }
-
-    // // Object Material: Per Frame
-    // for (0..zf.frames_in_flight_count) |frame_index| {
-    //     // GBuffer Pass
-    //     {
-    //         const resource_binding_descs = [_]zf.ResourceBindingDesc{
-    //             .{
-    //                 .name = "g_CBO",
-    //                 .binding_type = .buffer,
-    //                 .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
-    //             },
-    //         };
-
-    //         gfx.object_material.updateDescriptorSet(.gbuffer, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
-    //     }
-
-    //     // Shadow Caster Pass
-    //     for (0..CSMSettings.cascades_max_count) |cascade_index| {
-    //         const resource_binding_descs = [_]zf.ResourceBindingDesc{
-    //             .{
-    //                 .name = "g_CBO",
-    //                 .binding_type = .buffer,
-    //                 .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
-    //             },
-    //             .{
-    //                 .name = "g_ShadowCasterCB",
-    //                 .binding_type = .buffer,
-    //                 .buffer_handle = gfx.shadow_caster_constant_buffers[frame_index][cascade_index],
-    //             },
-    //         };
-
-    //         gfx.object_material.updateDescriptorSet(.shadow_caster, &resource_binding_descs, .per_frame, @intCast(frame_index), @intCast(cascade_index));
-    //     }
-    // }
-
-    // Deferred Shading Material: Per Frame
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_CBO",
-                .binding_type = .buffer,
-                .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
-            },
-            .{
-                .name = "g_ShadowCB",
-                .binding_type = .buffer,
-                .buffer_handle = gfx.shadow_frame_constant_buffers[frame_index],
-            },
-            .{
-                .name = "g_output",
-                .binding_type = .render_texture,
-                .render_texture_handle = gfx.scene_color,
-            },
-            .{
-                .name = "g_debug_output",
-                .binding_type = .render_texture,
-                .render_texture_handle = gfx.debug_buffer,
-            },
-        };
-
-        gfx.deferred_shading_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
-    }
-
-    // Deferred Shading Material: Persistent
+    // Compositor Material:
+    // ===================
     {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_gbuffer0",
-                .binding_type = .render_target,
-                .render_target_handle = gfx.gbuffer0,
-            },
-            .{
-                .name = "g_gbuffer1",
-                .binding_type = .render_target,
-                .render_target_handle = gfx.gbuffer1,
-            },
-            .{
-                .name = "g_depth_buffer",
-                .binding_type = .render_target,
-                .render_target_handle = gfx.depth_buffer,
-            },
-            .{
-                .name = "g_shadow_map",
-                .binding_type = .render_target,
-                .render_target_handle = gfx.shadow_depth_buffer,
-            },
-        };
+        // Per Frame
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                .{
+                    .name = "g_CBO",
+                    .binding_type = .buffer,
+                    .buffer_handle = gfx.global_frame_constant_buffers[frame_index],
+                },
+                .{
+                    .name = "g_source",
+                    .binding_type = .render_texture,
+                    .render_texture_handle = gfx.scene_color,
+                },
+                .{
+                    .name = "g_overlay",
+                    .binding_type = .render_target,
+                    .render_target_handle = gfx.overlay_buffer,
+                },
+            };
 
-        gfx.deferred_shading_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0, 0);
+            gfx.compositor_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
+        }
     }
 
-    // Clear Buffer Material: Per Frame
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_CBO",
-                .binding_type = .buffer,
-                .buffer_handle = gfx.clear_buffer_constant_buffers[frame_index],
-            },
-        };
-
-        gfx.clear_buffer_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
-    }
-
-    // Blur Horizontal Material: Per Frame
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_CBO",
-                .binding_type = .buffer,
-                .buffer_handle = gfx.gauss_blur_constant_buffers[frame_index],
-            },
-        };
-
-        gfx.gauss_blur_horizontal_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
-    }
-
-    // Blur Horizontal Material: Persistent
+    // Sprite Material:
+    // ================
     {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_input",
-                .binding_type = .render_target,
-                .render_target_handle = gfx.gbuffer0,
-            },
-            .{
-                .name = "g_output",
-                .binding_type = .render_texture,
-                .render_texture_handle = gfx.gauss_blur_a,
-            },
-        };
+        // Per Frame
+        for (0..zf.frames_in_flight_count) |frame_index| {
+            const resource_binding_descs = [_]zf.ResourceBindingDesc{
+                .{
+                    .name = "g_CB",
+                    .binding_type = .buffer,
+                    .buffer_handle = gfx.sprite_constant_buffers[frame_index],
+                },
+            };
 
-        gfx.gauss_blur_horizontal_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0, 0);
-    }
-
-    // Blur Vertical Material: Per Frame
-    for (0..zf.frames_in_flight_count) |frame_index| {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_CBO",
-                .binding_type = .buffer,
-                .buffer_handle = gfx.gauss_blur_constant_buffers[frame_index],
-            },
-        };
-
-        gfx.gauss_blur_vertical_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
-    }
-
-    // Blur Vertical Material: Persistent
-    {
-        const resource_binding_descs = [_]zf.ResourceBindingDesc{
-            .{
-                .name = "g_input",
-                .binding_type = .render_texture,
-                .render_texture_handle = gfx.gauss_blur_a,
-            },
-            .{
-                .name = "g_output",
-                .binding_type = .render_texture,
-                .render_texture_handle = gfx.gauss_blur_b,
-            },
-        };
-
-        gfx.gauss_blur_vertical_material.updateDescriptorSet(.default, &resource_binding_descs, .persistent, 0, 0);
+            gfx.sprite_material.updateDescriptorSet(.default, &resource_binding_descs, .per_frame, @intCast(frame_index), 0);
+        }
     }
 
     // Meshlet Renderer
     // ================
     {
+        // Per Frame
         for (0..zf.frames_in_flight_count) |frame_index| {
             {
                 const resource_binding_descs = [_]zf.ResourceBindingDesc{

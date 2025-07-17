@@ -140,13 +140,6 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     compileShader(step, "shaders/GraphicsRootSignature.hlsl", graphics_root_signature_output_path, "DefaultRootSignature", "", .root_signature);
     compileShader(step, "shaders/ComputeRootSignature.hlsl", compute_root_signature_output_path, "ComputeRootSignature", "", .root_signature);
 
-    const blit_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Blit.vert" }) catch unreachable;
-    defer allocator.free(blit_vertex_output_path);
-    const blit_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Blit.frag" }) catch unreachable;
-    defer allocator.free(blit_pixel_output_path);
-    compileShader(step, "shaders/Blit.hlsl", blit_vertex_output_path, "FullscreenVertex", "", .vertex);
-    compileShader(step, "shaders/Blit.hlsl", blit_pixel_output_path, "BlitFragment", "", .pixel);
-
     const compositor_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Compositor.vert" }) catch unreachable;
     defer allocator.free(compositor_vertex_output_path);
     const compositor_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Compositor.frag" }) catch unreachable;
@@ -154,45 +147,12 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     compileShader(step, "shaders/Compositor.hlsl", compositor_vertex_output_path, "FullscreenTriangleVS", "", .vertex);
     compileShader(step, "shaders/Compositor.hlsl", compositor_pixel_output_path, "CompositorPS", "", .pixel);
 
-    const gbuffer_object_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ObjectGBuffer.vert" }) catch unreachable;
-    defer allocator.free(gbuffer_object_vertex_output_path);
-    const gbuffer_object_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ObjectGBuffer.frag" }) catch unreachable;
-    defer allocator.free(gbuffer_object_pixel_output_path);
-    compileShader(step, "shaders/Object.hlsl", gbuffer_object_vertex_output_path, "GBufferVS", "", .vertex);
-    compileShader(step, "shaders/Object.hlsl", gbuffer_object_pixel_output_path, "GBufferPS", "", .pixel);
-
-    const shadow_caster_object_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ObjectShadowCaster.vert" }) catch unreachable;
-    defer allocator.free(shadow_caster_object_vertex_output_path);
-    const shadow_caster_object_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ObjectShadowCaster.frag" }) catch unreachable;
-    defer allocator.free(shadow_caster_object_pixel_output_path);
-    compileShader(step, "shaders/Object.hlsl", shadow_caster_object_vertex_output_path, "ShadowCasterVS", "SHADOW_CASTER", .vertex);
-    compileShader(step, "shaders/Object.hlsl", shadow_caster_object_pixel_output_path, "ShadowCasterPS", "SHADOW_CASTER", .pixel);
-
     const sprite_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Sprite.vert" }) catch unreachable;
     defer allocator.free(sprite_vertex_output_path);
     const sprite_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Sprite.frag" }) catch unreachable;
     defer allocator.free(sprite_pixel_output_path);
     compileShader(step, "shaders/Sprite.hlsl", sprite_vertex_output_path, "SpriteVS", "", .vertex);
     compileShader(step, "shaders/Sprite.hlsl", sprite_pixel_output_path, "SpritePS", "", .pixel);
-
-    const clear_screen_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ClearScreen.comp" }) catch unreachable;
-    defer allocator.free(clear_screen_output_path);
-    compileShader(step, "shaders/ClearScreenCS.hlsl", clear_screen_output_path, "main", "", .compute);
-
-    const gauss_blur_horizontal_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "GaussBlurH.comp" }) catch unreachable;
-    defer allocator.free(gauss_blur_horizontal_output_path);
-    compileShader(step, "shaders/GaussBlurCS.hlsl", gauss_blur_horizontal_output_path, "main", "BLUR_HORIZONTAL", .compute);
-    const gauss_blur_vertical_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "GaussBlurV.comp" }) catch unreachable;
-    defer allocator.free(gauss_blur_vertical_output_path);
-    compileShader(step, "shaders/GaussBlurCS.hlsl", gauss_blur_vertical_output_path, "main", "BLUR_VERTICAL", .compute);
-
-    const clear_buffer_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ClearBuffer.comp" }) catch unreachable;
-    defer allocator.free(clear_buffer_output_path);
-    compileShader(step, "shaders/ClearBufferCS.hlsl", clear_buffer_output_path, "main", "", .compute);
-
-    const deferred_shading_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "DeferredShading.comp" }) catch unreachable;
-    defer allocator.free(deferred_shading_output_path);
-    compileShader(step, "shaders/DeferredShadingCS.hlsl", deferred_shading_output_path, "main", "", .compute);
 
     const meshlet_clear_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletClearCounters.comp" }) catch unreachable;
     defer allocator.free(meshlet_clear_output_path);

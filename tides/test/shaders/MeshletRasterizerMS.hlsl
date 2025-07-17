@@ -88,19 +88,6 @@ void main
 
 #if PIXEL_SHADER
 
-bool UnpackVisBuffer(uint data, out uint candidateIndex, out uint primitiveID)
-{
-	primitiveID = data & 0x7F;
-	candidateIndex = data >> 7;
-	candidateIndex -= 1; // Value of 0 means 'Invalid'
-	return candidateIndex != 0xFFFFFFFF;
-}
-
-uint PackVisBuffer(uint candidateIndex, uint primitiveID)
-{
-	return primitiveID | ((candidateIndex + 1) << 7);
-}
-
 [RootSignature(DefaultRootSignature)]
 uint pixel
 (
