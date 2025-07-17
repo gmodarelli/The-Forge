@@ -1267,7 +1267,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         // Clear counters
         {
-            const inner_profile_index = zf.startGpuProfile("Clear Counters");
+            const inner_profile_index = zf.startGpuProfile("Prepare Buffers");
             defer zf.endGpuProfile(inner_profile_index);
 
             var clear_params = MeshletClearCountersParams{
@@ -1446,7 +1446,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
         // Bin meshlets
         {
-            gfx.meshlet_rasterizer_profile_index = zf.startGpuProfile("Meshlet Rasterizer");
+            gfx.meshlet_rasterizer_profile_index = zf.startGpuProfile("Bin Meshlets");
             defer zf.endGpuProfile(gfx.meshlet_rasterizer_profile_index);
 
             var binning_params = MeshletBinningParams{
@@ -1467,7 +1467,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             zf.updateUniformBuffer(data_slice, gfx.meshlet_bin_constant_buffers[frame_index]);
 
             {
-                const inner2_profile_index = zf.startGpuProfile("Binning: Clear Counters");
+                const inner2_profile_index = zf.startGpuProfile("Clear Counters");
                 defer zf.endGpuProfile(inner2_profile_index);
 
                 var buffer_barriers = [_]zf.BufferBarrier{
@@ -1503,7 +1503,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             }
 
             {
-                const inner2_profile_index = zf.startGpuProfile("Binning: Classify Meshlets");
+                const inner2_profile_index = zf.startGpuProfile("Classify Meshlets");
                 defer zf.endGpuProfile(inner2_profile_index);
 
                 var buffer_barriers = [_]zf.BufferBarrier{
@@ -1532,7 +1532,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             }
 
             {
-                const inner2_profile_index = zf.startGpuProfile("Binning: Allocate Bin Ranges");
+                const inner2_profile_index = zf.startGpuProfile("Allocate Bin Ranges");
                 defer zf.endGpuProfile(inner2_profile_index);
 
                 var buffer_barriers = [_]zf.BufferBarrier{
@@ -1561,7 +1561,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             }
 
             {
-                const inner2_profile_index = zf.startGpuProfile("Binning: Write Bins");
+                const inner2_profile_index = zf.startGpuProfile("Write Bins");
                 defer zf.endGpuProfile(inner2_profile_index);
 
                 var buffer_barriers = [_]zf.BufferBarrier{
