@@ -49,8 +49,8 @@ cbuffer g_CullInstancesParams : register(b1, SPACE_PerFrame)
 [numthreads(CULL_INSTANCES_THREADS_COUNT, 1, 1)]
 void CullInstancesCS(uint thread_id : SV_DispatchThreadID)
 {
-    RWStructuredBuffer<uint> counters_buffer = ResourceDescriptorHeap[g_cull_instances_params.counters_buffer_index];
-    RWStructuredBuffer<MeshletCandidate> meshlet_candidates_buffer = ResourceDescriptorHeap[g_cull_instances_params.candidate_meshlets_buffer_index];
+    RWByteAddressBuffer counters_buffer = ResourceDescriptorHeap[g_cull_instances_params.counters_buffer_index];
+    RWByteAddressBuffer meshlet_candidates_buffer = ResourceDescriptorHeap[g_cull_instances_params.candidate_meshlets_buffer_index];
     uint instances_count = g_frame.instances_count;
 
     if (thread_id >= instances_count)
@@ -59,9 +59,7 @@ void CullInstancesCS(uint thread_id : SV_DispatchThreadID)
     }
 
     uint instance_index = thread_id;
-
-    ByteAddressBuffer instance_buffer = ResourceDescriptorHeap[g_frame.instance_buffer_index];
-    Instance instance = instance_buffer.Load<Instance>(instance_index * sizeof(Instance));
+    Instance instance = getInstance(instance_index);
 
     ByteAddressBuffer mesh_buffer = ResourceDescriptorHeap[g_frame.meshes_buffer_index];
     Mesh mesh = mesh_buffer.Load<Mesh>(instance.mesh_index * sizeof(Mesh));
@@ -73,20 +71,20 @@ void CullInstancesCS(uint thread_id : SV_DispatchThreadID)
         // Limit meshlet count to the buffer size
         // TODO: Set an out-of-memory flag to let the CPU know to grow the meshlet buffer
         uint global_mesh_index;
-        InterlockedAdd_Varying_WaveOps(counters_buffer, 0, mesh.meshlet_count, global_mesh_index);
+        InterlockedAdd_Varying_WaveOps_ByteAddressBuffer(counters_buffer, 0 * sizeof(uint), mesh.meshlet_count, global_mesh_index);
         int clamped_meshlet_count = min(global_mesh_index + mesh.meshlet_count, MESHLET_COUNT_MAX);
         int meshlets_to_add_count = max(clamped_meshlet_count - (int)global_mesh_index, 0);
 
         // Add all meshlets of the current instance to the candidate meshlets buffer
         uint element_offset;
-        InterlockedAdd_Varying_WaveOps(counters_buffer, 1, meshlets_to_add_count, element_offset);
+        InterlockedAdd_Varying_WaveOps_ByteAddressBuffer(counters_buffer, 1 * sizeof(uint), meshlets_to_add_count, element_offset);
 
         for (uint i = 0; i < meshlets_to_add_count; i++)
         {
             MeshletCandidate meshlet;
             meshlet.instance_id = instance.id;
             meshlet.meshlet_index = i;
-            meshlet_candidates_buffer[element_offset + i] = meshlet;
+            meshlet_candidates_buffer.Store<MeshletCandidate>((element_offset + i) * sizeof(MeshletCandidate), meshlet);
         }
     }
 }

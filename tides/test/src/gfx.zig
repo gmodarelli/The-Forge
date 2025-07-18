@@ -201,8 +201,10 @@ pub const Gfx = struct {
     meshlet_bin_binned_meshlets_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
     meshlet_bin_classify_meshes_dispatch_args_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
 
-    meshlet_rasterizer_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
-    meshlet_rasterizer_pso: zf.PsoHandle = zf.PsoHandle.nil,
+    meshlet_rasterizer_opaque_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    meshlet_rasterizer_masked_shader: zf.ShaderHandle = zf.ShaderHandle.nil,
+    meshlet_rasterizer_opaque_pso: zf.PsoHandle = zf.PsoHandle.nil,
+    meshlet_rasterizer_masked_pso: zf.PsoHandle = zf.PsoHandle.nil,
     meshlet_rasterizer_opaque_material: GfxMaterial = undefined,
     meshlet_rasterizer_masked_material: GfxMaterial = undefined,
     meshlet_rasterize_opaque_constant_buffers: [zf.frames_in_flight_count]zf.BufferHandle = undefined,
@@ -632,21 +634,21 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
 
     // Geometry Buffers
     {
-        gfx.vertex_buffer = zf.createRawBuffer(8 * 1024 * 1024, geometry.Vertex, true, false, "Vertex Buffer");
+        gfx.vertex_buffer = zf.createRawBuffer(8 * 1024 * 1024 * @sizeOf(geometry.Vertex), geometry.Vertex, true, false, "Vertex Buffer");
         gfx.vertex_buffer_offset = 0;
-        gfx.index_buffer = zf.createIndexBuffer(8 * 1024 * 1024, zf.IndexType.INDEX_TYPE_UINT32, "Index Buffer");
+        gfx.index_buffer = zf.createIndexBuffer(8 * 1024 * 1024 * @sizeOf(u32), zf.IndexType.INDEX_TYPE_UINT32, "Index Buffer");
         gfx.index_buffer_offset = 0;
         gfx.geometry_buffer_mutex = std.Thread.Mutex{};
     }
 
     // Sprite Instances buffers
     for (0..zf.frames_in_flight_count) |frame_index| {
-        gfx.sprite_instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, SpriteInstance, true, false, "Sprite Instance Buffer");
+        gfx.sprite_instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * @sizeOf(SpriteInstance), SpriteInstance, true, false, "Sprite Instance Buffer");
     }
 
     // Materials buffers
     // =================
-    gfx.material_buffer = zf.createRawBuffer(8 * 1024, GpuMaterialData, true, false, "Material Buffer");
+    gfx.material_buffer = zf.createRawBuffer(32 * @sizeOf(GpuMaterialData), GpuMaterialData, true, false, "Material Buffer");
     gfx.material_buffer_offset = 0;
     gfx.material_buffer_mutex = std.Thread.Mutex{};
 
@@ -829,7 +831,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                     .compute = null,
                     .amplification = null,
                 };
-                gfx.meshlet_rasterizer_shader = zf.compileShader(shader_load_desc) catch unreachable;
+                gfx.meshlet_rasterizer_opaque_shader = zf.compileShader(shader_load_desc) catch unreachable;
             }
         }
         // PSOs
@@ -901,7 +903,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 mesh_desc.pDepthState = @ptrCast(&depth_state_desc);
                 mesh_desc.mDepthStencilFormat = .D32_SFLOAT;
 
-                gfx.meshlet_rasterizer_pso = zf.createPso(pipeline_desc, gfx.meshlet_rasterizer_shader) catch unreachable;
+                gfx.meshlet_rasterizer_opaque_pso = zf.createPso(pipeline_desc, gfx.meshlet_rasterizer_opaque_shader) catch unreachable;
             }
         }
         // Materials
@@ -1059,10 +1061,10 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 var pass = &gfx.meshlet_rasterizer_opaque_material.passes[pass_index];
 
                 pass.pass = pass_type;
-                pass.pso = gfx.meshlet_rasterizer_pso;
-                pass.shader = gfx.meshlet_rasterizer_shader;
+                pass.pso = gfx.meshlet_rasterizer_opaque_pso;
+                pass.shader = gfx.meshlet_rasterizer_opaque_shader;
 
-                const descriptor_set_handles = zf.createDescriptorSets(gfx.meshlet_rasterizer_shader) catch unreachable;
+                const descriptor_set_handles = zf.createDescriptorSets(gfx.meshlet_rasterizer_opaque_shader) catch unreachable;
                 pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
                 pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
                 pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
@@ -1077,10 +1079,10 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 var pass = &gfx.meshlet_rasterizer_masked_material.passes[pass_index];
 
                 pass.pass = pass_type;
-                pass.pso = gfx.meshlet_rasterizer_pso;
-                pass.shader = gfx.meshlet_rasterizer_shader;
+                pass.pso = gfx.meshlet_rasterizer_opaque_pso;
+                pass.shader = gfx.meshlet_rasterizer_opaque_shader;
 
-                const descriptor_set_handles = zf.createDescriptorSets(gfx.meshlet_rasterizer_shader) catch unreachable;
+                const descriptor_set_handles = zf.createDescriptorSets(gfx.meshlet_rasterizer_opaque_shader) catch unreachable;
                 pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
                 pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
                 pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
@@ -1092,17 +1094,17 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         // =======
         const meshlets_max_count: u64 = 1 << 20;
         for (0..zf.frames_in_flight_count) |frame_index| {
-            gfx.instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024, GPUInstance, true, false, "Instance Buffer");
-            gfx.candidate_meshlet_counters_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Candidate Meshlet Counters");
-            gfx.candidate_meshlets_buffers[frame_index] = zf.createRawBuffer(meshlets_max_count, GPUMeshletCandidate, true, true, "Candidate Meshlets");
-            gfx.visible_meshlet_counters_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Visible Meshlet Counters");
-            gfx.visible_meshlets_buffers[frame_index] = zf.createRawBuffer(meshlets_max_count, GPUMeshletCandidate, true, true, "Visible Meshlets");
-            gfx.meshlet_cull_args_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlets Cull Args");
-            gfx.meshlet_bin_meshlet_count_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlet Bin Meshlet Count");
-            gfx.meshlet_bin_meshlet_global_count_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlet Bin Meshlet Global Count");
-            gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index] = zf.createRawBuffer(256, u32, true, true, "Meshlet Bin Meshlet Offset and Count");
-            gfx.meshlet_bin_binned_meshlets_buffers[frame_index] = zf.createRawBuffer(meshlets_max_count, u32, true, true, "Binned Meshlets");
-            gfx.meshlet_bin_classify_meshes_dispatch_args_buffers[frame_index] = zf.createRawBuffer(16, u32, true, true, "Meshlet Dispatch Args");
+            gfx.instance_buffers[frame_index] = zf.createRawBuffer(8 * 1024 * 1024 * @sizeOf(GPUInstance), GPUInstance, true, false, "Instance Buffer");
+            gfx.candidate_meshlet_counters_buffers[frame_index] = zf.createRawBuffer(16 * @sizeOf(u32), u32, true, true, "Candidate Meshlet Counters");
+            gfx.candidate_meshlets_buffers[frame_index] = zf.createRawBuffer(meshlets_max_count * @sizeOf(GPUMeshletCandidate), GPUMeshletCandidate, true, true, "Candidate Meshlets");
+            gfx.visible_meshlet_counters_buffers[frame_index] = zf.createRawBuffer(16 * @sizeOf(u32), u32, true, true, "Visible Meshlet Counters");
+            gfx.visible_meshlets_buffers[frame_index] = zf.createRawBuffer(meshlets_max_count * @sizeOf(GPUMeshletCandidate), GPUMeshletCandidate, true, true, "Visible Meshlets");
+            gfx.meshlet_cull_args_buffers[frame_index] = zf.createRawBuffer(16 * @sizeOf(u32), u32, true, true, "Meshlets Cull Args");
+            gfx.meshlet_bin_meshlet_count_buffers[frame_index] = zf.createRawBuffer(16 * @sizeOf(u32), u32, true, true, "Meshlet Bin Meshlet Count");
+            gfx.meshlet_bin_meshlet_global_count_buffers[frame_index] = zf.createRawBuffer(16 * @sizeOf(u32), u32, true, true, "Meshlet Bin Meshlet Global Count");
+            gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index] = zf.createRawBuffer(16 * @sizeOf(u32), u32, true, true, "Meshlet Bin Meshlet Offset and Count");
+            gfx.meshlet_bin_binned_meshlets_buffers[frame_index] = zf.createRawBuffer(meshlets_max_count * @sizeOf(u32), u32, true, true, "Binned Meshlets");
+            gfx.meshlet_bin_classify_meshes_dispatch_args_buffers[frame_index] = zf.createRawBuffer(16 * @sizeOf(u32), u32, true, true, "Meshlet Dispatch Args");
             gfx.meshlet_clear_counters_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletClearCountersParams), "Clear Counters");
             gfx.meshlet_cull_instances_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletCullInstancesParams), "Meshlet Cull Instances Params");
             gfx.meshlet_cull_args_constant_buffers[frame_index] = zf.createUniformBuffer(@sizeOf(MeshletCullArgsParams), "Meshlet Cull Args Params");
@@ -1137,7 +1139,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
         gfx.material_data = std.ArrayList(GpuMaterialData).init(gfx_allocator);
         gfx.material_map = MaterialHashMap.init(gfx_allocator);
         gfx.renderables = RenderableHashMap.init(gfx_allocator);
-        gfx.mesh_buffer = zf.createRawBuffer(1024, GPUMesh, true, false, "Meshes");
+        gfx.mesh_buffer = zf.createRawBuffer(16 * @sizeOf(GPUMesh), GPUMesh, true, false, "Meshes");
         gfx.mesh_buffer_offset = 0;
         gfx.mesh_buffer_mutex = std.Thread.Mutex{};
     }

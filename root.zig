@@ -1078,6 +1078,7 @@ pub fn createUniformBuffer(size: u64, name: []const u8) BufferHandle {
 }
 
 pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, write_access: bool, name: ?[]const u8) BufferHandle {
+    _ = T;
     var desc = std.mem.zeroes(IGraphics.BufferDesc);
     desc.mDescriptors = .DESCRIPTOR_TYPE_BUFFER_RAW;
     if (write_access) {
@@ -1088,7 +1089,7 @@ pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, write_access
         desc.pName = @ptrCast(n);
     }
     desc.mSize = size;
-    desc.mElementCount = @intCast(@divTrunc(size, @sizeOf(T)));
+    desc.mElementCount = @intCast(@divTrunc(size, @sizeOf(u32)));
 
     var buffer: [*c]IGraphics.Buffer = null;
     IGraphicsTides.addBufferEx(gpu.renderer, @ptrCast(&desc), bindless, &buffer);

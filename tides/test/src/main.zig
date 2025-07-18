@@ -50,58 +50,56 @@ pub fn main() !void {
     gfx.init(zglfw.getWin32Window(window).?, @intCast(window_width), @intCast(window_height));
 
     const birch_1_key = gfx.HashKey.generate("birch_1");
-    // const birch_2_key = gfx.HashKey.generate("birch_2");
-    // const bush_large_key = gfx.HashKey.generate("bush_large");
+    const birch_2_key = gfx.HashKey.generate("birch_2");
+    const bush_large_key = gfx.HashKey.generate("bush_large");
     // const plane_key = gfx.HashKey.generate("plane");
 
     // Load resources
     {
-        // const bark_birch_tree_albedo_key = gfx.HashKey.generate("bark_birch_tree_albedo");
-        // const bark_birch_tree_normal_key = gfx.HashKey.generate("bark_birch_tree_normal");
-        // const leaves_birch_albedo_key = gfx.HashKey.generate("leaves_birch_albedo");
-        // const leaves_giant_pine_albedo_key = gfx.HashKey.generate("leaves_giant_pine_albedo");
+        const bark_birch_tree_albedo_key = gfx.HashKey.generate("bark_birch_tree_albedo");
+        const bark_birch_tree_normal_key = gfx.HashKey.generate("bark_birch_tree_normal");
+        const leaves_birch_albedo_key = gfx.HashKey.generate("leaves_birch_albedo");
+        const leaves_giant_pine_albedo_key = gfx.HashKey.generate("leaves_giant_pine_albedo");
 
-        const bark_mat_key = gfx.HashKey.generate("bark");
-        const crown_mat_key = gfx.HashKey.generate("crown");
-        // const default_mat_key = gfx.HashKey.generate("default");
-        // const bark_birch_mat_key = gfx.HashKey.generate("bark_birch");
-        // const leaves_birch_mat_key = gfx.HashKey.generate("leaves_birch");
-        // const leaves_giant_pine_mat_key = gfx.HashKey.generate("leaves_giant_pine");
+        const default_mat_key = gfx.HashKey.generate("default");
+        const bark_birch_mat_key = gfx.HashKey.generate("bark_birch");
+        const leaves_birch_mat_key = gfx.HashKey.generate("leaves_birch");
+        const leaves_giant_pine_mat_key = gfx.HashKey.generate("leaves_giant_pine");
 
         // Load meshes
         const meshes_path = "content/models";
         gfx.loadMesh(birch_1_key, meshes_path, "Birch_1.mesh");
+        gfx.loadMesh(birch_2_key, meshes_path, "Birch_2.mesh");
+        gfx.loadMesh(bush_large_key, meshes_path, "Bush_Large.mesh");
         // gfx.loadGltfMesh(plane_key, meshes_path, "Plane.gltf");
-        // gfx.loadGltfMesh(birch_1_key, meshes_path, "Birch_1.gltf");
-        // gfx.loadGltfMesh(birch_2_key, meshes_path, "Birch_2.gltf");
-        // gfx.loadGltfMesh(bush_large_key, meshes_path, "Bush_Large.gltf");
 
-        // // Load textures
-        // gfx.loadTexture(bark_birch_tree_albedo_key, "content/textures/Bark_BirchTree.dds");
-        // gfx.loadTexture(bark_birch_tree_normal_key, "content/textures/Bark_BirchTree_Normal.dds");
-        // gfx.loadTexture(leaves_birch_albedo_key, "content/textures/Leaves_Birch_C.dds");
-        // gfx.loadTexture(leaves_giant_pine_albedo_key, "content/textures/Leaves_GiantPine_C.dds");
+        // Load textures
+        gfx.loadTexture(bark_birch_tree_albedo_key, "content/textures/Bark_BirchTree.dds");
+        gfx.loadTexture(bark_birch_tree_normal_key, "content/textures/Bark_BirchTree_Normal.dds");
+        gfx.loadTexture(leaves_birch_albedo_key, "content/textures/Leaves_Birch_C.dds");
+        gfx.loadTexture(leaves_giant_pine_albedo_key, "content/textures/Leaves_GiantPine_C.dds");
 
         // Load materials
-        gfx.loadMaterial(bark_mat_key, .{ .base_color = [4]f32{ 0.173, 0.08, 0.034, 1.0 } });
-        gfx.loadMaterial(crown_mat_key, .{ .base_color = [4]f32{ 0.478, 0.56, 0.077, 1.0 }, .alpha_tested = true });
-        // gfx.loadMaterial(default_mat_key, .{});
-        // gfx.loadMaterial(bark_birch_mat_key, .{
-        //     .albedo_texture = bark_birch_tree_albedo_key,
-        //     .normal_texture = bark_birch_tree_normal_key,
-        // });
-        // gfx.loadMaterial(leaves_birch_mat_key, .{
-        //     .albedo_texture = leaves_birch_albedo_key,
-        // });
-        // gfx.loadMaterial(leaves_giant_pine_mat_key, .{
-        //     .albedo_texture = leaves_giant_pine_albedo_key,
-        // });
+        gfx.loadMaterial(default_mat_key, .{});
+        gfx.loadMaterial(bark_birch_mat_key, .{
+            .albedo_texture = bark_birch_tree_albedo_key,
+            .normal_texture = bark_birch_tree_normal_key,
+            .alpha_tested = false,
+        });
+        gfx.loadMaterial(leaves_birch_mat_key, .{
+            .albedo_texture = leaves_birch_albedo_key,
+            .alpha_tested = true,
+        });
+        gfx.loadMaterial(leaves_giant_pine_mat_key, .{
+            .albedo_texture = leaves_giant_pine_albedo_key,
+            .alpha_tested = true,
+        });
 
         // Register renderables
-        gfx.registerRenderable(birch_1_key, birch_1_key, &[_]gfx.HashKey{ bark_mat_key, crown_mat_key });
+        gfx.registerRenderable(birch_2_key, birch_2_key, &[_]gfx.HashKey{ bark_birch_mat_key, leaves_birch_mat_key });
+        gfx.registerRenderable(birch_1_key, birch_1_key, &[_]gfx.HashKey{ bark_birch_mat_key, leaves_birch_mat_key });
+        gfx.registerRenderable(bush_large_key, bush_large_key, &[_]gfx.HashKey{ leaves_giant_pine_mat_key });
         // gfx.registerRenderable(plane_key, plane_key, &[_]gfx.HashKey{ default_mat_key });
-        // gfx.registerRenderable(birch_2_key, birch_2_key, &[_]gfx.HashKey{ bark_birch_mat_key, leaves_birch_mat_key });
-        // gfx.registerRenderable(bush_large_key, bush_large_key, &[_]gfx.HashKey{ leaves_giant_pine_mat_key });
     }
 
     app.camera.position += zmath.Vec{ 0.0, 7.0, -20.0, 0.0 };
@@ -118,6 +116,27 @@ pub fn main() !void {
 
     // Create fake entities
     {
+        // app.entities.append(.{
+        //     .position = [3]f32{ -6, 0.0, 0.0 },
+        //     .unform_scale = 1.0,
+        //     .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
+        //     .renderable_hash = birch_2_key,
+        // }) catch unreachable;
+
+        // app.entities.append(.{
+        //     .position = [3]f32{ 0.0, 0.0, 0.0 },
+        //     .unform_scale = 1.0,
+        //     .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
+        //     .renderable_hash = birch_1_key,
+        // }) catch unreachable;
+
+        // app.entities.append(.{
+        //     .position = [3]f32{ 6.0, 0.0, 0.0 },
+        //     .unform_scale = 1.0,
+        //     .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
+        //     .renderable_hash = bush_large_key,
+        // }) catch unreachable;
+
         var x: i32 = 0;
         while (x <= 20) : (x += 1) {
             var z: i32 = 0;
@@ -126,7 +145,7 @@ pub fn main() !void {
                     .position = [3]f32{ -10.0 + @as(f32, @floatFromInt(x * 4)), 0.0, -10.0 + @as(f32, @floatFromInt(z * 4)) },
                     .unform_scale = 1.0,
                     .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-                    .renderable_hash = birch_1_key,
+                    .renderable_hash = if (@mod(x, 2) == 0) birch_1_key else birch_2_key,
                 }) catch unreachable;
             }
         }
