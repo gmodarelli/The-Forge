@@ -137,66 +137,70 @@ pub fn compileShaders(step: *std.Build.Step, allocator: std.mem.Allocator) void 
     defer allocator.free(graphics_root_signature_output_path);
     const compute_root_signature_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "ComputeRootSignature.rs" }) catch unreachable;
     defer allocator.free(compute_root_signature_output_path);
-    compileShader(step, "shaders/GraphicsRootSignature.hlsl", graphics_root_signature_output_path, "DefaultRootSignature", "", .root_signature);
-    compileShader(step, "shaders/ComputeRootSignature.hlsl", compute_root_signature_output_path, "ComputeRootSignature", "", .root_signature);
+    compileShader(step, "shaders/GraphicsRootSignature.hlsl", graphics_root_signature_output_path, "DefaultRootSignature", &[_][]const u8{}, .root_signature);
+    compileShader(step, "shaders/ComputeRootSignature.hlsl", compute_root_signature_output_path, "ComputeRootSignature", &[_][]const u8{}, .root_signature);
 
     const compositor_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Compositor.vert" }) catch unreachable;
     defer allocator.free(compositor_vertex_output_path);
     const compositor_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Compositor.frag" }) catch unreachable;
     defer allocator.free(compositor_pixel_output_path);
-    compileShader(step, "shaders/Compositor.hlsl", compositor_vertex_output_path, "FullscreenTriangleVS", "", .vertex);
-    compileShader(step, "shaders/Compositor.hlsl", compositor_pixel_output_path, "CompositorPS", "", .pixel);
+    compileShader(step, "shaders/Compositor.hlsl", compositor_vertex_output_path, "FullscreenTriangleVS", &[_][]const u8{}, .vertex);
+    compileShader(step, "shaders/Compositor.hlsl", compositor_pixel_output_path, "CompositorPS", &[_][]const u8{}, .pixel);
 
     const sprite_vertex_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Sprite.vert" }) catch unreachable;
     defer allocator.free(sprite_vertex_output_path);
     const sprite_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "Sprite.frag" }) catch unreachable;
     defer allocator.free(sprite_pixel_output_path);
-    compileShader(step, "shaders/Sprite.hlsl", sprite_vertex_output_path, "SpriteVS", "", .vertex);
-    compileShader(step, "shaders/Sprite.hlsl", sprite_pixel_output_path, "SpritePS", "", .pixel);
+    compileShader(step, "shaders/Sprite.hlsl", sprite_vertex_output_path, "SpriteVS", &[_][]const u8{}, .vertex);
+    compileShader(step, "shaders/Sprite.hlsl", sprite_pixel_output_path, "SpritePS", &[_][]const u8{}, .pixel);
 
     const meshlet_clear_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletClearCounters.comp" }) catch unreachable;
     defer allocator.free(meshlet_clear_output_path);
-    compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_clear_output_path, "ClearCountersCS", "CLEAR_COUNTERS", .compute);
+    compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_clear_output_path, "ClearCountersCS", &[_][]const u8{ "/D CLEAR_COUNTERS" }, .compute);
 
     const meshlet_cull_instances_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletCullInstances.comp" }) catch unreachable;
     defer allocator.free(meshlet_cull_instances_output_path);
-    compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_cull_instances_output_path, "CullInstancesCS", "CULL_INSTANCES", .compute);
+    compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_cull_instances_output_path, "CullInstancesCS", &[_][]const u8{ "/D CULL_INSTANCES" }, .compute);
 
     const meshlet_build_indirect_cull_args_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletBuildCullIndirectArgs.comp" }) catch unreachable;
     defer allocator.free(meshlet_build_indirect_cull_args_output_path);
-    compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_build_indirect_cull_args_output_path, "BuildMeshletCullIndirectArgsCS", "MESHLET_CULL_ARGUMENTS", .compute);
+    compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_build_indirect_cull_args_output_path, "BuildMeshletCullIndirectArgsCS", &[_][]const u8{ "/D MESHLET_CULL_ARGUMENTS" }, .compute);
 
     const meshlet_cull_meshlets_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletCullMeshlets.comp" }) catch unreachable;
     defer allocator.free(meshlet_cull_meshlets_output_path);
-    compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_cull_meshlets_output_path, "CullMeshletsCS", "CULL_MESHLETS", .compute);
-
-    const meshlet_rasterizer_mesh_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletRasterizer.comp" }) catch unreachable;
-    defer allocator.free(meshlet_rasterizer_mesh_output_path);
-    compileShader(step, "shaders/MeshletRasterizerMS.hlsl", meshlet_rasterizer_mesh_output_path, "main", "MESH_SHADER", .mesh);
-
-    const meshlet_rasterizer_pixel_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletRasterizer.frag" }) catch unreachable;
-    defer allocator.free(meshlet_rasterizer_pixel_output_path);
-    compileShader(step, "shaders/MeshletRasterizerMS.hlsl", meshlet_rasterizer_pixel_output_path, "pixel", "PIXEL_SHADER", .pixel);
+    compileShader(step, "shaders/MeshletCullCS.hlsl", meshlet_cull_meshlets_output_path, "CullMeshletsCS", &[_][]const u8{ "/D CULL_MESHLETS" }, .compute);
 
     const meshlet_bin_prepare_args_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletBinPrepareArgs.comp" }) catch unreachable;
     defer allocator.free(meshlet_bin_prepare_args_output_path);
-    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_prepare_args_output_path, "PrepareArgsCS", "PREPARE_ARGS", .compute);
+    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_prepare_args_output_path, "PrepareArgsCS", &[_][]const u8{ "/D PREPARE_ARGS" }, .compute);
 
     const meshlet_bin_classify_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletBinClassifyMeshlets.comp" }) catch unreachable;
     defer allocator.free(meshlet_bin_classify_output_path);
-    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_classify_output_path, "ClassifyMeshletsCS", "CLASSIFY_MESHLETS", .compute);
+    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_classify_output_path, "ClassifyMeshletsCS", &[_][]const u8{ "/D CLASSIFY_MESHLETS" }, .compute);
 
     const meshlet_bin_allocate_bin_ranges_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletBinAllocateBins.comp" }) catch unreachable;
     defer allocator.free(meshlet_bin_allocate_bin_ranges_output_path);
-    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_allocate_bin_ranges_output_path, "AllocateBinRangesCS", "ALLOCATE_BIN_RANGES", .compute);
+    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_allocate_bin_ranges_output_path, "AllocateBinRangesCS", &[_][]const u8{ "/D ALLOCATE_BIN_RANGES" }, .compute);
 
     const meshlet_bin_write_bins_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletBinWriteBins.comp" }) catch unreachable;
     defer allocator.free(meshlet_bin_write_bins_output_path);
-    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_write_bins_output_path, "WriteBinsCS", "WRITE_BINS", .compute);
+    compileShader(step, "shaders/MeshletBinningCS.hlsl", meshlet_bin_write_bins_output_path, "WriteBinsCS", &[_][]const u8{ "/D WRITE_BINS" }, .compute);
+
+    const meshlet_rasterizer_mesh_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletRasterizer.comp" }) catch unreachable;
+    defer allocator.free(meshlet_rasterizer_mesh_output_path);
+    compileShader(step, "shaders/MeshletRasterizerMS.hlsl", meshlet_rasterizer_mesh_output_path, "main", &[_][]const u8{ "/D MESH_SHADER" }, .mesh);
+
+    const meshlet_rasterizer_pixel_opaque_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletRasterizerOpaque.frag" }) catch unreachable;
+    defer allocator.free(meshlet_rasterizer_pixel_opaque_output_path);
+    compileShader(step, "shaders/MeshletRasterizerMS.hlsl", meshlet_rasterizer_pixel_opaque_output_path, "pixel", &[_][]const u8{ "/D PIXEL_SHADER" }, .pixel);
+
+    const meshlet_rasterizer_pixel_masked_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "MeshletRasterizerMasked.frag" }) catch unreachable;
+    defer allocator.free(meshlet_rasterizer_pixel_masked_output_path);
+    compileShader(step, "shaders/MeshletRasterizerMS.hlsl", meshlet_rasterizer_pixel_masked_output_path, "pixel", &[_][]const u8{ "/D PIXEL_SHADER", "/D ALPHA_TEST" }, .pixel);
 
     const visibility_debug_output_path = std.fs.path.join(allocator, &[_][]const u8{ output_shaders_path, "VisibilityDebug.comp" }) catch unreachable;
     defer allocator.free(visibility_debug_output_path);
-    compileShader(step, "shaders/VisibilityDebugCS.hlsl", visibility_debug_output_path, "VisibilityDebugCS", "", .compute);
+    compileShader(step, "shaders/VisibilityDebugCS.hlsl", visibility_debug_output_path, "VisibilityDebugCS", &[_][]const u8{}, .compute);
 }
 
 const ShaderType = enum {
@@ -208,7 +212,7 @@ const ShaderType = enum {
     root_signature,
 };
 
-fn compileShader(step: *std.Build.Step, input: []const u8, output: []const u8, entry: []const u8, define: []const u8, shader_type: ShaderType) void {
+fn compileShader(step: *std.Build.Step, input: []const u8, output: []const u8, entry: []const u8, defines: []const []const u8, shader_type: ShaderType) void {
     const profile = switch (shader_type) {
         .vertex => "vs_6_8",
         .pixel => "ps_6_8",
@@ -224,22 +228,28 @@ fn compileShader(step: *std.Build.Step, input: []const u8, output: []const u8, e
     };
 
     const b = step.owner;
-    const dxc_command = [_][]const u8{
-        "../../Common_3/Graphics/ThirdParty/OpenSource/DirectXShaderCompiler/bin/x64/dxc.exe",
-        input,
-        b.fmt("-Fo {s}", .{output}),
-        b.fmt("-E {s}", .{entry}),
-        b.fmt("-T {s}", .{profile}),
-        if (define.len == 0) "" else b.fmt("/D {s}", .{define}),
-        qstrip_root_signature,
-        "-Qembed_debug",
-        "-HV 2021",
-        "-all-resources-bound",
-        "-WX",
-        "-Od",
-        "-Zi",
-    };
+    var dxc_command: [16][]const u8 = undefined;
+    var dxc_command_length: u64 = 12;
 
-    const cmd_step = b.addSystemCommand(&dxc_command);
+    dxc_command[0] = "../../Common_3/Graphics/ThirdParty/OpenSource/DirectXShaderCompiler/bin/x64/dxc.exe";
+    dxc_command[1] = input;
+    dxc_command[2] = b.fmt("-Fo {s}", .{output});
+    dxc_command[3] = b.fmt("-E {s}", .{entry});
+    dxc_command[4] = b.fmt("-T {s}", .{profile});
+    dxc_command[5] = qstrip_root_signature;
+    dxc_command[6] = "-Qembed_debug";
+    dxc_command[7] = "-HV 2021";
+    dxc_command[8] = "-all-resources-bound";
+    dxc_command[9] = "-WX";
+    dxc_command[10] = "-Od";
+    dxc_command[11] = "-Zi";
+
+    for (defines) |define| {
+        std.debug.assert(dxc_command_length < dxc_command.len);
+        dxc_command[dxc_command_length] = define;
+        dxc_command_length += 1;
+    }
+
+    const cmd_step = b.addSystemCommand(dxc_command[0..dxc_command_length]);
     step.dependOn(&cmd_step.step);
 }

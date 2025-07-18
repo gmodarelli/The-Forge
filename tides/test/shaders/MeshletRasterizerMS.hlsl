@@ -9,9 +9,8 @@ struct PrimitiveAttribute
 struct VertexAttribute
 {
     float4 position : SV_Position;
+    float2 uv : TEXCOORD0;
 };
-
-#if MESH_SHADER
 
 struct RasterizerParams
 {
@@ -33,8 +32,12 @@ VertexAttribute FetchVertexAttribute(Mesh mesh, float4x4 world, uint vertex_id)
     float3 position = data_buffer.Load<float3>(vertex_id * sizeof(float3) + mesh.positions_offset);
     float3 position_ws = mul(float4(position, 1.0f), world).xyz;
     attribute.position = mul(float4(position_ws, 1.0f), g_frame.view_proj);
+    float2 uv = data_buffer.Load<float2>(vertex_id * sizeof(float2) + mesh.texcoords_offset);
+    attribute.uv = uv;
     return attribute;
 }
+
+#if MESH_SHADER
 
 [RootSignature(DefaultRootSignature)]
 [outputtopology("triangle")]
@@ -95,6 +98,21 @@ uint pixel
     PrimitiveAttribute primitive
 ) : SV_Target0
 {
+#if ALPHA_TEST
+    ByteAddressBuffer visible_meshlet_buffer = ResourceDescriptorHeap[g_rasterizer_params.visible_meshlets_buffer_index];
+    MeshletCandidate candidate = visible_meshlet_buffer.Load<MeshletCandidate>(primitive.candidate_index * sizeof(MeshletCandidate));
+    Instance instance = getInstance(candidate.instance_id);
+    MaterialData material = getMaterial(instance.material_index);
+    if (material.albedo_texture_index != 0xFFFFFFFF) {
+        Texture2D<float4> albedo = ResourceDescriptorHeap[NonUniformResourceIndex(material.albedo_texture_index)];
+        SamplerState sampler = SamplerDescriptorHeap[g_frame.linear_repeat_sampler_index];
+        float4 albedo_sample = albedo.Sample(sampler, vertex.uv);
+        if (albedo_sample.a < 0.5) {
+            discard;
+        }
+    }
+#endif // ALPHA_TEST
+
     return PackVisBuffer(primitive.candidate_index, primitive.primitive_id);
 }
 #endif // PIXEL_SHADER

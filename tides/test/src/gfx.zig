@@ -824,7 +824,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                         .entry = "main",
                     },
                     .pixel = .{
-                        .path = "shaders/MeshletRasterizer.frag",
+                        .path = "shaders/MeshletRasterizerOpaque.frag",
                         .entry = "pixel",
                     },
                     .vertex = null,
@@ -832,6 +832,22 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                     .amplification = null,
                 };
                 gfx.meshlet_rasterizer_opaque_shader = zf.compileShader(shader_load_desc) catch unreachable;
+            }
+            {
+                const shader_load_desc = zf.ShaderLoadDesc{
+                    .mesh = .{
+                        .path = "shaders/MeshletRasterizer.comp",
+                        .entry = "main",
+                    },
+                    .pixel = .{
+                        .path = "shaders/MeshletRasterizerMasked.frag",
+                        .entry = "pixel",
+                    },
+                    .vertex = null,
+                    .compute = null,
+                    .amplification = null,
+                };
+                gfx.meshlet_rasterizer_masked_shader = zf.compileShader(shader_load_desc) catch unreachable;
             }
         }
         // PSOs
@@ -892,7 +908,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 mesh_desc.mSampleQuality = 0;
 
                 var rasterizer_state_desc = std.mem.zeroes(zf.RasterizerStateDesc);
-                rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_NONE;
+                rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_BACK;
                 rasterizer_state_desc.mFillMode = zf.FillMode.FILL_MODE_SOLID;
                 mesh_desc.pRasterizerState = @ptrCast(&rasterizer_state_desc);
 
@@ -904,6 +920,9 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 mesh_desc.mDepthStencilFormat = .D32_SFLOAT;
 
                 gfx.meshlet_rasterizer_opaque_pso = zf.createPso(pipeline_desc, gfx.meshlet_rasterizer_opaque_shader) catch unreachable;
+
+                rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_NONE;
+                gfx.meshlet_rasterizer_masked_pso = zf.createPso(pipeline_desc, gfx.meshlet_rasterizer_masked_shader) catch unreachable;
             }
         }
         // Materials
@@ -1079,10 +1098,10 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 var pass = &gfx.meshlet_rasterizer_masked_material.passes[pass_index];
 
                 pass.pass = pass_type;
-                pass.pso = gfx.meshlet_rasterizer_opaque_pso;
-                pass.shader = gfx.meshlet_rasterizer_opaque_shader;
+                pass.pso = gfx.meshlet_rasterizer_masked_pso;
+                pass.shader = gfx.meshlet_rasterizer_masked_shader;
 
-                const descriptor_set_handles = zf.createDescriptorSets(gfx.meshlet_rasterizer_opaque_shader) catch unreachable;
+                const descriptor_set_handles = zf.createDescriptorSets(gfx.meshlet_rasterizer_masked_shader) catch unreachable;
                 pass.per_draw_descriptor_sets[0] = descriptor_set_handles.per_draw;
                 pass.per_batch_descriptor_sets[0] = descriptor_set_handles.per_batch;
                 pass.per_frame_descriptor_sets[0] = descriptor_set_handles.per_frame;
