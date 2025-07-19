@@ -138,6 +138,7 @@ pub fn initializeGpu(gpu_desc: GpuDesc, allocator: std.mem.Allocator) !void {
     // Initialize renderer
     var renderer_desc = std.mem.zeroes(IGraphics.RendererDesc);
     renderer_desc.mShaderTarget = .SHADER_TARGET_6_8;
+    renderer_desc.mEnableGpuBasedValidation = false;
     IGraphicsTides.initGPUConfigurationEx(renderer_desc.pExtendedSettings);
     IGraphics.initRenderer("ze_forge test", &renderer_desc, &gpu.renderer);
 

@@ -908,7 +908,7 @@ pub fn init(hwnd: std.os.windows.HWND, window_width: u32, window_height: u32) vo
                 mesh_desc.mSampleQuality = 0;
 
                 var rasterizer_state_desc = std.mem.zeroes(zf.RasterizerStateDesc);
-                rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_BACK;
+                rasterizer_state_desc.mCullMode = zf.CullMode.CULL_MODE_FRONT;
                 rasterizer_state_desc.mFillMode = zf.FillMode.FILL_MODE_SOLID;
                 mesh_desc.pRasterizerState = @ptrCast(&rasterizer_state_desc);
 
@@ -1266,7 +1266,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         .instance_buffer_index = zf.getBufferBindlessIndex(gfx.instance_buffers[frame_index]),
         .meshes_buffer_index = zf.getBufferBindlessIndex(gfx.mesh_buffer),
         .instances_count = gfx.registered_instances_count,
-        ._padding1 = [3]u32{ 42, 42, 42 }
+        ._padding1 = [3]u32{ 42, 42, 42 },
     };
     zmath.storeMat(&frame.view_matrix, zmath.transpose(camera.view));
     zmath.storeMat(&frame.projection_matrix, zmath.transpose(camera.proj));
@@ -1317,13 +1317,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             zf.cmdResourceBarrier(&buffer_barriers, null, null);
             gfx.meshlet_clear_counters_material.bindMaterialPass(.default, frame_index, 0);
             zf.cmdDispatch(1, 1, 1);
-
-            buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            buffer_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            buffer_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-            zf.cmdResourceBarrier(&buffer_barriers, null, null);
         }
 
         // Cull instances
@@ -1343,11 +1336,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
             var buffer_barriers = [_]zf.BufferBarrier{
                 .{
-                    .buffer_handle = gfx.candidate_meshlet_counters_buffers[frame_index],
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                },
-                .{
                     .buffer_handle = gfx.candidate_meshlets_buffers[frame_index],
                     .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
                     .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
@@ -1359,13 +1347,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
             const thread_group_size = zf.getShaderThreadGroupSize(gfx.meshlet_cull_instances_material.getPassShaderHandle(.default));
             zf.cmdDispatch((gfx.registered_instances_count + thread_group_size.x - 1) / thread_group_size.x, 1, 1);
-
-            buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            buffer_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            buffer_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-            zf.cmdResourceBarrier(&buffer_barriers, null, null);
         }
 
         // Build meshlet cull indirect args
@@ -1394,11 +1375,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             zf.cmdResourceBarrier(&buffer_barriers, null, null);
             gfx.meshlet_cull_args_material.bindMaterialPass(.default, frame_index, 0);
             zf.cmdDispatch(1, 1, 1);
-
-            buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-            zf.cmdResourceBarrier(&buffer_barriers, null, null);
         }
 
         // Cull meshlets
@@ -1420,28 +1396,13 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
             var buffer_barriers = [_]zf.BufferBarrier{
                 .{
-                    .buffer_handle = gfx.candidate_meshlet_counters_buffers[frame_index],
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                },
-                .{
-                    .buffer_handle = gfx.candidate_meshlets_buffers[frame_index],
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                },
-                .{
-                    .buffer_handle = gfx.visible_meshlet_counters_buffers[frame_index],
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                },
-                .{
                     .buffer_handle = gfx.visible_meshlets_buffers[frame_index],
                     .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
                     .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
                 },
                 .{
                     .buffer_handle = gfx.meshlet_cull_args_buffers[frame_index],
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                    .current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
                     .new_state = zf.ResourceState.RESOURCE_STATE_INDIRECT_ARGUMENT,
                 },
             };
@@ -1450,19 +1411,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             gfx.meshlet_cull_meshlets_material.bindMaterialPass(.default, frame_index, 0);
 
             zf.cmdExecuteIndirect(.INDIRECT_DISPATCH, 1, gfx.meshlet_cull_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
-
-            buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            buffer_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            buffer_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            buffer_barriers[2].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            buffer_barriers[2].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            buffer_barriers[3].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-            buffer_barriers[3].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            buffer_barriers[4].current_state = zf.ResourceState.RESOURCE_STATE_INDIRECT_ARGUMENT;
-            buffer_barriers[4].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-            zf.cmdResourceBarrier(&buffer_barriers, null, null);
         }
 
         // Bin meshlets
@@ -1512,15 +1460,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 zf.cmdResourceBarrier(&buffer_barriers, null, null);
                 gfx.meshlet_bin_clear_counters_material.bindMaterialPass(.default, frame_index, 0);
                 zf.cmdDispatch(1, 1, 1);
-
-                buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-                buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-                buffer_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-                buffer_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-                buffer_barriers[2].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-                buffer_barriers[2].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-                zf.cmdResourceBarrier(&buffer_barriers, null, null);
             }
 
             {
@@ -1529,13 +1468,8 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
                 var buffer_barriers = [_]zf.BufferBarrier{
                     .{
-                        .buffer_handle = gfx.meshlet_bin_meshlet_count_buffers[frame_index],
-                        .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                        .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                    },
-                    .{
                         .buffer_handle = gfx.meshlet_bin_classify_meshes_dispatch_args_buffers[frame_index],
-                        .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                        .current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
                         .new_state = zf.ResourceState.RESOURCE_STATE_INDIRECT_ARGUMENT,
                     },
                 };
@@ -1543,13 +1477,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 zf.cmdResourceBarrier(&buffer_barriers, null, null);
                 gfx.meshlet_bin_classify_meshlets_material.bindMaterialPass(.default, frame_index, 0);
                 zf.cmdExecuteIndirect(.INDIRECT_DISPATCH, 1, gfx.meshlet_bin_classify_meshes_dispatch_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
-
-                buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-                buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-                buffer_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_INDIRECT_ARGUMENT;
-                buffer_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-                zf.cmdResourceBarrier(&buffer_barriers, null, null);
             }
 
             {
@@ -1557,11 +1484,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 defer zf.endGpuProfile(inner2_profile_index);
 
                 var buffer_barriers = [_]zf.BufferBarrier{
-                    .{
-                        .buffer_handle = gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index],
-                        .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                        .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                    },
                     .{
                         .buffer_handle = gfx.meshlet_bin_meshlet_global_count_buffers[frame_index],
                         .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
@@ -1572,13 +1494,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 zf.cmdResourceBarrier(&buffer_barriers, null, null);
                 gfx.meshlet_bin_allocate_bins_material.bindMaterialPass(.default, frame_index, 0);
                 zf.cmdDispatch(1, 1, 1);
-
-                buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-                buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-                buffer_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-                buffer_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-                zf.cmdResourceBarrier(&buffer_barriers, null, null);
             }
 
             {
@@ -1586,11 +1501,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 defer zf.endGpuProfile(inner2_profile_index);
 
                 var buffer_barriers = [_]zf.BufferBarrier{
-                    .{
-                        .buffer_handle = gfx.meshlet_bin_classify_meshes_dispatch_args_buffers[frame_index],
-                        .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                        .new_state = zf.ResourceState.RESOURCE_STATE_INDIRECT_ARGUMENT,
-                    },
                     .{
                         .buffer_handle = gfx.meshlet_bin_binned_meshlets_buffers[frame_index],
                         .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
@@ -1601,13 +1511,6 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 zf.cmdResourceBarrier(&buffer_barriers, null, null);
                 gfx.meshlet_bin_write_bins_material.bindMaterialPass(.default, frame_index, 0);
                 zf.cmdExecuteIndirect(.INDIRECT_DISPATCH, 1, gfx.meshlet_bin_classify_meshes_dispatch_args_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
-
-                buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_INDIRECT_ARGUMENT;
-                buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-                buffer_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
-                buffer_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-                zf.cmdResourceBarrier(&buffer_barriers, null, null);
             }
         }
     }
@@ -1658,7 +1561,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             var buffer_barriers = [_]zf.BufferBarrier{
                 .{
                     .buffer_handle = gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index],
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                    .current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
                     .new_state = zf.ResourceState.RESOURCE_STATE_INDIRECT_ARGUMENT,
                 },
             };
@@ -1687,10 +1590,7 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
             rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
             rt_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
             rt_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
-            buffer_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_INDIRECT_ARGUMENT;
-            buffer_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            zf.cmdResourceBarrier(&buffer_barriers, null, &rt_barriers);
+            zf.cmdResourceBarrier(null, null, &rt_barriers);
         }
     }
 
@@ -1717,15 +1617,14 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
                 .new_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
             },
         };
-
         zf.cmdResourceBarrier(null, &texture_barriers, null);
+
         gfx.visibility_debug_material.bindMaterialPass(.default, frame_index, 0);
         const thread_group_size = zf.getShaderThreadGroupSize(gfx.visibility_debug_material.getPassShaderHandle(.default));
         zf.cmdDispatch((window_width + thread_group_size.x - 1) / thread_group_size.x, (window_height + thread_group_size.y - 1) / thread_group_size.y, thread_group_size.z);
 
         texture_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS;
         texture_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-
         zf.cmdResourceBarrier(null, &texture_barriers, null);
     }
 

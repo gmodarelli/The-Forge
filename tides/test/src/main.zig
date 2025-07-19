@@ -96,9 +96,9 @@ pub fn main() !void {
         });
 
         // Register renderables
-        gfx.registerRenderable(birch_2_key, birch_2_key, &[_]gfx.HashKey{ bark_birch_mat_key, leaves_birch_mat_key });
         gfx.registerRenderable(birch_1_key, birch_1_key, &[_]gfx.HashKey{ bark_birch_mat_key, leaves_birch_mat_key });
-        gfx.registerRenderable(bush_large_key, bush_large_key, &[_]gfx.HashKey{ leaves_giant_pine_mat_key });
+        gfx.registerRenderable(birch_2_key, birch_2_key, &[_]gfx.HashKey{ bark_birch_mat_key, leaves_birch_mat_key });
+        gfx.registerRenderable(bush_large_key, bush_large_key, &[_]gfx.HashKey{leaves_giant_pine_mat_key});
         // gfx.registerRenderable(plane_key, plane_key, &[_]gfx.HashKey{ default_mat_key });
     }
 
