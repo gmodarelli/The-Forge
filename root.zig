@@ -1099,6 +1099,26 @@ pub fn createRawBuffer(size: u64, comptime T: type, bindless: bool, write_access
     return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
 }
 
+pub fn createStructuredBuffer(count: u32, comptime T: type, bindless: bool, write_access: bool, name: ?[]const u8) BufferHandle {
+    var desc = std.mem.zeroes(IGraphics.BufferDesc);
+    desc.mDescriptors = .DESCRIPTOR_TYPE_BUFFER;
+    if (write_access) {
+        desc.mDescriptors.bits |= IGraphics.DescriptorType.DESCRIPTOR_TYPE_RW_BUFFER.bits;
+    }
+    desc.mMemoryUsage = .RESOURCE_MEMORY_USAGE_GPU_ONLY;
+    if (name) |n| {
+        desc.pName = @ptrCast(n);
+    }
+    desc.mSize = @as(u64, @intCast(count)) * @sizeOf(T);
+    desc.mElementCount = count;
+    desc.mStructStride = @intCast(@sizeOf(T));
+
+    var buffer: [*c]IGraphics.Buffer = null;
+    IGraphicsTides.addBufferEx(gpu.renderer, @ptrCast(&desc), bindless, &buffer);
+
+    return gpu.buffers.add(.{ .ptr = buffer }) catch unreachable;
+}
+
 pub fn createIndirectArgsBuffer(size: u64, comptime T: type, name: []const u8) BufferHandle {
     var desc = std.mem.zeroes(IGraphics.BufferDesc);
     desc.mDescriptors.bits = IGraphics.DescriptorType.DESCRIPTOR_TYPE_BUFFER.bits | IGraphics.DescriptorType.DESCRIPTOR_TYPE_RW_BUFFER.bits | IGraphics.DescriptorType.DESCRIPTOR_TYPE_INDIRECT_BUFFER.bits;
