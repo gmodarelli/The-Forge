@@ -30,6 +30,18 @@ pub fn buildExe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     const zmath = b.dependency("zmath", .{});
     exe.root_module.addImport("zmath", zmath.module("root"));
 
+    // ztracy
+    const ztracy_enable = b.option(bool, "ztracy-enable", "Enable Tracy profiler") orelse false;
+    const ztracy = b.dependency("ztracy", .{
+        .target = target,
+        .optimize = optimize,
+        .enable_ztracy = ztracy_enable,
+        .enable_fibers = true,
+        .on_demand = true,
+    });
+    exe.root_module.addImport("ztracy", ztracy.module("root"));
+    exe.linkLibrary(ztracy.artifact("tracy"));
+
     // ze-forge
     const ze_forge = b.dependency("ze_forge", .{
         .target = target,

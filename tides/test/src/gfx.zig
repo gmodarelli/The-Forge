@@ -6,6 +6,7 @@ const geometry = @import("geometry.zig");
 const zf = @import("ze_forge");
 const zglfw = @import("zglfw");
 const zmath = @import("zmath");
+const ztracy = @import("ztracy");
 
 pub const HashKey = zf.HashKey;
 
@@ -1236,8 +1237,16 @@ pub fn resize() void {
 }
 
 pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: f32) void {
+    const frame_index = blk: {
+        const trazy_frame_start_zone = ztracy.ZoneNC(@src(), "Frame Start", 0x00_ff_ff_00);
+        defer trazy_frame_start_zone.End();
+
+        break :blk zf.frameStart();
+    };
     _ = delta_time;
-    const frame_index = zf.frameStart();
+
+    const trazy_draw_zone = ztracy.ZoneNC(@src(), "Draw", 0x00_ff_ff_00);
+    defer trazy_draw_zone.End();
 
     const viewport_width: f32 = @floatFromInt(window_width);
     const viewport_height: f32 = @floatFromInt(window_width);
@@ -1283,6 +1292,9 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     // Meshlet Pass
     // ============
     {
+        const trazy_gpu_cull_zone = ztracy.ZoneNC(@src(), "GPU Culling", 0x00_ff_ff_00);
+        defer trazy_gpu_cull_zone.End();
+
         gfx.gpu_culling_profile_index = zf.startGpuProfile("GPU Culling");
         defer zf.endGpuProfile(gfx.gpu_culling_profile_index);
 
@@ -1515,87 +1527,91 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         }
     }
 
+    // Rasterize meshlets
     {
-        // Rasterize meshlets
+        const trazy_rasterizer_zone = ztracy.ZoneNC(@src(), "Meshlet Rasterizer", 0x00_ff_ff_00);
+        defer trazy_rasterizer_zone.End();
+
+        const inner_profile_index = zf.startGpuProfile("Rasterize Meshlets");
+        defer zf.endGpuProfile(inner_profile_index);
+
+        var rasterize_params = MeshletRasterizeParams{
+            .bin_index = 0,
+            .visible_meshlets_buffer_index = zf.getBufferBindlessIndex(gfx.visible_meshlets_buffers[frame_index]),
+            .binned_meshlets_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_bin_binned_meshlets_buffers[frame_index]),
+            .meshlet_bin_data_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index]),
+        };
+
         {
-            const inner_profile_index = zf.startGpuProfile("Rasterize Meshlets");
-            defer zf.endGpuProfile(inner_profile_index);
-
-            var rasterize_params = MeshletRasterizeParams{
-                .bin_index = 0,
-                .visible_meshlets_buffer_index = zf.getBufferBindlessIndex(gfx.visible_meshlets_buffers[frame_index]),
-                .binned_meshlets_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_bin_binned_meshlets_buffers[frame_index]),
-                .meshlet_bin_data_buffer_index = zf.getBufferBindlessIndex(gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index]),
+            const data_slice = zf.DataSlice{
+                .data = @ptrCast(&rasterize_params),
+                .size = @sizeOf(MeshletRasterizeParams),
             };
-
-            {
-                const data_slice = zf.DataSlice{
-                    .data = @ptrCast(&rasterize_params),
-                    .size = @sizeOf(MeshletRasterizeParams),
-                };
-                zf.updateUniformBuffer(data_slice, gfx.meshlet_rasterize_opaque_constant_buffers[frame_index]);
-            }
-
-            {
-                rasterize_params.bin_index = 1;
-                const data_slice = zf.DataSlice{
-                    .data = @ptrCast(&rasterize_params),
-                    .size = @sizeOf(MeshletRasterizeParams),
-                };
-                zf.updateUniformBuffer(data_slice, gfx.meshlet_rasterize_masked_constant_buffers[frame_index]);
-            }
-
-            var rt_barriers = [_]zf.RenderTargetBarrier{
-                .{
-                    .render_target_handle = gfx.visibility_buffer,
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
-                },
-                .{
-                    .render_target_handle = gfx.depth_buffer,
-                    .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE,
-                },
-            };
-
-            var buffer_barriers = [_]zf.BufferBarrier{
-                .{
-                    .buffer_handle = gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index],
-                    .current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
-                    .new_state = zf.ResourceState.RESOURCE_STATE_INDIRECT_ARGUMENT,
-                },
-            };
-            zf.cmdResourceBarrier(&buffer_barriers, null, &rt_barriers);
-
-            var bind_render_targets = [_]zf.BindRenderTarget{
-                .{
-                    .render_target_handle = gfx.visibility_buffer,
-                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-                },
-                .{
-                    .render_target_handle = gfx.depth_buffer,
-                    .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
-                },
-            };
-            zf.cmdBindRenderTargets(&bind_render_targets);
-            zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
-
-            gfx.meshlet_rasterizer_opaque_material.bindMaterialPass(.default, frame_index, 0);
-            zf.cmdExecuteIndirect(.INDIRECT_DISPATCH_MESH, 1, gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
-
-            gfx.meshlet_rasterizer_masked_material.bindMaterialPass(.default, frame_index, 0);
-            zf.cmdExecuteIndirect(.INDIRECT_DISPATCH_MESH, 1, gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index], @sizeOf([4]u32), zf.BufferHandle.nil, 0);
-
-            rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
-            rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            rt_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
-            rt_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
-            zf.cmdResourceBarrier(null, null, &rt_barriers);
+            zf.updateUniformBuffer(data_slice, gfx.meshlet_rasterize_opaque_constant_buffers[frame_index]);
         }
+
+        {
+            rasterize_params.bin_index = 1;
+            const data_slice = zf.DataSlice{
+                .data = @ptrCast(&rasterize_params),
+                .size = @sizeOf(MeshletRasterizeParams),
+            };
+            zf.updateUniformBuffer(data_slice, gfx.meshlet_rasterize_masked_constant_buffers[frame_index]);
+        }
+
+        var rt_barriers = [_]zf.RenderTargetBarrier{
+            .{
+                .render_target_handle = gfx.visibility_buffer,
+                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                .new_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET,
+            },
+            .{
+                .render_target_handle = gfx.depth_buffer,
+                .current_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE,
+                .new_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE,
+            },
+        };
+
+        var buffer_barriers = [_]zf.BufferBarrier{
+            .{
+                .buffer_handle = gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index],
+                .current_state = zf.ResourceState.RESOURCE_STATE_UNORDERED_ACCESS,
+                .new_state = zf.ResourceState.RESOURCE_STATE_INDIRECT_ARGUMENT,
+            },
+        };
+        zf.cmdResourceBarrier(&buffer_barriers, null, &rt_barriers);
+
+        var bind_render_targets = [_]zf.BindRenderTarget{
+            .{
+                .render_target_handle = gfx.visibility_buffer,
+                .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
+            },
+            .{
+                .render_target_handle = gfx.depth_buffer,
+                .load_action = zf.LoadActionType.LOAD_ACTION_CLEAR,
+            },
+        };
+        zf.cmdBindRenderTargets(&bind_render_targets);
+        zf.cmdSetDefaultViewportAndScissor(window_width, window_height);
+
+        gfx.meshlet_rasterizer_opaque_material.bindMaterialPass(.default, frame_index, 0);
+        zf.cmdExecuteIndirect(.INDIRECT_DISPATCH_MESH, 1, gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index], 0, zf.BufferHandle.nil, 0);
+
+        gfx.meshlet_rasterizer_masked_material.bindMaterialPass(.default, frame_index, 0);
+        zf.cmdExecuteIndirect(.INDIRECT_DISPATCH_MESH, 1, gfx.meshlet_bin_meshlet_offset_and_count_buffers[frame_index], @sizeOf([4]u32), zf.BufferHandle.nil, 0);
+
+        rt_barriers[0].current_state = zf.ResourceState.RESOURCE_STATE_RENDER_TARGET;
+        rt_barriers[0].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        rt_barriers[1].current_state = zf.ResourceState.RESOURCE_STATE_DEPTH_WRITE;
+        rt_barriers[1].new_state = zf.ResourceState.RESOURCE_STATE_SHADER_RESOURCE;
+        zf.cmdResourceBarrier(null, null, &rt_barriers);
     }
 
     // Visibility Shading Pass
     {
+        const trazy_visibility_zone = ztracy.ZoneNC(@src(), "Visibility Shading", 0x00_ff_ff_00);
+        defer trazy_visibility_zone.End();
+
         gfx.visibility_shading_profile_index = zf.startGpuProfile("Visibility Shading");
         defer zf.endGpuProfile(gfx.visibility_shading_profile_index);
 
@@ -1629,6 +1645,9 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
     }
 
     {
+        const trazy_ui_zone = ztracy.ZoneNC(@src(), "UI", 0x00_ff_ff_00);
+        defer trazy_ui_zone.End();
+
         gfx.ui_profile_index = zf.startGpuProfile("UI Renderer");
         defer zf.endGpuProfile(gfx.ui_profile_index);
 
@@ -1773,7 +1792,10 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
 
     // Composite to swapchain
     {
-        gfx.compositor_profile_index = zf.startGpuProfile("Composite");
+        const trazy_compositor_zone = ztracy.ZoneNC(@src(), "Compositor", 0x00_ff_ff_00);
+        defer trazy_compositor_zone.End();
+
+        gfx.compositor_profile_index = zf.startGpuProfile("Compositor");
         defer zf.endGpuProfile(gfx.compositor_profile_index);
 
         const swap_chain_buffer_handle = zf.getSwapChainBufferHandle();
@@ -1805,7 +1827,11 @@ pub fn draw(camera: *Camera, window_width: u32, window_height: u32, delta_time: 
         zf.cmdResourceBarrier(null, null, &rt_barriers);
     }
 
-    zf.frameSubmit();
+    {
+        const trazy_frame_submit_zone = ztracy.ZoneNC(@src(), "Frame Submit", 0x00_ff_ff_00);
+        defer trazy_frame_submit_zone.End();
+        zf.frameSubmit();
+    }
 }
 
 fn updateDescriptorSets() void {
@@ -2415,11 +2441,17 @@ pub fn registerInstances(instances: *std.ArrayList(Instance)) void {
 //
 
 fn spriteRenderer_Begin(frame_index: u32) void {
+    const trazy_zone = ztracy.ZoneNC(@src(), "Sprite Renderer Begin", 0x00_ff_ff_00);
+    defer trazy_zone.End();
+
     _ = frame_index;
     gfx.sprite_instances.clearRetainingCapacity();
 }
 
 fn spriteRenderer_End(frame_index: u32) void {
+    const trazy_zone = ztracy.ZoneNC(@src(), "Sprite Renderer End", 0x00_ff_ff_00);
+    defer trazy_zone.End();
+
     if (gfx.sprite_instances.items.len > 0) {
         const sprite_instance_data = zf.DataSlice{
             .data = @ptrCast(gfx.sprite_instances.items),
@@ -2431,6 +2463,9 @@ fn spriteRenderer_End(frame_index: u32) void {
 }
 
 fn spriteRenderer_RenderText(text: []const u8, color: [4]f32, transform: zmath.Mat) void {
+    const trazy_zone = ztracy.ZoneNC(@src(), "Sprite Renderer", 0x00_ff_ff_00);
+    defer trazy_zone.End();
+
     var text_transform = zmath.identity();
     const font_atlas_index = zf.getTextureBindlessIndex(gfx.roboto.texture);
     const font_atlas_resolution = zf.getTextureResolution(gfx.roboto.texture);

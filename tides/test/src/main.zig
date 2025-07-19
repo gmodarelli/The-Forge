@@ -5,6 +5,7 @@ const Gfx = gfx.Gfx;
 
 const zglfw = @import("zglfw");
 const zmath = @import("zmath");
+const ztracy = @import("ztracy");
 
 const App = struct {
     last_time: f64 = 0.0,
@@ -183,6 +184,8 @@ pub fn main() !void {
     gfx.registerInstances(&instances);
 
     while (!window.shouldClose()) {
+        ztracy.FrameMark();
+
         app.current_time = zglfw.getTime();
         app.delta_time = @floatCast(app.current_time - app.last_time);
 

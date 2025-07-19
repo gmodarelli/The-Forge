@@ -1,6 +1,7 @@
 const std = @import("std");
 pub const IGraphics = @import("Common_3/Graphics/Interfaces/IGraphics.zig");
 const IGraphicsTides = @import("Common_3/Graphics/Interfaces/IGraphicsTides.zig");
+pub const ztracy = @import("ztracy");
 
 const Pool = @import("zpool").Pool;
 
