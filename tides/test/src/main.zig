@@ -137,15 +137,29 @@ pub fn main() !void {
         //     .renderable_hash = bush_large_key,
         // }) catch unreachable;
 
+        const seed: u64 = 42;
+        var prng = std.Random.DefaultPrng.init(seed);
+        const rand = prng.random();
+
+        const renderables = [_]gfx.HashKey{
+            birch_1_key, birch_2_key, bush_large_key,
+        };
+
         var x: i32 = 0;
         while (x <= 20) : (x += 1) {
             var z: i32 = 0;
             while (z <= 20) : (z += 1) {
+                const renderable_index: usize = rand.intRangeAtMost(usize, 0, renderables.len - 1);
+
+                const yaw: f32 = rand.float(f32) * std.math.pi * 4.0;
+                const scale: f32 = rand.float(f32) + 0.5;
+                const offset_x: f32 = (rand.float(f32) * 2.0 - 1.0) * 2.0;
+                const offset_z: f32 = (rand.float(f32) * 2.0 - 1.0) * 2.0;
                 app.entities.append(.{
-                    .position = [3]f32{ -10.0 + @as(f32, @floatFromInt(x * 4)), 0.0, -10.0 + @as(f32, @floatFromInt(z * 4)) },
-                    .unform_scale = 1.0,
-                    .orientation = [4]f32{ 0.0, 0.0, 0.0, 1.0 },
-                    .renderable_hash = if (@mod(x, 2) == 0) birch_1_key else birch_2_key,
+                    .position = [3]f32{ @as(f32, @floatFromInt(x * 6)) + offset_x, 0.0, @as(f32, @floatFromInt(z * 6)) + offset_z },
+                    .unform_scale = scale,
+                    .orientation = [4]f32{ 0.0, yaw, 0.0, 1.0 },
+                    .renderable_hash = renderables[renderable_index],
                 }) catch unreachable;
             }
         }
@@ -159,8 +173,10 @@ pub fn main() !void {
         var instance: gfx.Instance = undefined;
         instance.renderable = entity.renderable_hash;
         const translation = zmath.translation(entity.position[0], entity.position[1], entity.position[2]);
+        const rotation = zmath.matFromRollPitchYaw(entity.orientation[0], entity.orientation[1], entity.orientation[2]);
+        const scaling = zmath.scaling(entity.unform_scale, entity.unform_scale, entity.unform_scale);
         // NOTE: zmath stores matrices in row-major order. We transpose them cause HLSL stores them column-major
-        zmath.storeMat(&instance.world_mat, zmath.transpose(translation));
+        zmath.storeMat(&instance.world_mat, zmath.transpose(zmath.mul(zmath.mul(scaling, rotation), translation)));
         instances.append(instance) catch unreachable;
     }
 
