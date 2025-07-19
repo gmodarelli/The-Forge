@@ -890,7 +890,8 @@ pub fn updateTexture(handle: TextureHandle, desc: TextureDesc, data: []u8) void 
         0,
         desc.mMipLevels,
         0,
-        desc.mArraySize);
+        desc.mArraySize,
+    );
 
     const texture = gpu.textures.getColumnPtr(handle, .ptr) catch unreachable;
 
@@ -1123,7 +1124,7 @@ pub fn createIndexBuffer(size: u64, index_type: IGraphics.IndexType, name: []con
     const index_size: u64 = switch (index_type.bits) {
         IGraphics.IndexType.INDEX_TYPE_UINT16.bits => 2,
         IGraphics.IndexType.INDEX_TYPE_UINT32.bits => 4,
-        else => @panic("Unsupported index size")
+        else => @panic("Unsupported index size"),
     };
     desc.mElementCount = @intCast(@divTrunc(size, index_size));
 
@@ -1284,7 +1285,7 @@ pub fn registerUpdateDescriptorSetFn(update_descriptor_sets_fn: updateDescriptor
     gpu.update_descriptor_sets_fn = update_descriptor_sets_fn;
 }
 
-pub fn createDescriptorSets(shader_handle: ShaderHandle) !struct{
+pub fn createDescriptorSets(shader_handle: ShaderHandle) !struct {
     per_draw: DescriptorSetHandle,
     per_batch: DescriptorSetHandle,
     per_frame: DescriptorSetHandle,
@@ -1518,7 +1519,7 @@ pub fn cmdResourceBarrier(buffer_barriers: ?[]BufferBarrier, texture_barriers: ?
         if (texture_barriers) |barriers| @intCast(barriers.len) else 0,
         if (texture_barriers) |_| @ptrCast(&zf_texture_barriers) else null,
         if (render_target_barriers) |barriers| @intCast(barriers.len) else 0,
-        if (render_target_barriers) |_| @ptrCast(&zf_render_target_barriers) else null
+        if (render_target_barriers) |_| @ptrCast(&zf_render_target_barriers) else null,
     );
 }
 
@@ -1659,7 +1660,6 @@ const UploadQueue = struct {
             IGraphicsTides.queueWaitForFence(other_queue, self.fence);
             self.wait_count = 0;
         }
-
     }
 
     pub fn submitCmdList(self: *UploadQueue, cmd: [*c]IGraphics.Cmd, sync_on_dependent_queue: bool) u64 {
@@ -1962,7 +1962,7 @@ pub fn getProfilerAvgTimeMs(profiler_index: usize) f32 {
     const profile_data = gpu.profiler.profiles.items[profiler_index];
     var sum: f64 = 0;
 
-    for(0..ProfileData.filter_size) |i| {
+    for (0..ProfileData.filter_size) |i| {
         sum += profile_data.time_samples[i];
     }
     sum /= 64.0;
@@ -2052,7 +2052,7 @@ pub const Profiler = struct {
         IGraphics.cmdEndQuery(gpu.cmds[gpu.frame_index], self.query_pools[gpu.frame_index], @constCast(&query_desc));
 
         // Resolve the data
-        IGraphics.cmdResolveQuery(gpu.cmds[gpu.frame_index],self.query_pools[gpu.frame_index], query_desc.mIndex, 1);
+        IGraphics.cmdResolveQuery(gpu.cmds[gpu.frame_index], self.query_pools[gpu.frame_index], query_desc.mIndex, 1);
         IGraphics.cmdEndDebugMarker(gpu.cmds[gpu.frame_index]);
 
         profile_data.query_started = false;
