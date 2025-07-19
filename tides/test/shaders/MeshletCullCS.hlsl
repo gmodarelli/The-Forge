@@ -19,13 +19,13 @@ cbuffer g_ClearUAVParams : register(b0, SPACE_PerFrame)
 [numthreads(1, 1, 1)]
 void ClearCountersCS()
 {
-    RWStructuredBuffer<uint> counters_buffer = ResourceDescriptorHeap[g_clear_uav_params.counters_buffer_index];
-    counters_buffer[0] = 0;
-    counters_buffer[1] = 0;
+    RWByteAddressBuffer counters_buffer = ResourceDescriptorHeap[g_clear_uav_params.counters_buffer_index];
+    counters_buffer.Store<uint>(0 * sizeof(uint), 0);
+    counters_buffer.Store<uint>(1 * sizeof(uint), 0);
 
-    RWStructuredBuffer<uint> visible_counters_buffer = ResourceDescriptorHeap[g_clear_uav_params.visible_counters_buffer_index];
-    visible_counters_buffer[0] = 0;
-    visible_counters_buffer[1] = 0;
+    RWByteAddressBuffer visible_counters_buffer = ResourceDescriptorHeap[g_clear_uav_params.visible_counters_buffer_index];
+    visible_counters_buffer.Store<uint>(0 * sizeof(uint), 0);
+    visible_counters_buffer.Store<uint>(1 * sizeof(uint), 0);
 }
 
 #endif // CLEAR_COUNTERS
@@ -110,12 +110,12 @@ cbuffer g_MeshletCullArgsParams : register(b0, SPACE_PerFrame)
 [numthreads(1, 1, 1)]
 void BuildMeshletCullIndirectArgsCS()
 {
-    RWStructuredBuffer<uint> counters_buffer = ResourceDescriptorHeap[g_meshlet_cull_args_params.counters_buffer_index];
-    RWStructuredBuffer<uint3> args_buffer = ResourceDescriptorHeap[g_meshlet_cull_args_params.dispatch_args_buffer_index];
-    uint meshlets_count = counters_buffer[1];
+    RWByteAddressBuffer counters_buffer = ResourceDescriptorHeap[g_meshlet_cull_args_params.counters_buffer_index];
+    RWByteAddressBuffer args_buffer = ResourceDescriptorHeap[g_meshlet_cull_args_params.dispatch_args_buffer_index];
+    uint meshlets_count = counters_buffer.Load<uint>(1 * sizeof(uint));
     uint3 args = uint3(1, 1, 1);
     args.x = (meshlets_count + CULL_MESHLETS_THREADS_COUNT - 1) / CULL_MESHLETS_THREADS_COUNT;
-    args_buffer[0] = args;
+    args_buffer.Store<uint3>(0 * sizeof(uint3), args);
 }
 
 #endif // MESHLET_CULL_ARGUMENTS
@@ -141,16 +141,16 @@ cbuffer g_CullMeshletsParams : register(b1, SPACE_PerFrame)
 [numthreads(CULL_MESHLETS_THREADS_COUNT, 1, 1)]
 void CullMeshletsCS(uint thread_id : SV_DispatchThreadID)
 {
-    RWStructuredBuffer<uint> counters_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.counters_buffer_index];
-    RWStructuredBuffer<uint> visible_counters_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.visible_counters_buffer_index];
+    RWByteAddressBuffer counters_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.counters_buffer_index];
+    RWByteAddressBuffer visible_counters_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.visible_counters_buffer_index];
+    RWByteAddressBuffer meshlet_candidates_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.candidate_meshlets_buffer_index];
+    RWByteAddressBuffer visible_meshlet_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.visible_meshlets_buffer_index];
     uint instances_count = g_frame.instances_count;
 
-    if (thread_id < counters_buffer[1])
+    if (thread_id < counters_buffer.Load<uint>(1 * sizeof(uint)))
     {
-        RWStructuredBuffer<MeshletCandidate> meshlet_candidates_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.candidate_meshlets_buffer_index];
         uint candidate_index = thread_id;
-        MeshletCandidate candidate = meshlet_candidates_buffer[candidate_index];
-
+        MeshletCandidate candidate = meshlet_candidates_buffer.Load<MeshletCandidate>(candidate_index * sizeof(MeshletCandidate));
         Instance instance = getInstance(candidate.instance_id);
 
         ByteAddressBuffer mesh_buffer = ResourceDescriptorHeap[g_frame.meshes_buffer_index];
@@ -163,9 +163,8 @@ void CullMeshletsCS(uint thread_id : SV_DispatchThreadID)
         if (is_visible)
         {
             uint element_offset;
-            InterlockedAdd_WaveOps(visible_counters_buffer, 0, 1, element_offset);
-            RWStructuredBuffer<MeshletCandidate> visible_meshlet_buffer = ResourceDescriptorHeap[g_cull_meshlets_params.visible_meshlets_buffer_index];
-            visible_meshlet_buffer[element_offset] = candidate;
+            InterlockedAdd_WaveOps_ByteAddressBuffer(visible_counters_buffer, 0 * sizeof(uint), 1, element_offset);
+            visible_meshlet_buffer.Store<MeshletCandidate>(element_offset * sizeof(MeshletCandidate), candidate);
         }
     }
 }

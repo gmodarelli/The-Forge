@@ -29,7 +29,8 @@ void VisibilityDebugCS(uint3 thread_id : SV_DispatchThreadID)
     float2 uv_ss = ((float2)texel + 0.5f) * g_frame.viewport_info.zw;
     float3 color = 0;
 
-    uint candidate_index, primitive_id;
+    uint candidate_index;
+    uint primitive_id;
     if (UnpackVisBuffer(g_visibilityBuffer[texel], candidate_index, primitive_id))
     {
         MeshletCandidate candidate = visible_meshlet_buffer.Load<MeshletCandidate>(candidate_index * sizeof(MeshletCandidate));
