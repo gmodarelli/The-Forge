@@ -82,6 +82,19 @@
 #include <dxgidebug.h>
 #endif
 
+#if defined(TIDES)
+// Set Agility SDK parameters
+// ==========================
+extern "C"
+{
+__declspec(dllexport) extern const uint32_t D3D12SDKVersion = 715;
+}
+extern "C"
+{
+__declspec(dllexport) extern const char* D3D12SDKPath = ".\\d3d12\\";
+}
+#endif
+
 //
 // C++ is the only language supported by D3D12:
 //   https://msdn.microsoft.com/en-us/library/windows/desktop/dn899120(v=vs.85).aspx
@@ -2824,7 +2837,7 @@ void initRenderer(const char* appName, const RendererDesc* pDesc, Renderer** ppR
         {
             // Query the level of support of Shader Model.
 #if defined(TIDES)
-            D3D12_FEATURE_DATA_SHADER_MODEL   shaderModelSupport = { D3D_SHADER_MODEL_6_6 };
+            D3D12_FEATURE_DATA_SHADER_MODEL   shaderModelSupport = { D3D_SHADER_MODEL_6_8 };
 #else
             D3D12_FEATURE_DATA_SHADER_MODEL   shaderModelSupport = { D3D_SHADER_MODEL_6_0 };
 #endif
@@ -2844,7 +2857,7 @@ void initRenderer(const char* appName, const RendererDesc* pDesc, Renderer** ppR
             // If the device doesn't support SM6 or Wave Intrinsics, try enabling the experimental feature for Shader Model 6 and creating
             // the device again.
 #if defined(TIDES)
-            if (shaderModelSupport.HighestShaderModel != D3D_SHADER_MODEL_6_6 || waveIntrinsicsSupport.WaveOps == FALSE)
+            if (shaderModelSupport.HighestShaderModel != D3D_SHADER_MODEL_6_8 || waveIntrinsicsSupport.WaveOps == FALSE)
 #else
             if (shaderModelSupport.HighestShaderModel != D3D_SHADER_MODEL_6_0 || waveIntrinsicsSupport.WaveOps == FALSE)
 #endif
@@ -2863,7 +2876,7 @@ void initRenderer(const char* appName, const RendererDesc* pDesc, Renderer** ppR
                     // If the device still doesn't support SM6 or Wave Intrinsics after enabling the experimental feature, you could set up
                     // your application to use the highest supported shader model. For simplicity we just exit the application here.
 #if defined(TIDES)
-                    if (shaderModelSupport.HighestShaderModel < D3D_SHADER_MODEL_6_6 ||
+                    if (shaderModelSupport.HighestShaderModel < D3D_SHADER_MODEL_6_8 ||
 #else
                     if (shaderModelSupport.HighestShaderModel < D3D_SHADER_MODEL_6_0 ||
 #endif

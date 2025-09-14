@@ -2076,6 +2076,9 @@ pub const ShaderTarget = extern struct {
     pub const SHADER_TARGET_6_5: ShaderTarget = .{ .bits = 6 };
     ///required for Dynamic Resources
     pub const SHADER_TARGET_6_6: ShaderTarget = .{ .bits = 7 };
+    pub const SHADER_TARGET_6_7: ShaderTarget = .{ .bits = 8 };
+    ///required for SV_StartVertexLocation and SV_StartInstanceLocation
+    pub const SHADER_TARGET_6_8: ShaderTarget = .{ .bits = 9 };
 
     // pub usingnamespace cpp.FlagsMixin(ShaderTarget);
 };

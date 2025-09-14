@@ -54,7 +54,8 @@ pub fn package(
 
     const tides_renderer_build_step = buildTheForgeRenderer(b);
     const tides_renderer_base_path = "external/The-Forge/Examples_3/TidesRenderer";
-    const tides_the_forge_base_path = "external/The-Forge"; // HACK(Anders)
+    const tides_the_forge_base_path = "external/The-Forge";
+    const d3d_agility_sdk_path = tides_the_forge_base_path ++ "/Common_3/Graphics/ThirdParty/OpenSource/Direct3d12Agility/bin/x64";
     // TODO(gmodarelli): Check if OS is windows and if target is debug
     const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/Debug";
     zforge_cpp.addLibraryPath(b.path(tides_renderer_base_path));
@@ -76,6 +77,18 @@ pub fn package(
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
     install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/dxcompiler.dll"), "bin/dxcompiler.dll");
+    install_file.step.dependOn(tides_renderer_build_step);
+    zforge_cpp.step.dependOn(&install_file.step);
+    install_file = b.addInstallFile(b.path(d3d_agility_sdk_path ++ "/D3D12Core.dll"), "bin/d3d12/D3D12Core.dll");
+    install_file.step.dependOn(tides_renderer_build_step);
+    zforge_cpp.step.dependOn(&install_file.step);
+    install_file = b.addInstallFile(b.path(d3d_agility_sdk_path ++ "/D3D12SDKLayers.dll"), "bin/d3d12/D3D12SDKLayers.dll");
+    install_file.step.dependOn(tides_renderer_build_step);
+    zforge_cpp.step.dependOn(&install_file.step);
+    install_file = b.addInstallFile(b.path(d3d_agility_sdk_path ++ "/D3D12Core.pdb"), "bin/d3d12/D3D12Core.pdb");
+    install_file.step.dependOn(tides_renderer_build_step);
+    zforge_cpp.step.dependOn(&install_file.step);
+    install_file = b.addInstallFile(b.path(d3d_agility_sdk_path ++ "/D3D12SDKLayers.pdb"), "bin/d3d12/D3D12SDKLayers.pdb");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
 

@@ -2685,7 +2685,9 @@ typedef enum ShaderTarget
     SHADER_TARGET_6_4, // required for VRS
 #if defined(TIDES)
     SHADER_TARGET_6_5,
-    SHADER_TARGET_6_6,    //required for Dynamic Resources
+    SHADER_TARGET_6_6, // required for Dynamic Resources
+    SHADER_TARGET_6_7,
+    SHADER_TARGET_6_8, // required for SV_StartVertexLocation and SV_StartInstanceLocation
 #endif
 } ShaderTarget;
 
