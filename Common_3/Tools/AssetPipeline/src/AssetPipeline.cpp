@@ -2253,9 +2253,9 @@ bool ProcessGLTF(AssetPipelineParams* assetParams, ProcessGLTFParams* glTFParams
         geom->mAabbMin[0] =  FLT_MAX;
         geom->mAabbMin[1] =  FLT_MAX;
         geom->mAabbMin[2] =  FLT_MAX;
-        geom->mAabbMax[0] = -FLT_MAX;
-        geom->mAabbMax[1] = -FLT_MAX;
-        geom->mAabbMax[2] = -FLT_MAX;
+        geom->mAabbMax[0] = -FLT_MAX / 10.0f;
+        geom->mAabbMax[1] = -FLT_MAX / 10.0f;
+        geom->mAabbMax[2] = -FLT_MAX / 10.0f;
         geom->mRadius = 0.0f;
 #endif
 
