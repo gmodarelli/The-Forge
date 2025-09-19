@@ -465,6 +465,10 @@ typedef struct ShaderLoadDesc
 #if defined(ENABLE_WORKGRAPH)
     ShaderStageLoadDesc mGraph;
 #endif
+#if defined(TIDES)
+    ShaderStageLoadDesc mAmplification;
+    ShaderStageLoadDesc mMesh;
+#endif
     const ShaderConstant* pConstants;
     uint32_t              mConstantCount;
 } ShaderLoadDesc;

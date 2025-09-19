@@ -254,6 +254,15 @@ typedef struct IndirectDispatchArguments
     uint32_t mGroupCountZ;
 } IndirectDispatchArguments;
 
+#if defined(TIDES)
+typedef struct IndirectDispatchMeshArguments
+{
+    uint32_t mGroupCountX;
+    uint32_t mGroupCountY;
+    uint32_t mGroupCountZ;
+} IndirectDispatchMeshArguments;
+#endif
+
 #define INDIRECT_DRAW_ELEM_INDEX(m)       (offsetof(IndirectDrawArguments, m) / sizeof(uint32_t))
 #define INDIRECT_DRAW_INDEX_ELEM_INDEX(m) (offsetof(IndirectDrawIndexArguments, m) / sizeof(uint32_t))
 #define INDIRECT_DISPATCH_ELEM_INDEX(m)   (offsetof(IndirectDispatchArguments, m) / sizeof(uint32_t))
@@ -265,7 +274,10 @@ typedef enum IndirectArgumentType
     INDIRECT_DISPATCH,
     INDIRECT_COMMAND_BUFFER,         // metal ICB
     INDIRECT_COMMAND_BUFFER_RESET,   // metal ICB reset
-    INDIRECT_COMMAND_BUFFER_OPTIMIZE // metal ICB optimization
+    INDIRECT_COMMAND_BUFFER_OPTIMIZE, // metal ICB optimization
+#if defined(TIDES)
+    INDIRECT_DISPATCH_MESH,
+#endif
 } IndirectArgumentType;
 /************************************************/
 
@@ -324,6 +336,30 @@ typedef enum SampleCount
                              (uint32_t)SAMPLE_COUNT_16),
 } SampleCount;
 
+#if defined(TIDES)
+typedef enum ShaderStage
+{
+    SHADER_STAGE_NONE = 0,
+    SHADER_STAGE_VERT = 0x1,
+    SHADER_STAGE_FRAG = 0x2,
+    SHADER_STAGE_COMP = 0x4,
+    SHADER_STAGE_GEOM = 0x8,
+    SHADER_STAGE_TESC = 0x10,
+    SHADER_STAGE_TESE = 0x20,
+    SHADER_STAGE_AMPL = 0x40,
+    SHADER_STAGE_MESH = 0x80,
+    SHADER_STAGE_ALL_GRAPHICS = ((uint32_t)SHADER_STAGE_VERT | (uint32_t)SHADER_STAGE_TESC | (uint32_t)SHADER_STAGE_TESE | (uint32_t)SHADER_STAGE_GEOM |
+                                 (uint32_t)SHADER_STAGE_FRAG | (uint32_t)SHADER_STAGE_AMPL | (uint32_t)SHADER_STAGE_MESH),
+    SHADER_STAGE_HULL = SHADER_STAGE_TESC,
+    SHADER_STAGE_DOMN = SHADER_STAGE_TESE,
+#if defined(ENABLE_WORKGRAPH)
+    SHADER_STAGE_WORKGRAPH = 0x100,
+    SHADER_STAGE_COUNT = 9,
+#else
+    SHADER_STAGE_COUNT = 7,
+#endif
+} ShaderStage;
+#else
 typedef enum ShaderStage
 {
     SHADER_STAGE_NONE = 0,
@@ -344,6 +380,7 @@ typedef enum ShaderStage
     SHADER_STAGE_COUNT = 6,
 #endif
 } ShaderStage;
+#endif
 MAKE_ENUM_FLAG(uint32_t, ShaderStage)
 
 // This include is placed here because it uses data types defined previously in this file
@@ -502,6 +539,9 @@ typedef enum PipelineType
     PIPELINE_TYPE_GRAPHICS,
 #if defined(ENABLE_WORKGRAPH)
     PIPELINE_TYPE_WORKGRAPH,
+#endif
+#if defined(TIDES)
+    PIPELINE_TYPE_MESH,
 #endif
     PIPELINE_TYPE_COUNT,
 } PipelineType;
@@ -2100,6 +2140,10 @@ typedef struct BinaryShaderDesc
     BinaryShaderStageDesc mHull;
     BinaryShaderStageDesc mDomain;
     BinaryShaderStageDesc mComp;
+#if defined(TIDES)
+    BinaryShaderStageDesc mAmplification;
+    BinaryShaderStageDesc mMesh;
+#endif
     const ShaderConstant* pConstants;
     uint32_t              mConstantCount;
 #if defined(QUEST_VR)
@@ -2289,6 +2333,30 @@ typedef struct ComputePipelineDesc
     RootSignature* pRootSignature;
 } ComputePipelineDesc;
 
+#if defined(TIDES)
+typedef struct MeshPipelineDesc
+{
+    Shader*              pShaderProgram;
+    RootSignature*       pRootSignature;
+    BlendStateDesc*      pBlendState;
+    DepthStateDesc*      pDepthState;
+    RasterizerStateDesc* pRasterizerState;
+    TinyImageFormat*     pColorFormats;
+#if defined(USE_MSAA_RESOLVE_ATTACHMENTS)
+    /// Used to specify resolve attachment for render pass
+    StoreActionType* pColorResolveActions;
+#endif
+    uint32_t          mRenderTargetCount;
+    SampleCount       mSampleCount;
+    uint32_t          mSampleQuality;
+    TinyImageFormat   mDepthStencilFormat;
+    PrimitiveTopology mPrimitiveTopo;
+    bool              mSupportIndirectCommandBuffer;
+    bool              mVRFoveatedRendering;
+    bool              mUseCustomSampleLocations;
+} MeshPipelineDesc;
+#endif
+
 #if defined(ENABLE_WORKGRAPH)
 typedef struct WorkgraphPipelineDesc
 {
@@ -2306,6 +2374,9 @@ typedef struct PipelineDesc
         GraphicsPipelineDesc mGraphicsDesc;
 #if defined(ENABLE_WORKGRAPH)
         WorkgraphPipelineDesc mWorkgraphDesc;
+#endif
+#if defined(TIDES)
+        MeshPipelineDesc mMeshPipelineDesc;
 #endif
     };
     PipelineCache* pCache;
@@ -2893,6 +2964,9 @@ typedef struct GpuDesc
     uint32_t mPrimitiveIdSupported : 1;
     uint32_t mPrimitiveIdPsSupported : 1;
     uint32_t m64BitAtomicsSupported : 1;
+#if defined(TIDES)
+    uint32_t mMeshletSupported : 1;
+#endif
 #if defined(DIRECT3D11) || defined(DIRECT3D12)
     D3D_FEATURE_LEVEL mFeatureLevel;
     uint32_t          mSuppressInvalidSubresourceStateAfterExit : 1;
@@ -3285,7 +3359,11 @@ void exitCmd_n(Renderer* pRenderer, uint32_t cmdCount, Cmd** ppCmds);
 
 void addRenderTarget(Renderer* pRenderer, const RenderTargetDesc* pDesc, RenderTarget** ppRenderTarget);
 void removeRenderTarget(Renderer* pRenderer, RenderTarget* pRenderTarget);
+#if defined(TIDES)
+void addSampler(Renderer* pRenderer, const SamplerDesc* pDesc, bool bindless, Sampler** ppSampler);
+#else
 void addSampler(Renderer* pRenderer, const SamplerDesc* pDesc, Sampler** ppSampler);
+#endif
 void removeSampler(Renderer* pRenderer, Sampler* pSampler);
 
 // shader functions

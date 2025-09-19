@@ -49,9 +49,9 @@ extern "C" void _1_addRenderTarget_(Renderer* pRenderer, const RenderTargetDesc*
     ::addRenderTarget(pRenderer, pDesc, ppRenderTarget);
 }
 extern "C" void _1_removeRenderTarget_(Renderer* pRenderer, RenderTarget* pRenderTarget) { ::removeRenderTarget(pRenderer, pRenderTarget); }
-extern "C" void _1_addSampler_(Renderer* pRenderer, const SamplerDesc* pDesc, Sampler** ppSampler)
+extern "C" void _1_addSampler_(Renderer* pRenderer, const SamplerDesc* pDesc, bool bindless, Sampler** ppSampler)
 {
-    ::addSampler(pRenderer, pDesc, ppSampler);
+    ::addSampler(pRenderer, pDesc, bindless, ppSampler);
 }
 extern "C" void _1_removeSampler_(Renderer* pRenderer, Sampler* pSampler) { ::removeSampler(pRenderer, pSampler); }
 extern "C" void _1_addShaderBinary_(Renderer* pRenderer, const BinaryShaderDesc* pDesc, Shader** ppShaderProgram)

@@ -212,7 +212,7 @@ pub const ExtendedSettings = extern struct {
 
 pub const GPUPresetLevel = enum(u32) {
     GPU_PRESET_NONE = 0,
-    GPU_PRESET_OFFICE,  // This means unsupported
+    GPU_PRESET_OFFICE, // This means unsupported
     GPU_PRESET_VERYLOW, // Mostly for mobile GPU
     GPU_PRESET_LOW,
     GPU_PRESET_MEDIUM,
@@ -420,6 +420,12 @@ pub const IndirectDispatchArguments = extern struct {
     mGroupCountZ: u32,
 };
 
+pub const IndirectDispatchMeshArguments = extern struct {
+    mGroupCountX: u32,
+    mGroupCountY: u32,
+    mGroupCountZ: u32,
+};
+
 pub const IndirectArgumentType = extern struct {
     bits: c_int = 0,
 
@@ -432,6 +438,7 @@ pub const IndirectArgumentType = extern struct {
     pub const INDIRECT_COMMAND_BUFFER_RESET: IndirectArgumentType = .{ .bits = 4 };
     /// metal ICB optimization
     pub const INDIRECT_COMMAND_BUFFER_OPTIMIZE: IndirectArgumentType = .{ .bits = 5 };
+    pub const INDIRECT_DISPATCH_MESH: IndirectArgumentType = .{ .bits = 6 };
 
     // pub usingnamespace cpp.FlagsMixin(IndirectArgumentType);
 };
@@ -505,11 +512,13 @@ pub const ShaderStage = extern struct {
     pub const SHADER_STAGE_GEOM: ShaderStage = .{ .bits = @as(c_uint, @intCast(8)) };
     pub const SHADER_STAGE_TESC: ShaderStage = .{ .bits = @as(c_uint, @intCast(16)) };
     pub const SHADER_STAGE_TESE: ShaderStage = .{ .bits = @as(c_uint, @intCast(32)) };
-    pub const SHADER_STAGE_ALL_GRAPHICS: ShaderStage = .{ .bits = (@as(u32, @intCast(ShaderStage.SHADER_STAGE_VERT.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_GEOM.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_FRAG.bits))) };
+    pub const SHADER_STAGE_AMPL: ShaderStage = .{ .bits = @as(c_uint, @intCast(64)) };
+    pub const SHADER_STAGE_MESH: ShaderStage = .{ .bits = @as(c_uint, @intCast(128)) };
+    pub const SHADER_STAGE_ALL_GRAPHICS: ShaderStage = .{ .bits = (@as(u32, @intCast(ShaderStage.SHADER_STAGE_VERT.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_GEOM.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_FRAG.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_AMPL.bits)) | @as(u32, @intCast(ShaderStage.SHADER_STAGE_MESH.bits))) };
     pub const SHADER_STAGE_HULL: ShaderStage = .{ .bits = @as(c_uint, @intCast(ShaderStage.SHADER_STAGE_TESC.bits)) };
     pub const SHADER_STAGE_DOMN: ShaderStage = .{ .bits = @as(c_uint, @intCast(ShaderStage.SHADER_STAGE_TESE.bits)) };
-    pub const SHADER_STAGE_WORKGRAPH: ShaderStage = .{ .bits = @as(c_uint, @intCast(64)) };
-    pub const SHADER_STAGE_COUNT: ShaderStage = .{ .bits = @as(c_uint, @intCast(7)) };
+    pub const SHADER_STAGE_WORKGRAPH: ShaderStage = .{ .bits = @as(c_uint, @intCast(256)) };
+    pub const SHADER_STAGE_COUNT: ShaderStage = .{ .bits = @as(c_uint, @intCast(9)) };
 
     // pub usingnamespace cpp.FlagsMixin(ShaderStage);
 };
@@ -703,7 +712,8 @@ pub const PipelineType = extern struct {
     pub const PIPELINE_TYPE_COMPUTE: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 1 };
     pub const PIPELINE_TYPE_GRAPHICS: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 2 };
     pub const PIPELINE_TYPE_WORKGRAPH: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 3 };
-    pub const PIPELINE_TYPE_COUNT: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 4 };
+    pub const PIPELINE_TYPE_MESH: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 4 };
+    pub const PIPELINE_TYPE_COUNT: PipelineType = .{ .bits = PipelineType.PIPELINE_TYPE_UNDEFINED.bits + 5 };
 
     // pub usingnamespace cpp.FlagsMixin(PipelineType);
 };
@@ -1741,6 +1751,8 @@ pub const BinaryShaderDesc = extern struct {
     mHull: BinaryShaderStageDesc,
     mDomain: BinaryShaderStageDesc,
     mComp: BinaryShaderStageDesc,
+    mAmplification: BinaryShaderStageDesc,
+    mMesh: BinaryShaderStageDesc,
     pConstants: [*c]const ShaderConstant,
     mConstantCount: u32,
 };
@@ -1881,6 +1893,23 @@ pub const ComputePipelineDesc = extern struct {
     pRootSignature: [*c]RootSignature,
 };
 
+pub const MeshPipelineDesc = extern struct {
+    pShaderProgram: [*c]Shader,
+    pRootSignature: [*c]RootSignature,
+    pBlendState: [*c]BlendStateDesc,
+    pDepthState: [*c]DepthStateDesc,
+    pRasterizerState: [*c]RasterizerStateDesc,
+    pColorFormats: [*c]TinyImageFormat,
+    mRenderTargetCount: u32,
+    mSampleCount: SampleCount,
+    mSampleQuality: u32,
+    mDepthStencilFormat: TinyImageFormat,
+    mPrimitiveTopo: PrimitiveTopology,
+    mSupportIndirectCommandBuffer: bool,
+    mVRFoveatedRendering: bool,
+    mUseCustomSampleLocations: bool,
+};
+
 pub const WorkgraphPipelineDesc = extern struct {
     pShaderProgram: [*c]Shader,
     pRootSignature: [*c]RootSignature,
@@ -1899,6 +1928,7 @@ pub const PipelineDesc = extern struct {
         mComputeDesc: ComputePipelineDesc,
         mGraphicsDesc: GraphicsPipelineDesc,
         mWorkgraphDesc: WorkgraphPipelineDesc,
+        mMeshDesc: MeshPipelineDesc,
     };
 };
 
@@ -2213,8 +2243,9 @@ pub const GpuDesc = extern struct {
         mPrimitiveIdSupported: u1, // 22 bits
         mPrimitiveIdPsSupported: u1, // 23 bits
         m64BitAtomicsSupported: u1, // 24 bits
+        mMeshletSupported: u1, // 25 bits
         /// Padding added by c2z
-        _dummy_padding: u8,
+        _dummy_padding: u7,
     },
 
     mFeatureLevel: D3D_FEATURE_LEVEL,
@@ -2478,7 +2509,7 @@ pub const addRenderTarget = _1_addRenderTarget_;
 extern fn _1_removeRenderTarget_(pRenderer: [*c]Renderer, pRenderTarget: [*c]RenderTarget) void;
 pub const removeRenderTarget = _1_removeRenderTarget_;
 
-extern fn _1_addSampler_(pRenderer: [*c]Renderer, pDesc: [*c]const SamplerDesc, ppSampler: [*c][*c]Sampler) void;
+extern fn _1_addSampler_(pRenderer: [*c]Renderer, pDesc: [*c]const SamplerDesc, bindless: bool, ppSampler: [*c][*c]Sampler) void;
 pub const addSampler = _1_addSampler_;
 
 extern fn _1_removeSampler_(pRenderer: [*c]Renderer, pSampler: [*c]Sampler) void;

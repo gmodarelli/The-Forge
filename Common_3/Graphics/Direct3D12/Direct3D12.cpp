@@ -320,6 +320,9 @@ typedef struct NullDescriptors
     ID3D12CommandSignature* pDrawCommandSignature[MAX_LINKED_GPUS];
     ID3D12CommandSignature* pDrawIndexCommandSignature[MAX_LINKED_GPUS];
     ID3D12CommandSignature* pDispatchCommandSignature[MAX_LINKED_GPUS];
+#if defined(TIDES)
+    ID3D12CommandSignature* pDispatchMeshCommandSignature[MAX_LINKED_GPUS];
+#endif
 #if defined(XBOX)
     ID3D12CommandSignature* pAsyncDispatchCommandSignature[MAX_LINKED_GPUS];
 #endif
@@ -1161,6 +1164,13 @@ static void add_default_resources(Renderer* pRenderer)
         CHECK_HRESULT(pRenderer->mDx.pDevice->CreateCommandSignature(
             &desc, NULL, IID_ARGS(&pRenderer->pNullDescriptors->pAsyncDispatchCommandSignature[l])));
 #endif
+
+#if defined(TIDES)
+        arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
+        desc.ByteStride = sizeof(IndirectDispatchMeshArguments);
+        CHECK_HRESULT(pRenderer->mDx.pDevice->CreateCommandSignature(&desc, NULL,
+                                                                     IID_ARGS(&pRenderer->pNullDescriptors->pDispatchMeshCommandSignature[l])));
+#endif
     }
 }
 
@@ -1818,6 +1828,18 @@ D3D12_SHADER_VISIBILITY util_to_dx12_shader_visibility(ShaderStage stages)
         res = D3D12_SHADER_VISIBILITY_PIXEL;
         ++stageCount;
     }
+#if defined(TIDES)
+    if (stages & SHADER_STAGE_AMPL)
+    {
+        res = D3D12_SHADER_VISIBILITY_AMPLIFICATION;
+        ++stageCount;
+    }
+    if (stages & SHADER_STAGE_MESH)
+    {
+        res = D3D12_SHADER_VISIBILITY_MESH;
+        ++stageCount;
+    }
+#endif
     ASSERT(stageCount > 0);
     return stageCount > 1 ? D3D12_SHADER_VISIBILITY_ALL : res;
 }
@@ -2029,6 +2051,19 @@ static void QueryRaytracingSupport(ID3D12Device* pDevice, GpuDesc* pGpuDesc)
 #endif
 }
 
+#if defined(TIDES)
+static void QueryMeshletSupport(ID3D12Device* pDevice, GpuDesc* pGpuDesc)
+{
+    ASSERT(pDevice);
+    D3D12_FEATURE_DATA_D3D12_OPTIONS7 opts7 = {};
+    HRESULT                           hres = pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &opts7, sizeof(opts7));
+    if (SUCCEEDED(hres))
+    {
+        pGpuDesc->mMeshletSupported = (opts7.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED);
+    }
+}
+#endif
+
 static void QueryWorkGraphSupport(ID3D12Device* pDevice, GpuDesc* pGpuDesc)
 {
     UNREF_PARAM(pDevice);
@@ -2163,6 +2198,9 @@ void QueryGpuDesc(ID3D12Device* pDevice, const DXGPUInfo* pDXGPUInfo, GpuDesc* p
     QueryRaytracingSupport(pDevice, pGpuDesc);
     QueryWorkGraphSupport(pDevice, pGpuDesc);
     Query64BitAtomicsSupport(pDevice, pGpuDesc);
+#if defined(TIDES)
+    QueryMeshletSupport(pDevice, pGpuDesc);
+#endif
 }
 
 static void InitializeBufferDesc(Renderer* pRenderer, const BufferDesc* pDesc, D3D12_RESOURCE_DESC* desc)
@@ -2504,7 +2542,7 @@ static bool AddDevice(const RendererDesc* pDesc, Renderer* pRenderer)
     {
         pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
         pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-        pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+        pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, false);
         pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_INFO, false);
         pRenderer->mDx.pDebugValidation->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_MESSAGE, false);
 
@@ -4256,7 +4294,11 @@ void removeRenderTarget(Renderer* pRenderer, RenderTarget* pRenderTarget)
     SAFE_FREE(pRenderTarget);
 }
 
+#if defined(TIDES)
+void addSampler(Renderer* pRenderer, const SamplerDesc* pDesc, bool bindless, Sampler** ppSampler)
+#else
 void addSampler(Renderer* pRenderer, const SamplerDesc* pDesc, Sampler** ppSampler)
+#endif
 {
     ASSERT(pRenderer);
     ASSERT(pRenderer->mDx.pDevice);
@@ -4297,7 +4339,16 @@ void addSampler(Renderer* pRenderer, const SamplerDesc* pDesc, Sampler** ppSampl
     desc.MaxLOD = maxSamplerLod;
 
     pSampler->mDx.mDesc = desc;
+#if defined(TIDES)
+    DescriptorHeap* pPersistentHeap = NULL;
+    if (bindless)
+    {
+        pPersistentHeap = pRenderer->mDx.pSamplerHeaps[0];
+    }
+    AddSampler(pRenderer, pPersistentHeap, &pSampler->mDx.mDesc, &pSampler->mDx.mDescriptor);
+#else
     AddSampler(pRenderer, NULL, &pSampler->mDx.mDesc, &pSampler->mDx.mDescriptor);
+#endif
 
     *ppSampler = pSampler;
 }
@@ -4348,6 +4399,14 @@ void addShaderBinary(Renderer* pRenderer, const BinaryShaderDesc* pDesc, Shader*
             case SHADER_STAGE_FRAG:
                 pStage = &pDesc->mFrag;
                 break;
+#if defined(TIDES)
+            case SHADER_STAGE_AMPL:
+                pStage = &pDesc->mAmplification;
+                break;
+            case SHADER_STAGE_MESH:
+                pStage = &pDesc->mMesh;
+                break;
+#endif
             case SHADER_STAGE_COMP:
 #if defined(ENABLE_WORKGRAPH)
             case SHADER_STAGE_WORKGRAPH:
@@ -4403,6 +4462,14 @@ void addShaderBinary(Renderer* pRenderer, const BinaryShaderDesc* pDesc, Shader*
             case SHADER_STAGE_FRAG:
                 pStage = &pDesc->mFrag;
                 break;
+#if defined(TIDES)
+            case SHADER_STAGE_AMPL:
+                pStage = &pDesc->mAmplification;
+                break;
+            case SHADER_STAGE_MESH:
+                pStage = &pDesc->mMesh;
+                break;
+#endif
             case SHADER_STAGE_COMP:
 #if defined(ENABLE_WORKGRAPH)
             case SHADER_STAGE_WORKGRAPH:
@@ -4947,6 +5014,7 @@ void addRootSignature(Renderer* pRenderer, const RootSignatureDesc* pRootSignatu
 
 #if defined(TIDES)
     rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+    rootSignatureFlags |= D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED;
 #endif
 
     hook_modify_rootsignature_flags(shaderStages, &rootSignatureFlags);
@@ -5988,6 +6056,10 @@ static void addComputePipeline(Renderer* pRenderer, const PipelineDesc* pMainDes
 static void addWorkgraphPipeline(Renderer* pRenderer, const PipelineDesc* pMainDesc, Pipeline** ppPipeline);
 #endif
 
+#if defined(TIDES)
+static void addMeshPipeline(Renderer* pRenderer, const PipelineDesc* pMainDesc, Pipeline** ppPipeline);
+#endif
+
 void addPipeline(Renderer* pRenderer, const PipelineDesc* pDesc, Pipeline** ppPipeline)
 {
     switch (pDesc->mType)
@@ -6006,6 +6078,13 @@ void addPipeline(Renderer* pRenderer, const PipelineDesc* pDesc, Pipeline** ppPi
     case PIPELINE_TYPE_WORKGRAPH:
     {
         addWorkgraphPipeline(pRenderer, pDesc, ppPipeline);
+        break;
+    }
+#endif
+#if defined(TIDES)
+    case PIPELINE_TYPE_MESH:
+    {
+        addMeshPipeline(pRenderer, pDesc, ppPipeline);
         break;
     }
 #endif
@@ -7040,6 +7119,11 @@ void cmdExecuteIndirect(Cmd* pCmd, IndirectArgumentType type, uint maxCommandCou
             cmdSignature = pCmd->pRenderer->pNullDescriptors->pDispatchCommandSignature[nodeIndex];
         }
         break;
+#if defined(TIDES)
+    case INDIRECT_DISPATCH_MESH:
+        cmdSignature = pCmd->pRenderer->pNullDescriptors->pDispatchMeshCommandSignature[nodeIndex];
+        break;
+#endif
     default:
         ASSERTFAIL("Invalid IndirectArgumentType %u", (uint32_t)type);
         break;
@@ -7228,6 +7312,155 @@ void cmdDispatchWorkgraph(Cmd* pCmd, const DispatchGraphDesc* pDesc)
     SAFE_RELEASE(cmd);
 }
 #endif
+
+#if defined(TIDES)
+/************************************************************************/
+// Mesh Shading Implementation
+/************************************************************************/
+#include <stdalign.h>
+
+typedef struct D3D12_RT_FORMAT_ARRAY D3D12_RT_FORMAT_ARRAY;
+
+typedef struct MeshPipelineStream
+{
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE pipelineFlagsType;
+    D3D12_PIPELINE_STATE_FLAGS pipelineFlags;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE nodeMaskType;
+    uint32_t nodeMask;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE rootSignatureType;
+    ID3D12RootSignature* pRootSignature;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE psType;
+    D3D12_SHADER_BYTECODE ps;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE asType;
+    D3D12_SHADER_BYTECODE as;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE msType;
+    D3D12_SHADER_BYTECODE ms;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE blendStateType;
+    D3D12_BLEND_DESC blendDesc;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE depthStencilType;
+    D3D12_DEPTH_STENCIL_DESC depthStencilDesc;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE depthStencilFormatType;
+    DXGI_FORMAT depthStencilFormat;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE rasterizerType;
+    D3D12_RASTERIZER_DESC rasterizerDesc;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE rtFormatsType;
+    D3D12_RT_FORMAT_ARRAY rtFormats;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE sampleDescType;
+    DXGI_SAMPLE_DESC sampleDesc;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE sampleMaskType;
+    uint32_t sampleMask;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE cachedPSOType;
+    D3D12_CACHED_PIPELINE_STATE cachedPSO;
+    alignas(void*) D3D12_PIPELINE_STATE_SUBOBJECT_TYPE viewInstancingType;
+    D3D12_VIEW_INSTANCING_DESC viewInstancing;
+} MeshPipelineStream;
+
+MeshPipelineStream initMeshPipelineStream()
+{
+    MeshPipelineStream result = {};
+    result.pipelineFlagsType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_FLAGS;
+    result.nodeMaskType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_NODE_MASK;
+    result.rootSignatureType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE;
+    result.psType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS;
+    result.asType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_AS;
+    result.msType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS;
+    result.blendStateType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND;
+    result.depthStencilType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL;
+    result.depthStencilFormatType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL_FORMAT;
+    result.rasterizerType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER;
+    result.rtFormatsType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS;
+    result.sampleDescType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC;
+    result.sampleMaskType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK;
+    result.cachedPSOType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_CACHED_PSO;
+    result.viewInstancingType = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_VIEW_INSTANCING;
+    return result;
+}
+
+static void addMeshPipeline(Renderer* pRenderer, const PipelineDesc* pMainDesc, Pipeline** ppPipeline)
+{
+    ASSERT(pRenderer);
+    ASSERT(ppPipeline);
+    ASSERT(pMainDesc);
+
+    const MeshPipelineDesc* pDesc = &pMainDesc->mMeshPipelineDesc;
+
+    D3D12_PIPELINE_STATE_STREAM_DESC pipelineStreamDesc;
+    MeshPipelineStream               meshPipelineStream = initMeshPipelineStream();
+
+    Pipeline* pPipeline = (Pipeline*)tf_calloc_memalign(1, alignof(Pipeline), sizeof(Pipeline));
+    ASSERT(pPipeline);
+
+    const Shader* pShaderProgram = pDesc->pShaderProgram;
+
+    pPipeline->mDx.mType = PIPELINE_TYPE_MESH;
+    pPipeline->mDx.pRootSignature = pDesc->pRootSignature;
+
+    D3D12_PIPELINE_STATE_FLAGS pipelineFlags = D3D12_PIPELINE_STATE_FLAG_NONE;
+    meshPipelineStream.pipelineFlags = pipelineFlags;
+
+    if (pShaderProgram->mStages & SHADER_STAGE_FRAG)
+    {
+        D3D12_SHADER_BYTECODE shaderByteCode = { 0 };
+        shaderByteCode.BytecodeLength = pShaderProgram->mDx.pShaderBlobs[pShaderProgram->pReflection->mPixelStageIndex]->GetBufferSize();
+        shaderByteCode.pShaderBytecode = pShaderProgram->mDx.pShaderBlobs[pShaderProgram->pReflection->mPixelStageIndex]->GetBufferPointer();
+        meshPipelineStream.ps = shaderByteCode;
+    }
+    if (pShaderProgram->mStages & SHADER_STAGE_AMPL)
+    {
+        D3D12_SHADER_BYTECODE shaderByteCode = { 0 };
+        shaderByteCode.BytecodeLength = pShaderProgram->mDx.pShaderBlobs[pShaderProgram->pReflection->mAmplificationStageIndex]->GetBufferSize();
+        shaderByteCode.pShaderBytecode = pShaderProgram->mDx.pShaderBlobs[pShaderProgram->pReflection->mAmplificationStageIndex]->GetBufferPointer();
+        meshPipelineStream.as = shaderByteCode;
+    }
+    if (pShaderProgram->mStages & SHADER_STAGE_MESH)
+    {
+        D3D12_SHADER_BYTECODE shaderByteCode = { 0 };
+        shaderByteCode.BytecodeLength = pShaderProgram->mDx.pShaderBlobs[pShaderProgram->pReflection->mMeshStageIndex]->GetBufferSize();
+        shaderByteCode.pShaderBytecode = pShaderProgram->mDx.pShaderBlobs[pShaderProgram->pReflection->mMeshStageIndex]->GetBufferPointer();
+        meshPipelineStream.ms = shaderByteCode;
+    }
+
+    uint32_t render_target_count = min(pDesc->mRenderTargetCount, (uint32_t)MAX_RENDER_TARGET_ATTACHMENTS);
+    render_target_count = min(render_target_count, (uint32_t)D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT);
+
+    meshPipelineStream.rtFormats.NumRenderTargets = render_target_count;
+    for (uint32_t rti = 0; rti < render_target_count; rti++)
+    {
+        meshPipelineStream.rtFormats.RTFormats[rti] = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(pDesc->pColorFormats[rti]);
+    }
+
+    DXGI_FORMAT dsvFormat = (DXGI_FORMAT)TinyImageFormat_ToDXGI_FORMAT(pDesc->mDepthStencilFormat);
+    meshPipelineStream.depthStencilFormat = dsvFormat;
+    D3D12_DEPTH_STENCIL_DESC depthDesc = pDesc->pDepthState ? util_to_depth_desc(pDesc->pDepthState) : gDefaultDepthDesc;
+    meshPipelineStream.depthStencilDesc = depthDesc;
+    D3D12_RASTERIZER_DESC rasterizerDesc =
+        pDesc->pRasterizerState ? util_to_rasterizer_desc(pDesc->pRasterizerState) : gDefaultRasterizerDesc;
+    meshPipelineStream.rasterizerDesc = rasterizerDesc;
+    D3D12_BLEND_DESC blendDesc = pDesc->pBlendState ? util_to_blend_desc(pDesc->pBlendState) : gDefaultBlendDesc;
+    meshPipelineStream.blendDesc = blendDesc;
+    meshPipelineStream.pRootSignature = pDesc->pRootSignature->mDx.pRootSignature;
+
+    uint32_t sampleMask = UINT_MAX;
+    meshPipelineStream.sampleMask = sampleMask;
+
+    DXGI_SAMPLE_DESC sampleDesc = {};
+    sampleDesc.Count = (UINT)(pDesc->mSampleCount);
+    sampleDesc.Quality = (UINT)(pDesc->mSampleQuality);
+    meshPipelineStream.sampleDesc = sampleDesc;
+
+    uint32_t nodeMask = util_calculate_shared_node_mask(pRenderer);
+    meshPipelineStream.nodeMask = nodeMask;
+
+    D3D12_PIPELINE_STATE_STREAM_DESC streamDesc;
+    streamDesc.SizeInBytes = sizeof(meshPipelineStream);            // streamOffset;
+    streamDesc.pPipelineStateSubobjectStream = &meshPipelineStream; // pStream;
+    CHECK_HRESULT(hook_create_mesh_pipeline_state(pRenderer->mDx.pDevice, &streamDesc, pMainDesc->pPipelineExtensions,
+                                                  pMainDesc->mExtensionCount, &pPipeline->mDx.pPipelineState));
+
+    *ppPipeline = pPipeline;
+}
+#endif
+
 /************************************************************************/
 // Query Heap Implementation
 /************************************************************************/

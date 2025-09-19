@@ -177,10 +177,18 @@ bool particleSystemInit(const ParticleSystemInitDesc* pDesc)
         SamplerDesc desc{};
         desc.mAddressU = desc.mAddressV = desc.mAddressW = ADDRESS_MODE_CLAMP_TO_EDGE;
         desc.mMagFilter = desc.mMinFilter = FILTER_NEAREST;
+#if defined(TIDES)
+        addSampler(gPSSettings.pRenderer, &desc, false, &gPSSettings.pNearestClampSampler);
+#else
         addSampler(gPSSettings.pRenderer, &desc, &gPSSettings.pNearestClampSampler);
+#endif
 
         desc.mMagFilter = desc.mMinFilter = FILTER_LINEAR;
-        addSampler(gPSSettings.pRenderer, &desc, &gPSSettings.pLinearClampSampler);
+#if defined(TIDES)
+        addSampler(gPSSettings.pRenderer, &desc, false, &gPSSettings.pNearestClampSampler);
+#else
+        addSampler(gPSSettings.pRenderer, &desc, &gPSSettings.pNearestClampSampler);
+#endif
     }
 
     // shader

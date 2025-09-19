@@ -171,6 +171,10 @@ struct PipelineReflection
     uint32_t mDomainStageIndex;
     uint32_t mGeometryStageIndex;
     uint32_t mPixelStageIndex;
+#if defined(TIDES)
+    uint32_t mAmplificationStageIndex;
+    uint32_t mMeshStageIndex;
+#endif
 
     uint32_t mVertexInputsCount;
     // Thread group size for compute shader

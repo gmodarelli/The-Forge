@@ -125,6 +125,8 @@ void addPipelineReflection(ShaderReflection* pReflection, uint32_t stageCount, P
     uint32_t        domainStageIndex = UINT32_MAX;
     uint32_t        geometryStageIndex = UINT32_MAX;
     uint32_t        pixelStageIndex = UINT32_MAX;
+    uint32_t        amplificationStageIndex = UINT32_MAX;
+    uint32_t        meshStageIndex = UINT32_MAX;
     ShaderResource* pResources = NULL;
     ShaderVariable* pVariables = NULL;
 
@@ -169,6 +171,16 @@ void addPipelineReflection(ShaderReflection* pReflection, uint32_t stageCount, P
         {
             memcpy(pOutReflection->mNumThreadsPerGroup, pSrcRef->mNumThreadsPerGroup, sizeof(pSrcRef->mNumThreadsPerGroup));
         }
+#if defined(TIDES)
+        else if (pSrcRef->mShaderStage == SHADER_STAGE_AMPL)
+        {
+            amplificationStageIndex = i;
+        }
+        else if (pSrcRef->mShaderStage == SHADER_STAGE_MESH)
+        {
+            meshStageIndex = i;
+        }
+#endif
 
         // Loop through all shader resources
         for (uint32_t j = 0; j < pSrcRef->mShaderResourceCount; ++j)
@@ -299,6 +311,10 @@ void addPipelineReflection(ShaderReflection* pReflection, uint32_t stageCount, P
     pOutReflection->mDomainStageIndex = domainStageIndex;
     pOutReflection->mGeometryStageIndex = geometryStageIndex;
     pOutReflection->mPixelStageIndex = pixelStageIndex;
+#if defined(TIDES)
+    pOutReflection->mAmplificationStageIndex = amplificationStageIndex;
+    pOutReflection->mMeshStageIndex = meshStageIndex;
+#endif
 
     pOutReflection->pShaderResources = pResources;
     pOutReflection->mShaderResourceCount = (uint32_t)arrlen(pUniqueResources);

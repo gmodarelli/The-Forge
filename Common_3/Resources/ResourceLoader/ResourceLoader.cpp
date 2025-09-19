@@ -4115,9 +4115,16 @@ void addShader(Renderer* pRenderer, const ShaderLoadDesc* pDesc, Shader** ppShad
 #define SHADER_STAGE_INDEX_FRAG      4
 #define SHADER_STAGE_INDEX_COMP      5
 #define SHADER_STAGE_INDEX_WORKGRAPH 6
+#if defined(TIDES)
+#define SHADER_STAGE_INDEX_AMPLIFICATION 7
+#define SHADER_STAGE_INDEX_MESH 8
+#endif
     const ShaderStageLoadDesc* stages[] = { &pDesc->mVert, &pDesc->mHull, &pDesc->mDomain, &pDesc->mGeom, &pDesc->mFrag, &pDesc->mComp,
 #if defined(ENABLE_WORKGRAPH)
-        &pDesc->mGraph
+        &pDesc->mGraph,
+#endif
+#if defined(TIDES)
+        &pDesc->mAmplification, &pDesc->mMesh
 #endif
     };
 
@@ -4161,6 +4168,16 @@ void addShader(Renderer* pRenderer, const ShaderLoadDesc* pDesc, Shader** ppShad
         case SHADER_STAGE_INDEX_WORKGRAPH:
             stage = SHADER_STAGE_WORKGRAPH;
             pBinaryStageDesc = &binaryDesc.mComp;
+            break;
+#endif
+#if defined(TIDES)
+        case SHADER_STAGE_INDEX_AMPLIFICATION:
+            stage = SHADER_STAGE_AMPL;
+            pBinaryStageDesc = &binaryDesc.mAmplification;
+            break;
+        case SHADER_STAGE_INDEX_MESH:
+            stage = SHADER_STAGE_MESH;
+            pBinaryStageDesc = &binaryDesc.mMesh;
             break;
 #endif
         default:
@@ -4236,6 +4253,14 @@ void addShader(Renderer* pRenderer, const ShaderLoadDesc* pDesc, Shader** ppShad
         pShader->mNumThreadsPerGroup[1] = pShader->pReflection->mNumThreadsPerGroup[1];
         pShader->mNumThreadsPerGroup[2] = pShader->pReflection->mNumThreadsPerGroup[2];
     }
+#if defined(TIDES)
+    if (SHADER_STAGE_MESH == binaryDesc.mStages)
+    {
+        pShader->mNumThreadsPerGroup[0] = pShader->pReflection->mNumThreadsPerGroup[0];
+        pShader->mNumThreadsPerGroup[1] = pShader->pReflection->mNumThreadsPerGroup[1];
+        pShader->mNumThreadsPerGroup[2] = pShader->pReflection->mNumThreadsPerGroup[2];
+    }
+#endif
 #endif
 
 #if defined(METAL)

@@ -59,6 +59,10 @@ extern HRESULT hook_create_graphics_pipeline_state(ID3D12Device* pDevice, const 
                                                    void* pExtensions, uint32_t extensionCout, ID3D12PipelineState** ppPipeline);
 extern HRESULT hook_create_compute_pipeline_state(ID3D12Device* pDevice, const D3D12_COMPUTE_PIPELINE_STATE_DESC* pDesc, void* pExtensions,
                                                   uint32_t extensionCout, ID3D12PipelineState** ppPipeline);
+#if defined(TIDES)
+extern HRESULT hook_create_mesh_pipeline_state(ID3D12Device* pDevice, const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc, void* pData,
+                                               uint32_t size, ID3D12PipelineState** ppPipeline);
+#endif
 extern HRESULT hook_add_special_resource(Renderer* pRenderer, const D3D12_RESOURCE_DESC* pDesc, const D3D12_CLEAR_VALUE* pClearValue,
                                          D3D12_RESOURCE_STATES startState, uint32_t flags, Buffer* pOutBuffer);
 extern HRESULT hook_add_special_resource(Renderer* pRenderer, const D3D12_RESOURCE_DESC* pDesc, const D3D12_CLEAR_VALUE* pClearValue,

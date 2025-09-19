@@ -109,6 +109,23 @@ HRESULT hook_create_compute_pipeline_state(ID3D12Device* pDevice, const D3D12_CO
     return pDevice->CreateComputePipelineState(pDesc, IID_PPV_ARGS(ppPipeline));
 }
 
+#if defined(TIDES)
+HRESULT hook_create_mesh_pipeline_state(ID3D12Device* pDevice, const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc, void* pData, uint32_t size,
+                                        ID3D12PipelineState** ppPipeline)
+{
+    UNREF_PARAM(pData);
+    UNREF_PARAM(size);
+    ID3D12Device2* device = NULL;
+    HRESULT        deviceHres = pDevice->QueryInterface(IID_PPV_ARGS(&device));
+    if (SUCCEEDED(deviceHres))
+    {
+        return device->CreatePipelineState(pDesc, IID_PPV_ARGS(ppPipeline));
+    }
+
+    return deviceHres;
+}
+#endif
+
 void hook_remove_pipeline(Pipeline* pPipeline)
 {
 #if defined(ENABLE_WORKGRAPH)

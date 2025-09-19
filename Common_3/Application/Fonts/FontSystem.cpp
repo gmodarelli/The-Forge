@@ -335,7 +335,11 @@ bool initFontSystem(FontSystemDesc* pDesc)
                                 ADDRESS_MODE_CLAMP_TO_EDGE,
                                 ADDRESS_MODE_CLAMP_TO_EDGE,
                                 ADDRESS_MODE_CLAMP_TO_EDGE };
+#if defined(TIDES)
+    addSampler(gFontstash.pRenderer, &samplerDesc, false, &gFontstash.pDefaultSampler);
+#else
     addSampler(gFontstash.pRenderer, &samplerDesc, &gFontstash.pDefaultSampler);
+#endif
 
     addUniformGPURingBuffer(gFontstash.pRenderer, 65536, &gFontstash.mUniformRingBuffer, true);
 

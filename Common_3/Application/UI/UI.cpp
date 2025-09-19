@@ -2935,7 +2935,11 @@ void initUserInterface(UserInterfaceDesc* pDesc)
                                 ADDRESS_MODE_CLAMP_TO_EDGE,
                                 ADDRESS_MODE_CLAMP_TO_EDGE,
                                 ADDRESS_MODE_CLAMP_TO_EDGE };
+#if defined(TIDES)
+    addSampler(pUserInterface->pRenderer, &samplerDesc, false, &pUserInterface->pDefaultSampler);
+#else
     addSampler(pUserInterface->pRenderer, &samplerDesc, &pUserInterface->pDefaultSampler);
+#endif
 
     BufferLoadDesc vbDesc = {};
     vbDesc.mDesc.mDescriptors = DESCRIPTOR_TYPE_VERTEX_BUFFER;
