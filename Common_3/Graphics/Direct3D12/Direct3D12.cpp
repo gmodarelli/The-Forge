@@ -5494,7 +5494,11 @@ static bool ResetRootSignature(Cmd* pCmd, PipelineType type, const RootSignature
     // Set root signature if the current one differs from pRootSignature
     pCmd->mDx.pBoundRootSignature = pRootSignature;
 
+#if defined(TIDES)
+    if (type == PIPELINE_TYPE_GRAPHICS || type == PIPELINE_TYPE_MESH)
+#else
     if (type == PIPELINE_TYPE_GRAPHICS)
+#endif
     {
         pCmd->mDx.pCmdList->SetGraphicsRootSignature(pRootSignature->mDx.pRootSignature);
     }
@@ -6464,6 +6468,14 @@ void cmdBindPipeline(Cmd* pCmd, Pipeline* pPipeline)
         pCmd->mDx.pCmdList->IASetPrimitiveTopology(pPipeline->mDx.mPrimitiveTopology);
         pCmd->mDx.pCmdList->SetPipelineState(pPipeline->mDx.pPipelineState);
     }
+#if defined(TIDES)
+    else if (pPipeline->mDx.mType == PIPELINE_TYPE_MESH)
+    {
+        ASSERT(pPipeline->mDx.pPipelineState);
+        ResetRootSignature(pCmd, pPipeline->mDx.mType, pPipeline->mDx.pRootSignature);
+        pCmd->mDx.pCmdList->SetPipelineState(pPipeline->mDx.pPipelineState);
+    }
+#endif
     else
     {
         ASSERT(pPipeline->mDx.pPipelineState);
