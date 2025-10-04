@@ -1000,7 +1000,7 @@ pub const QueryPool = extern struct {
     mStride: u32,
 
     pub const __Struct0 = extern struct {
-        pQueryHeap: [*c]ID3D12QueryHeap,
+        pQueryHeap: *ID3D12QueryHeap,
         pReadbackBuffer: [*c]Buffer,
         mType: D3D12_QUERY_TYPE,
     };
