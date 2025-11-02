@@ -1,6 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="DebugNoValidation|x64">
+      <Configuration>DebugNoValidation</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
@@ -77,6 +81,12 @@
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugNoValidation|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -99,6 +109,12 @@
     <IncludePath>$(VULKAN_SDK)\Include;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)\$(Platform)\$(Configuration);$(VULKAN_SDK)\Lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugNoValidation|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <IntDir>$(SolutionDir)\$(Platform)\$(Configuration)\Intermediate\$(ProjectName)\</IntDir>
+    <IncludePath>$(VULKAN_SDK)\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)\$(Platform)\$(Configuration);$(VULKAN_SDK)\Lib;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IntDir>$(SolutionDir)\$(Platform)\$(Configuration)\Intermediate\$(ProjectName)\</IntDir>
@@ -111,6 +127,57 @@
       </PrecompiledHeader>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>TIDES;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <AdditionalOptions>/ENTRY:mainCRTStartup %(AdditionalOptions)</AdditionalOptions>
+      <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
+      <AdditionalLibraryDirectories>
+        $(GLFW_DIR)\lib;
+        $(VULKAN_SDK)\Lib;
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>
+        vulkan-1.lib;
+        %(AdditionalDependencies)
+      </AdditionalDependencies>
+      <AdditionalOptions>/ignore:4099</AdditionalOptions>
+    </Link>
+    <Lib>
+      <AdditionalDependencies>
+        dxcompiler.lib;
+        WinPixEventRuntime.lib;
+        SpirvTools.lib;
+        amd_ags_x64.lib;
+        nvapi64.lib;
+      </AdditionalDependencies>
+    </Lib>
+    <Lib>
+      <AdditionalLibraryDirectories>
+        $(TheForgeRoot)Common_3\Graphics\ThirdParty\OpenSource\ags\ags_lib\lib;
+        $(TheForgeRoot)Common_3\Graphics\ThirdParty\OpenSource\nvapi\amd64;
+        $(TheForgeRoot)Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\lib\x64;
+        $(TheForgeRoot)Data\Libraries\winpixeventruntime\bin\;
+        $(TheForgeRoot)Common_3\Graphics\ThirdParty\OpenSource\ags\ags_lib\lib;
+        $(TheForgeRoot)Common_3\Graphics\ThirdParty\OpenSource\nvapi\amd64;
+        $(TheForgeRoot)Common_3\Graphics\ThirdParty\OpenSource\DirectXShaderCompiler\lib\x64;
+        $(TheForgeRoot)Common_3\Graphics\ThirdParty\OpenSource\winpixeventruntime\bin;
+        %(AdditionalLibraryDirectories)
+      </AdditionalLibraryDirectories>
+    </Lib>
+    <PostBuildEvent>
+      <Command>
+        %(Command)
+      </Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugNoValidation|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>NO_TIDES_FORGE_DEBUG;TIDES;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>false</TreatWarningAsError>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>

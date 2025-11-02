@@ -373,20 +373,22 @@ COMPILE_ASSERT(sizeof(ssize_t) == sizeof(int64_t));
 //                         linker error.
 //   - FORGE_TOOL_API: is used to expose tool functionality, mostly tool filesystem.
 #if defined(TIDES)
-#define FORGE_API __declspec(dllexport)
-#define FORGE_RENDERER_API  __declspec(dllexport)
-#define FORGE_TOOL_API  __declspec(dllexport)
+#define FORGE_API          __declspec(dllexport)
+#define FORGE_RENDERER_API __declspec(dllexport)
+#define FORGE_TOOL_API     __declspec(dllexport)
 #else
 #define FORGE_API
 #define FORGE_RENDERER_API
 #define FORGE_TOOL_API
 #endif
 
+#ifndef NO_TIDES_FORGE_DEBUG
 #ifndef FORGE_DEBUG
 #if defined(DEBUG) || defined(_DEBUG) || defined(AUTOMATED_TESTING)
 #define FORGE_DEBUG
 #endif
 #endif
+#endif // NO_TIDES_FORGE_DEBUG
 
 #define ENABLE_LOGGING
 #define DEFAULT_LOG_LEVEL eALL

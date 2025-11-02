@@ -9,7 +9,7 @@ pub const Package = struct {
         exe.linkLibrary(pkg.zforge_cpp);
 
         const tides_renderer_base_path = "external/The-Forge/Examples_3/TidesRenderer";
-        const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/Debug";
+        const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/DebugNoValidation";
         exe.linkLibC();
         exe.addLibraryPath(b.path(tides_renderer_output_path));
     }
@@ -49,7 +49,10 @@ pub fn package(
             "external/The-Forge/Common_3/Utilities/Interfaces/IMemory_glue.cpp",
             "external/The-Forge/Common_3/Utilities/Log/Log_glue.cpp",
         },
-        .flags = &.{"-DTIDES"},
+        .flags = &.{
+            "-DTIDES",
+            "-DNO_TIDES_FORGE_DEBUG",
+        },
     });
 
     const tides_renderer_build_step = buildTheForgeRenderer(b);
@@ -57,7 +60,7 @@ pub fn package(
     const tides_the_forge_base_path = "external/The-Forge";
     const d3d_agility_sdk_path = tides_the_forge_base_path ++ "/Common_3/Graphics/ThirdParty/OpenSource/Direct3d12Agility/bin/x64";
     // TODO(gmodarelli): Check if OS is windows and if target is debug
-    const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/Debug";
+    const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/DebugNoValidation";
     zforge_cpp.addLibraryPath(b.path(tides_renderer_base_path));
     zforge_cpp.addLibraryPath(b.path(tides_renderer_output_path));
     zforge_cpp.linkSystemLibrary("dxguid");
@@ -115,8 +118,9 @@ fn buildTheForgeRenderer(b: *std.Build) *std.Build.Step {
     );
 
     const solution_path = thisDir() ++ "/Examples_3/TidesRenderer/PC Visual Studio 2019/TidesRenderer.sln";
-    const command = [2][]const u8{
+    const command = [_][]const u8{
         "./tools/external/msvc_BuildTools/MSBuild/Current/Bin/amd64/MSBuild",
+        "/p:Configuration=DebugNoValidation",
         solution_path,
     };
 
