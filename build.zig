@@ -1,5 +1,15 @@
 const std = @import("std");
 
+const tides_renderer_base_path = "external/The-Forge/Examples_3/TidesRenderer";
+const debug_path = "/PC Visual Studio 2019/x64/DebugNoValidation";
+const debug_config = "/p:Configuration=DebugNoValidation";
+const release_path = "/PC Visual Studio 2019/x64/Release";
+const release_config = "/p:Configuration=Release";
+var path_buf: [256]u8 = undefined;
+var config_buf: [256]u8 = undefined;
+var tides_renderer_output_path: []const u8 = undefined;
+var config: []const u8 = undefined;
+
 pub const Package = struct {
     zforge: *std.Build.Module,
     zforge_cpp: *std.Build.Step.Compile,
@@ -8,8 +18,6 @@ pub const Package = struct {
         exe.root_module.addImport("zforge", pkg.zforge);
         exe.linkLibrary(pkg.zforge_cpp);
 
-        const tides_renderer_base_path = "external/The-Forge/Examples_3/TidesRenderer";
-        const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/DebugNoValidation";
         exe.linkLibC();
         exe.addLibraryPath(b.path(tides_renderer_output_path));
     }
@@ -27,12 +35,24 @@ pub fn package(
         .root_source_file = b.path("external/The-Forge/main.zig"),
     });
 
-    const zforge_cpp = b.addStaticLibrary(.{
+    var zforge_cpp = b.addStaticLibrary(.{
         .name = "zforge",
         .target = target,
         .optimize = optimize,
     });
 
+    if (optimize == .Debug) {
+        tides_renderer_output_path = std.fmt.bufPrintZ(&path_buf, "{s}{s}", .{ tides_renderer_base_path, debug_path }) catch unreachable;
+        config = debug_config;
+    } else {
+        tides_renderer_output_path = std.fmt.bufPrintZ(&path_buf, "{s}{s}", .{ tides_renderer_base_path, release_path }) catch unreachable;
+        config = release_config;
+    }
+
+    zforge_cpp.root_module.addCMacro("_MT", "1");
+    zforge_cpp.root_module.addCMacro("_DLL", "1");
+
+    // zforge_cpp.linkage = .dynamic;
     zforge_cpp.linkLibC();
     // zforge_cpp.linkLibCpp();
     zforge_cpp.addIncludePath(b.path("external/The-Forge/Common_3/Application/Interfaces"));
@@ -52,15 +72,14 @@ pub fn package(
         .flags = &.{
             "-DTIDES",
             "-DNO_TIDES_FORGE_DEBUG",
+            // "-MD",
         },
     });
 
     const tides_renderer_build_step = buildTheForgeRenderer(b);
-    const tides_renderer_base_path = "external/The-Forge/Examples_3/TidesRenderer";
     const tides_the_forge_base_path = "external/The-Forge";
     const d3d_agility_sdk_path = tides_the_forge_base_path ++ "/Common_3/Graphics/ThirdParty/OpenSource/Direct3d12Agility/bin/x64";
     // TODO(gmodarelli): Check if OS is windows and if target is debug
-    const tides_renderer_output_path = tides_renderer_base_path ++ "/PC Visual Studio 2019/x64/DebugNoValidation";
     zforge_cpp.addLibraryPath(b.path(tides_renderer_base_path));
     zforge_cpp.addLibraryPath(b.path(tides_renderer_output_path));
     zforge_cpp.linkSystemLibrary("dxguid");
@@ -73,33 +92,51 @@ pub fn package(
     zforge_cpp.step.dependOn(tides_renderer_build_step);
 
     // Install DLLs
-    var install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/WinPixEventRunTime.dll"), "bin/WinPixEventRunTime.dll");
+    var file_buf: [256]u8 = undefined;
+    var file_path: []const u8 = undefined;
+    file_path = std.fmt.bufPrintZ(&file_buf, "{s}/{s}", .{ tides_renderer_output_path, "WinPixEventRunTime.dll" }) catch unreachable;
+    var install_file = b.addInstallFile(b.path(file_path), "bin/WinPixEventRunTime.dll");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/amd_ags_x64.dll"), "bin/amd_ags_x64.dll");
+
+    file_path = std.fmt.bufPrintZ(&file_buf, "{s}/{s}", .{ tides_renderer_output_path, "amd_ags_x64.dll" }) catch unreachable;
+    install_file = b.addInstallFile(b.path(file_path), "bin/amd_ags_x64.dll");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(b.path(tides_renderer_output_path ++ "/dxcompiler.dll"), "bin/dxcompiler.dll");
+
+    file_path = std.fmt.bufPrintZ(&file_buf, "{s}/{s}", .{ tides_renderer_output_path, "dxcompiler.dll" }) catch unreachable;
+    install_file = b.addInstallFile(b.path(file_path), "bin/dxcompiler.dll");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(b.path(d3d_agility_sdk_path ++ "/D3D12Core.dll"), "bin/d3d12/D3D12Core.dll");
+
+    file_path = std.fmt.bufPrintZ(&file_buf, "{s}/{s}", .{ d3d_agility_sdk_path, "D3D12Core.dll" }) catch unreachable;
+    install_file = b.addInstallFile(b.path(file_path), "bin/d3d12/D3D12Core.dll");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(b.path(d3d_agility_sdk_path ++ "/D3D12SDKLayers.dll"), "bin/d3d12/D3D12SDKLayers.dll");
+
+    file_path = std.fmt.bufPrintZ(&file_buf, "{s}/{s}", .{ d3d_agility_sdk_path, "D3D12SDKLayers.dll" }) catch unreachable;
+    install_file = b.addInstallFile(b.path(file_path), "bin/d3d12/D3D12SDKLayers.dll");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(b.path(d3d_agility_sdk_path ++ "/D3D12Core.pdb"), "bin/d3d12/D3D12Core.pdb");
+
+    file_path = std.fmt.bufPrintZ(&file_buf, "{s}/{s}", .{ d3d_agility_sdk_path, "D3D12Core.pdb" }) catch unreachable;
+    install_file = b.addInstallFile(b.path(file_path), "bin/d3d12/D3D12Core.pdb");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(b.path(d3d_agility_sdk_path ++ "/D3D12SDKLayers.pdb"), "bin/d3d12/D3D12SDKLayers.pdb");
+
+    file_path = std.fmt.bufPrintZ(&file_buf, "{s}/{s}", .{ d3d_agility_sdk_path, "D3D12SDKLayers.pdb" }) catch unreachable;
+    install_file = b.addInstallFile(b.path(file_path), "bin/d3d12/D3D12SDKLayers.pdb");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
 
     // Install Configuration Files
-    install_file = b.addInstallFile(b.path(tides_renderer_base_path ++ "/src/GPUCfg/gpu.cfg"), "bin/GPUCfg/gpu.cfg");
+    file_path = std.fmt.bufPrintZ(&file_buf, "{s}/{s}", .{ tides_renderer_base_path, "src/GPUCfg/gpu.cfg" }) catch unreachable;
+    install_file = b.addInstallFile(b.path(file_path), "bin/GPUCfg/gpu.cfg");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
-    install_file = b.addInstallFile(b.path(tides_the_forge_base_path ++ "/Common_3/OS/Windows/pc_gpu.data"), "bin/gpu.data");
+
+    file_path = std.fmt.bufPrintZ(&file_buf, "{s}/{s}", .{ tides_the_forge_base_path, "Common_3/OS/Windows/pc_gpu.data" }) catch unreachable;
+    install_file = b.addInstallFile(b.path(file_path), "bin/gpu.data");
     install_file.step.dependOn(tides_renderer_build_step);
     zforge_cpp.step.dependOn(&install_file.step);
 
@@ -108,6 +145,19 @@ pub fn package(
         .zforge_cpp = zforge_cpp,
     };
 }
+
+// fn installFile(b: *std.Build, tides_renderer_build_step: *std.Step, zforge_cpp: *std.Build.Step.Compile, src_folder: []const u8, file: []const u8) void {
+//     var bin_buf: [256]u8 = undefined;
+//     var file_buf: [256]u8 = undefined;
+//     var bin_path: []const u8 = undefined;
+//     var file_path: []const u8 = undefined;
+//     bin_path = std.fmt.bufPrintZ(&bin_buf, "bin/{s}", .{file}) catch unreachable;
+//     file_path = std.fmt.bufPrintZ(&file_buf, "{s}/{s}", .{ src_folder, file }) catch unreachable;
+
+//     var install_file = b.addInstallFile(b.path(file_path), bin_path);
+//     install_file.step.dependOn(tides_renderer_build_step);
+//     zforge_cpp.step.dependOn(&install_file.step);
+// }
 
 pub fn build(_: *std.Build) void {}
 
@@ -120,7 +170,7 @@ fn buildTheForgeRenderer(b: *std.Build) *std.Build.Step {
     const solution_path = thisDir() ++ "/Examples_3/TidesRenderer/PC Visual Studio 2019/TidesRenderer.sln";
     const command = [_][]const u8{
         "./tools/external/msvc_BuildTools/MSBuild/Current/Bin/amd64/MSBuild",
-        "/p:Configuration=DebugNoValidation",
+        config,
         solution_path,
     };
 
